@@ -19,19 +19,19 @@ pip install -r requirements.txt
 Minimalny przykład:
 
 ```bash
-python -m glitchlab.cli.main -i input.png -o output.png --preset default
+python -m glitchlab.gui.main -i input.png -o output.png --preset default
 ```
 
 Z wybranym presetem:
 
 ```bash
-python -m glitchlab.cli.main -i input.png -o glitch.png --preset focus_text
+python -m glitchlab.gui.main -i input.png -o glitch.png --preset focus_text
 ```
 
 Z własnym configiem:
 
 ```bash
-python -m glitchlab.cli.main -i input.png -o glitch.png --config my_config.yaml
+python -m glitchlab.gui.main -i input.png -o glitch.png --config my_config.yaml
 ```
 
 ---

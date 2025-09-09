@@ -1,0 +1,6 @@
+depth_ascii:
+
+  steps:
+    - { name: depth_displace, params: { depth_map: noise_fractal, scale: 50, octaves: 4, freq: 80.0, stereo: false } }
+    - { name: posterize, params: { bits: 2 } }
+    - { name: noise, params: { amount: 15 } }

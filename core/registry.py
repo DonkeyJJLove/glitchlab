@@ -1,23 +1,46 @@
-from typing import Callable, Dict
+# glitchlab/core/registry.py
 
-_FILTERS: Dict[str, Callable] = {}
+registry = {}
 
 
-def register(name: str):
-    def deco(fn: Callable):
-        if name in _FILTERS:
-            raise ValueError(f"Filter '{name}' already registered")
-        _FILTERS[name] = fn
+def register(name):
+    """
+    Dekorator do rejestrowania filtrów w globalnym registry.
+    """
+    def decorator(fn):
+        if name in registry:
+            raise KeyError(f"Filter '{name}' already registered")
+        registry[name] = fn
         return fn
+    return decorator
 
-    return deco
 
-
-def get(name: str) -> Callable:
-    if name not in _FILTERS:
+def get(name):
+    """
+    Pobierz funkcję filtra po nazwie.
+    """
+    if name not in registry:
         raise KeyError(f"Unknown filter '{name}'")
-    return _FILTERS[name]
+    return registry[name]
 
 
 def available():
-    return sorted(_FILTERS.keys())
+    """
+    Lista dostępnych filtrów (nazwy).
+    """
+    return list(registry.keys())
+
+
+# --- Import filtrów, żeby się zarejestrowały ---
+from glitchlab.filters import (
+    rgb_offset,
+    wave_distort,
+    pixel_sort,
+    block_mosh,
+    channel_shuffle,
+    color_invert_masked,
+    posterize,
+    noise,
+    protect_edges,
+    depth_displace,   # <-- dodajemy nasz nowy filtr
+)
