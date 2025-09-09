@@ -11,9 +11,17 @@ def load_image(path: str) -> np.ndarray:
     return np.array(img).astype(np.int16)
 
 
-def save_image(arr: np.ndarray, path: str):
-    from PIL import Image
-    Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), 'RGBA').save(path)
+def save_image(arr, path):
+    arr = np.clip(arr, 0, 255).astype(np.uint8)
+
+    if arr.shape[-1] == 4:
+        mode = "RGBA"
+    elif arr.shape[-1] == 3:
+        mode = "RGB"
+    else:
+        raise ValueError(f"Unsupported channel count: {arr.shape[-1]}")
+
+    Image.fromarray(arr, mode).save(path)
 
 
 def build_ctx(arr: np.ndarray, seed: int, cfg: Dict[str, Any]) -> Ctx:

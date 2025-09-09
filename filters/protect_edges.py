@@ -1,15 +1,24 @@
 import numpy as np
 from ..core.registry import register
-from ..core.utils import Ctx
 
 @register("protect_edges")
-def protect_edges(arr: np.ndarray, ctx: Ctx, keep: float=0.93) -> np.ndarray:
-    """Blend back original image on detected edge/text areas."""
-    if "original" not in ctx.meta:
+def protect_edges(arr, ctx, keep=0.95):
+    m = ctx.masks.get("edges")
+    if m is None:
         return arr
-    orig = ctx.meta["original"]
-    mask = ctx.masks.get("edges", None)
-    if mask is None:
+
+    orig = ctx.meta.get("original")
+    if orig is None:
         return arr
-    m = mask[...,None]
-    return np.where(m==1, (keep*orig + (1-keep)*arr).astype(np.int16), arr)
+
+    # Upewnij się, że oryginał i arr mają tyle samo kanałów
+    if orig.shape[-1] == 4 and arr.shape[-1] == 3:
+        orig = orig[..., :3]  # RGBA -> RGB
+    elif orig.shape[-1] == 3 and arr.shape[-1] == 4:
+        arr = arr[..., :3]    # RGBA -> RGB
+
+    return np.where(
+        m[..., None] == 1,
+        (keep * orig + (1 - keep) * arr).astype(np.int16),
+        arr
+    )
