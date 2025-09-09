@@ -1,8 +1,3 @@
-Masz rację 👍 — podałem Ci treść, ale nie wyraźnie jako plik.
-Tutaj masz **pełny `README.md`**, gotowy do zapisania w katalogu głównym projektu `glitchlab_project/`:
-
----
-
 ````markdown
 # glitchlab — *glitch as controlled ontology*  
 
@@ -69,9 +64,3 @@ def my_filter(arr, ctx, strength=1.0):
 Po czym rejestrujesz w `filters/__init__.py`.
 
 ---
-
-## 📜 Licencja
-
-MIT
-
-```
