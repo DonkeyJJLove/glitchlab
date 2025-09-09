@@ -1,18 +1,16 @@
-````markdown
 # glitchlab — *glitch as controlled ontology*  
 
 **glitchlab** to narzędzie glitch-art, które pozwala kontrolować **lokalizację**, **intensywność** i **metodę** rozprzestrzeniania błędów w obrazach `.png` / `.jpg`.  
 Domyślnie stara się **chronić tekst i krawędzie**, a także umożliwia celowanie w symboliczne regiony za pomocą masek.  
 
----
 
 ## ⚡ Instalacja
 
-```bash
+```code
 git clone https://github.com/you/glitchlab
 cd glitchlab
 pip install -r requirements.txt
-````
+```
 
 ---
 
