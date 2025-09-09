@@ -1,3 +1,0 @@
-depth_minimal:
-  steps:
-    - { name: depth_displace, params: { depth_map: noise_fractal, scale: 56, octaves: 5, freq: 90.0, stereo: true, shading: true } }

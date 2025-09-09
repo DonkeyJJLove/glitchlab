@@ -1,8 +1,0 @@
-nazca:
-
-  steps:
-    - { name: depth_parallax, params: { scale: 60, freq: 120, octaves: 4, shading: true, stereo: true } }
-    - { name: nazca_lines, params: { density: 25, thickness: 3, angle: 45 } }
-    - { name: nazca_lines, params: { density: 35, thickness: 2, angle: -30 } }
-    - { name: channel_shuffle }
-    - { name: noise, params: { amount: 15 } }

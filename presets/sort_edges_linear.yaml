@@ -1,0 +1,14 @@
+sort_edges_linear:
+  edge_mask: { thresh: 64, dilate: 2, ksize: 3 }   # do podglądów w GUI i ewentualnych miksów
+  amplitude: { kind: linear_y, strength: 1.0 }     # większa siła na dole
+  steps:
+    - name: pixel_sort_adaptive
+      params:
+        direction: vertical         # 'vertical' | 'horizontal'
+        trigger: edges              # 'edges' | 'luma' | 'mask'
+        threshold: 0.35             # próg dla triggera
+        length_px: 120
+        length_gain: 1.20           # długość segmentu * (1 + gain*amp)
+        prob: 0.90
+        key: luma                   # 'luma' | 'r' | 'g' | 'b' | 'sat' | 'hue'
+        reverse: false

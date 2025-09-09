@@ -1,8 +1,0 @@
-depth_glitch:
-
-  steps:
-    - { name: depth_displace, params: { depth_map: noise_fractal, scale: 60, octaves: 5, freq: 90.0, stereo: true } }
-    - { name: wave_distort, params: { axis: "x", amplitude: 25, frequency: 0.05 } }
-    - { name: pixel_sort, params: { direction: "vertical", length: 200 } }
-    - { name: block_mosh, params: { size: 16, p: 0.85, max_shift: 100 } }
-    - { name: channel_shuffle }

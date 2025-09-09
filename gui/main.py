@@ -1,189 +1,88 @@
-import os
+# glitchlab/gui/main.py
+# -*- coding: utf-8 -*-
+"""
+Bootstrap GUI dla GlitchLab (Tkinter).
+Opcjonalne uruchomienie z obrazem/presetem/filtr-em:
+
+  python -m glitchlab.gui.main --image in.png
+  python -m glitchlab.gui.main --image in.png --preset spectral_ring_lab
+  python -m glitchlab.gui.main --image in.png --filter pixel_sort_adaptive --seed 11
+"""
+
+from __future__ import annotations
+import argparse
 import sys
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-from PIL import Image, ImageTk
-import numpy as np
+import traceback
 
-# WAŻNE: załaduj filtry, żeby się zarejestrowały w registry (efekt uboczny importu)
-from glitchlab import filters as _filters  # noqa: F401
+# High-DPI (Windows) – nie szkodzi na innych platformach
+try:
+    import ctypes  # type: ignore
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PER_MONITOR_AWARE
+except Exception:
+    pass
 
-from glitchlab.core.pipeline import load_image, save_image, build_ctx, apply_pipeline, load_config
-
-APP_TITLE = "GlitchLab — Preset Viewer"
-
-
-def _to_rgb_uint8(a: np.ndarray) -> np.ndarray:
-    a = np.asarray(a)
-    if a.ndim == 2:
-        a = np.stack([a, a, a], axis=-1)
-    if a.ndim == 3 and a.shape[2] == 4:  # RGBA -> RGB na białym tle
-        alpha = a[..., 3:4].astype(np.float32) / 255.0
-        rgb = a[..., :3].astype(np.float32)
-        a = (rgb * alpha + 255.0 * (1.0 - alpha)).astype(np.uint8)
-    if a.dtype != np.uint8:
-        if np.issubdtype(a.dtype, np.floating):
-            a = np.clip(a * (255.0 if a.max() <= 1.0 else 1.0), 0, 255).astype(np.uint8)
-        else:
-            a = np.clip(a, 0, 255).astype(np.uint8)
-    return np.ascontiguousarray(a)
+from glitchlab.gui.app import App, _to_rgb_uint8
+from glitchlab.core.pipeline import load_image
+from glitchlab.core.utils import normalize_image
 
 
-def read_preset_yaml(preset_name: str):
-    base = os.path.dirname(os.path.dirname(__file__))  # .../glitchlab
-    path = os.path.join(base, "presets", f"{preset_name}.yaml")
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Preset not found: {path}")
-    with open(path, "r", encoding="utf-8") as f:
-        return load_config(f.read())
+def parse_args(argv=None):
+    p = argparse.ArgumentParser(description="GlitchLab GUI")
+    p.add_argument("-i", "--image", help="Ścieżka do obrazu do wczytania na start")
+    p.add_argument("--preset", help="Nazwa presetu do natychmiastowego zastosowania")
+    p.add_argument("--filter", help="Nazwa filtra do natychmiastowego zastosowania (single)")
+    p.add_argument("--seed", type=int, default=None, help="Seed RNG")
+    return p.parse_args(argv)
 
 
-def normalize_cfg(cfg, preset_name: str):
-    """
-    Akceptuje oba formaty:
-      A) {steps: [...], edge_mask: ..., amplitude: ...}
-      B) {preset_name: {steps: [...], ...}} lub {jakas_nazwa: {...}}
-    Zwraca dict z kluczami na właściwym poziomie.
-    """
-    if not isinstance(cfg, dict):
-        raise ValueError("Zły format pliku preset: oczekiwano obiektu YAML (dict).")
-
-    # idealny przypadek – już na właściwym poziomie
-    if ("steps" in cfg) or ("edge_mask" in cfg) or ("amplitude" in cfg):
-        return cfg
-
-    # nazwana sekcja zawiera właściwy preset
-    if preset_name in cfg and isinstance(cfg[preset_name], dict):
-        return cfg[preset_name]
-
-    # plik ma pojedynczą sekcję o innej nazwie
-    if len(cfg) == 1:
-        only_val = next(iter(cfg.values()))
-        if isinstance(only_val, dict):
-            return only_val
-
-    raise ValueError(
-        f"Nie znaleziono sekcji preset (steps/edge_mask/amplitude). "
-        f"Sprawdź strukturę YAML dla '{preset_name}'."
-    )
-
-
-def list_presets():
-    base = os.path.dirname(os.path.dirname(__file__))
-    pdir = os.path.join(base, "presets")
-    return sorted(os.path.splitext(fn)[0] for fn in os.listdir(pdir) if fn.lower().endswith(".yaml"))
-
-
-def np_to_tk_img(arr: np.ndarray, max_side=880):
-    arr = _to_rgb_uint8(arr)
-    pil = Image.fromarray(arr, "RGB")
-    w, h = pil.size
-    s = max_side / max(w, h)
-    if s < 1.0:
-        pil = pil.resize((int(w * s), int(h * s)), Image.BICUBIC)
-    return ImageTk.PhotoImage(pil)
-
-
-class App(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title(APP_TITLE)
-        self.geometry("960x720")
-
-        self.arr = None
-        self.ctx = None
-        self.result = None
-
-        # top bar
-        top = tk.Frame(self)
-        top.pack(side=tk.TOP, fill=tk.X, padx=8, pady=8)
-
-        ttk.Button(top, text="Otwórz obraz…", command=self.on_open).pack(side=tk.LEFT)
-
-        ttk.Label(top, text="Preset:").pack(side=tk.LEFT, padx=(12, 4))
-        self.preset_var = tk.StringVar(self)
-        presets = list_presets() or ["default"]
-        self.preset_var.set(presets[0])
-        ttk.Combobox(top, values=presets, textvariable=self.preset_var, state="readonly", width=24).pack(side=tk.LEFT)
-
-        ttk.Label(top, text="Seed:").pack(side=tk.LEFT, padx=(12, 4))
-        self.seed_var = tk.IntVar(self, 7)
-        ttk.Entry(top, textvariable=self.seed_var, width=8).pack(side=tk.LEFT)
-
-        ttk.Button(top, text="Zastosuj preset", command=self.on_apply).pack(side=tk.LEFT, padx=(12, 0))
-        ttk.Button(top, text="Zapisz wynik…", command=self.on_save).pack(side=tk.LEFT, padx=(12, 0))
-
-        self.canvas = tk.Label(self, text="(brak obrazu)")
-        self.canvas.pack(expand=True)
-
-        self.status = tk.Label(self, text="Gotowy", anchor="w")
-        self.status.pack(side=tk.BOTTOM, fill=tk.X)
-
-    def set_status(self, txt: str):
-        self.status.config(text=txt)
-        self.status.update_idletasks()
-
-    def show_image(self, arr):
-        tkimg = np_to_tk_img(arr)
-        self.canvas.configure(image=tkimg, text="")
-        self.canvas.image = tkimg
-
-    def on_open(self):
-        path = filedialog.askopenfilename(
-            title="Wybierz obraz",
-            filetypes=[("Images", "*.png;*.jpg;*.jpeg;*.bmp;*.webp"), ("All", "*.*")]
-        )
-        if not path:
-            return
+def preload(app: App, image_path: str | None, preset: str | None, filter_name: str | None, seed: int | None):
+    # wczytaj obraz, jeśli wskazany
+    if image_path:
         try:
-            a = load_image(path)          # (H,W,C)
-            a = _to_rgb_uint8(a)          # sanityzacja
-            self.arr = a
-            self.ctx = build_ctx(self.arr, seed=int(self.seed_var.get()), cfg={})
-            self.show_image(self.arr)
-            self.set_status(f"Wczytano: {os.path.basename(path)}  |  {self.arr.shape[1]}×{self.arr.shape[0]}")
+            arr = normalize_image(load_image(image_path))
+            app.arr = arr
+            app.image_path = image_path
+            app.result = None
+            app.ctx = None
+            app.show_image(arr)
+            app.set_status(f"Loaded: {image_path}")
         except Exception as e:
-            messagebox.showerror("Błąd", str(e))
+            tb = traceback.format_exc(limit=1)
+            app.set_status("Image load error")
+            print(f"[error] cannot load image: {e}\n{tb}", file=sys.stderr)
 
-    def on_apply(self):
-        if self.arr is None:
-            messagebox.showwarning("Uwaga", "Najpierw wczytaj obraz.")
-            return
+    # ustaw seed
+    if seed is not None:
         try:
-            preset_name = self.preset_var.get()
-            raw_cfg = read_preset_yaml(preset_name)
-            cfg = normalize_cfg(raw_cfg, preset_name)
+            app.seed_var.set(int(seed))
+        except Exception:
+            pass
 
-            # zbuduj ctx z tym samym cfg (edge_mask/amplitude itd.)
-            self.ctx = build_ctx(self.arr, seed=int(self.seed_var.get()), cfg=cfg)
-
-            steps = cfg.get("steps", [])
-            if not steps:
-                raise ValueError(f"Preset '{preset_name}' nie zawiera kroków ('steps').")
-
-            self.set_status(f"Przetwarzanie… ({preset_name}), kroki: {len(steps)}")
-            out = apply_pipeline(self.arr.copy(), self.ctx, steps)
-            out = _to_rgb_uint8(out)
-            self.result = out
-            self.show_image(out)
-            self.set_status(f"OK: '{preset_name}' | kroki: {len(steps)}")
+    # automatyczne zastosowanie presetu/filtra (w tej kolejności)
+    if image_path and preset:
+        try:
+            app.preset_var.set(preset)
+            app.on_apply_preset()
         except Exception as e:
-            messagebox.showerror("Błąd", str(e))
-            self.set_status("Błąd")
+            tb = traceback.format_exc(limit=1)
+            print(f"[error] preset apply failed: {e}\n{tb}", file=sys.stderr)
+    elif image_path and filter_name:
+        try:
+            app.filter_var.set(filter_name)
+            app.on_filter_changed()   # zbuduj panel
+            app.on_apply_single()
+        except Exception as e:
+            tb = traceback.format_exc(limit=1)
+            print(f"[error] single filter apply failed: {e}\n{tb}", file=sys.stderr)
 
-    def on_save(self):
-        if self.result is None:
-            messagebox.showinfo("Info", "Brak wyniku do zapisania.")
-            return
-        out_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG", "*.png")])
-        if out_path:
-            try:
-                save_image(_to_rgb_uint8(self.result), out_path)
-                self.set_status(f"Zapisano: {os.path.basename(out_path)}")
-            except Exception as e:
-                messagebox.showerror("Błąd", str(e))
+
+def main():
+    args = parse_args()
+    app = App()
+    # pre-load po zbudowaniu UI (panel-holder istnieje)
+    preload(app, args.image, args.preset, args.filter, args.seed)
+    app.mainloop()
 
 
 if __name__ == "__main__":
-    print(APP_TITLE, "| Python", sys.version)
-    App().mainloop()
+    main()
