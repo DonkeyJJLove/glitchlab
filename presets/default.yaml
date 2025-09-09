@@ -1,0 +1,15 @@
+edge_mask:
+  thresh: 70
+  dilate: 3
+amplitude:
+  kind: linear_x   # stronger glitches towards the right
+  strength: 1.0
+
+steps:
+  - { name: rgb_offset, params: { r: [1,0], g: [-1,0], b: [2,0] } }
+  - { name: scanlines, params: { period: 2, strength: 0.16 } }
+  - { name: stripes, params: { bands: 10, max_h: 32, max_dx: 60 } }
+  - { name: block_mosh, params: { size: 28, p: 0.30, max_shift: 10 } }
+  - { name: posterize, params: { bits: 5 } }
+  - { name: noise, params: { amount: 8 } }
+  - { name: protect_edges, params: { keep: 0.94 } }

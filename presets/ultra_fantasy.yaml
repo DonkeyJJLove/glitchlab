@@ -1,0 +1,19 @@
+ultra_fantasy:
+
+edge_mask:
+  thresh: 60
+  dilate: 6
+amplitude:
+  kind: linear_x
+  strength: 3.0
+
+steps:
+  - { name: rgb_offset, params: { r: [12,0], g: [-10,0], b: [20,0] } }
+  - { name: wave_distort, params: { axis: "x", amplitude: 40, frequency: 0.08 } }
+  - { name: channel_shuffle }
+  - { name: pixel_sort, params: { direction: "vertical", length: 300 } }
+  - { name: block_mosh, params: { size: 12, p: 0.9, max_shift: 90 } }
+  - { name: color_invert_masked, params: { mask_key: star } }
+  - { name: posterize, params: { bits: 3 } }
+  - { name: noise, params: { amount: 25 } }
+  - { name: protect_edges, params: { keep: 0.65 } }
