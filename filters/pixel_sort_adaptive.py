@@ -52,16 +52,7 @@ def _rgb_to_hsv(a):
     v = cmax
     return h, s, v
 
-@register("pixel_sort_adaptive", schema={
-    "direction": {"enum": ["vertical", "horizontal"]},
-    "trigger": {"enum": ["edges", "luma", "mask"]},
-    "threshold": {"type": "float", "min": 0.0, "max": 1.0, "step": 0.01},
-    "length_px": {"type": "int", "min": 1, "max": 2048, "step": 1},
-    "length_gain": {"type": "float", "min": 0.0, "max": 4.0, "step": 0.05},
-    "prob": {"type": "float", "min": 0.0, "max": 1.0, "step": 0.01},
-    "key": {"enum": ["luma", "r", "g", "b", "sat", "hue"]},
-    "reverse": {"type": "bool"},
-})
+@register("pixel_sort_adaptive")
 def pixel_sort_adaptive(
     img, ctx,
     direction: str = "vertical",

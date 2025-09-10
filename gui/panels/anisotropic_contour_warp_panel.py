@@ -5,6 +5,7 @@ import tkinter as tk
 from glitchlab.gui.panel_base import FilterPanel, register_panel, coerce_value
 from glitchlab.gui.controls import labeled_entry, labeled_checkbox, labeled_combo, section, BG
 
+
 class AnisotropicContourWarpPanel(FilterPanel):
     FILTER_NAME = "anisotropic_contour_warp"
 
@@ -26,7 +27,7 @@ class AnisotropicContourWarpPanel(FilterPanel):
         labeled_entry(sec, "amp_px", self.amp_px, on_change=self._changed)
         labeled_entry(sec, "cycles", self.cycles, on_change=self._changed)
         labeled_entry(sec, "phase_deg", self.phase_deg, on_change=self._changed)
-        labeled_combo(sec, "border", self.border, ["wrap","clamp"], on_change=self._changed)
+        labeled_combo(sec, "border", self.border, ["wrap", "clamp"], on_change=self._changed)
 
         sec2 = section(root, "Amplituda i maska")
         sec2.pack(fill="x", padx=2, pady=2)
@@ -52,5 +53,6 @@ class AnisotropicContourWarpPanel(FilterPanel):
             "amp_gamma": coerce_value(self.amp_gamma.get(), "float", 0.5, 3.0),
             "mask_key": mk if mk else None,
         }
+
 
 register_panel(AnisotropicContourWarpPanel)

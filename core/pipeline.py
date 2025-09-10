@@ -1,191 +1,186 @@
 # glitchlab/core/pipeline.py
 # -*- coding: utf-8 -*-
 """
-Silnik przetwarzania glitchlab:
-- load_image / save_image  → I/O z normalizacją do RGB uint8
-- load_config(yaml_text)   → parser YAML
-- normalize_preset(cfg)    → akceptuje format A (root) i B (sekcja nazwana)
-- build_ctx(arr, seed, cfg)→ tworzy Ctx, maskę krawędzi i pole amplitudy
-- apply_pipeline(arr, ctx, steps, ...) → odpala sekwencję filtrów z rejestrem
-
-Kontrakt filtra:  fn(img, ctx, **params) → (H,W,3) uint8
+Funkcje pipeline:
+- load_image / save_image
+- load_config (YAML)
+- build_ctx: konstruuje Ctx (maski krawędzi + amplitude wg cfg)
+- apply_pipeline: odpala kolejne filtry z warstwą zgodności parametrów
 """
 
 from __future__ import annotations
 
-import io
-import time
-import traceback
-from typing import Any, Dict, List, Optional, Tuple
+import os
+from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
 from PIL import Image
 import yaml
+import inspect
 
-from .utils import (
-    Ctx,
-    normalize_image,
-    build_edge_mask,
-    make_amplitude,
-)
-from .registry import get as _get_filter
+from .utils import Ctx, normalize_image, build_edge_mask, make_amplitude
+from . import registry as reg
 
-
-# =============================================================================
-# I/O obrazów
-# =============================================================================
+# -----------------------------------------------------------------------------
+# IO
+# -----------------------------------------------------------------------------
 
 def load_image(path: str) -> np.ndarray:
-    """
-    Wczytuje obraz i zwraca (H,W,3) uint8 (RGB). Obsługuje PNG/JPG/BMP/WEBP itd.
-    """
-    with Image.open(path) as im:
-        im = im.convert("RGB")
-        arr = np.asarray(im, dtype=np.uint8)
-    return normalize_image(arr)
-
+    """Wczytaj obraz; zwróć np.ndarray (kanały jak w pliku, dtype uint8)."""
+    im = Image.open(path)
+    # nie wymuszamy konwersji – normalize_image zrobi resztę, gdy trzeba
+    return np.asarray(im)
 
 def save_image(arr: np.ndarray, path: str) -> None:
-    """
-    Zapisuje obraz (automatycznie normalizuje do (H,W,3) uint8).
-    """
-    arr = normalize_image(arr)
-    im = Image.fromarray(arr, mode="RGB")
-    im.save(path)
-
-
-# =============================================================================
-# YAML / PRESETY
-# =============================================================================
+    """Zapisz obraz (auto-normalizacja do RGB uint8)."""
+    a = normalize_image(arr)
+    Image.fromarray(a, "RGB").save(path)
 
 def load_config(yaml_text: str) -> Dict[str, Any]:
-    """
-    Parsuje YAML do dict. Nie narzuca formatu A/B – to robi normalize_preset().
-    """
-    data = yaml.safe_load(io.StringIO(yaml_text))
-    if data is None:
-        data = {}
+    """Wczytaj słownik konfiguracyjny z YAML (string)."""
+    data = yaml.safe_load(yaml_text) or {}
     if not isinstance(data, dict):
-        raise ValueError("Config YAML must parse to a mapping (dict).")
+        raise ValueError("YAML must decode to a dict")
     return data
 
+# -----------------------------------------------------------------------------
+# Warstwa zgodności starych presetów / parametrów
+# -----------------------------------------------------------------------------
 
-def normalize_preset(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Przyjmuje dowolny z dwóch formatów presetów i zwraca znormalizowany dict,
-    który posiada klucze root-level (np. 'steps', 'edge_mask', 'amplitude').
-      A) { steps: [...] , edge_mask: {...}, amplitude: {...} }
-      B) { some_name: { steps: [...], ... } }  → zwróci inner dict
-    """
-    if "steps" in cfg or "edge_mask" in cfg or "amplitude" in cfg:
-        return cfg
-    if len(cfg) == 1 and isinstance(next(iter(cfg.values())), dict):
-        return next(iter(cfg.values()))
-    # nie znając struktury – zwracamy pustą konfigurację kroków
-    return {"steps": []}
+# Stare → nowe nazwy parametrów (per-filter)
+_COMPAT_PARAM_MAP: Dict[str, Dict[str, str]] = {
+    "anisotropic_contour_warp": {
+        "amp_px": "use_amp",
+        "amp": "use_amp",
+        "amplitude": "use_amp",
+    },
+    "pixel_sort_adaptive": {
+        "length": "length_px",
+        "threshold_pct": "threshold",
+    },
+    "spectral_shaper": {
+        "low_cut": "low",
+        "high_cut": "high",
+        "angle": "angle_deg",
+        "width": "ang_width",
+    },
+    "block_mosh_grid": {
+        "size_px": "size",
+        "prob": "p",
+        "posterize": "posterize_bits",
+        "jitter": "channel_jitter",
+    },
+    "phase_glitch": {
+        "strength_pct": "strength",
+    },
+}
 
+# Globalne aliasy nazw parametrów (jeśli filtr akurat taki przyjmuje)
+_GLOBAL_PARAM_ALIASES: Dict[str, str] = {
+    "mask": "mask_key",
+}
 
-# =============================================================================
-# Budowa kontekstu
-# =============================================================================
+def _massage_params(filter_name: str, fn, params: Dict[str, Any],
+                    debug_log: Optional[List[str]] = None) -> Dict[str, Any]:
+    """
+    Mapuje stare nazwy parametrów i wycina nieznane pola zgodnie z sygnaturą filtra.
+    """
+    params = dict(params or {})
+    fmap = _COMPAT_PARAM_MAP.get(filter_name, {})
+    for old, new in list(fmap.items()):
+        if old in params and new not in params:
+            params[new] = params.pop(old)
 
-def build_ctx(arr: np.ndarray, seed: int = 7, cfg: Optional[Dict[str, Any]] = None) -> Ctx:
+    for old, new in list(_GLOBAL_PARAM_ALIASES.items()):
+        if old in params and new not in params:
+            params[new] = params.pop(old)
+
+    sig = inspect.signature(fn)
+    allowed = {p.name for p in list(sig.parameters.values())[2:]}  # pomiń img, ctx
+    cleaned: Dict[str, Any] = {}
+    dropped: List[str] = []
+    for k, v in params.items():
+        if k in allowed:
+            cleaned[k] = v
+        else:
+            dropped.append(k)
+
+    if dropped and debug_log is not None:
+        debug_log.append(f"[{filter_name}] dropped params: {', '.join(dropped)}")
+
+    return cleaned
+
+# -----------------------------------------------------------------------------
+# Ctx
+# -----------------------------------------------------------------------------
+
+def build_ctx(img: np.ndarray,
+              seed: int = 7,
+              cfg: Optional[Dict[str, Any]] = None) -> Ctx:
     """
-    Tworzy Ctx na podstawie obrazu i (opcjonalnie) sekcji 'edge_mask'/'amplitude'.
+    Buduje kontekst przetwarzania:
+      - ctx.masks['edge'] – z cfg['edge_mask'] (thresh, dilate, ksize)
+      - ctx.amplitude     – z cfg['amplitude'] (kind, strength, itd.)
     """
-    arr = normalize_image(arr)
-    H, W = arr.shape[:2]
+    cfg = dict(cfg or {})
+    a = normalize_image(img)
+    H, W = a.shape[:2]
+
     ctx = Ctx(seed=int(seed))
     ctx.reseed(seed)
-    ctx.meta["original"] = arr.copy()  # przydatne np. dla protect_edges
 
-    cfg = cfg or {}
-    cfg = normalize_preset(cfg)
-
-    # Edge mask (opcjonalnie)
-    edge_cfg = cfg.get("edge_mask")
-    if isinstance(edge_cfg, dict):
-        thresh = float(edge_cfg.get("thresh", 60))
+    # Edge mask
+    edge_cfg = cfg.get("edge_mask") or {}
+    try:
+        thresh = int(edge_cfg.get("thresh", 60))
         dilate = int(edge_cfg.get("dilate", 0))
-        ksize = int(edge_cfg.get("ksize", 3))
-        ctx.masks["edge"] = build_edge_mask(arr, thresh=thresh, dilate=dilate, ksize=ksize).astype(np.float32)
+        ksize  = int(edge_cfg.get("ksize", 3))
+        ctx.masks["edge"] = build_edge_mask(a, thresh=thresh, dilate=dilate, ksize=ksize)
+    except Exception:
+        # maska krawędzi nie jest obowiązkowa
+        pass
 
-    # Amplitude field (opcjonalnie)
-    amp_cfg = cfg.get("amplitude")
-    if isinstance(amp_cfg, dict):
+    # Amplitude
+    amp_cfg = cfg.get("amplitude") or {}
+    try:
         kind = str(amp_cfg.get("kind", "none"))
         strength = float(amp_cfg.get("strength", 1.0))
-        # przekazujemy resztę parametrów (np. scale, octaves, mask_key...)
-        params = {k: v for k, v in amp_cfg.items() if k not in ("kind", "strength")}
-        ctx.amplitude = make_amplitude((H, W), kind=kind, strength=strength, ctx=ctx, **params)
+        amp = make_amplitude((H, W), kind=kind, strength=strength, ctx=ctx, **{k:v for k,v in amp_cfg.items() if k not in ("kind","strength")})
+        ctx.amplitude = amp
+    except Exception:
+        ctx.amplitude = None
 
     return ctx
 
+# -----------------------------------------------------------------------------
+# Pipeline
+# -----------------------------------------------------------------------------
 
-# =============================================================================
-# Główny silnik kroków
-# =============================================================================
-
-def apply_pipeline(arr: np.ndarray,
+def apply_pipeline(img: np.ndarray,
                    ctx: Ctx,
-                   steps: List[Dict[str, Any]],
-                   fail_fast: bool = True,
-                   debug_log: Optional[List[str]] = None) -> np.ndarray:
+                   steps: List[Dict[str, Any]]) -> np.ndarray:
     """
-    Odpala filtry zdefiniowane w `steps` (lista dictów: {'name': ..., 'params': {...}}).
-
-    - fail_fast=True  → w razie błędu przerywa (RuntimeError z kontekstem: krok/nazwa/params)
-      fail_fast=False → pomija niesprawny krok (loguje do debug_log) i idzie dalej
-    - debug_log: lista stringów; jeżeli podana – wpisujemy tam zdarzenia kroków i czasy.
-
-    Zwraca (H,W,3) uint8.
+    Odpala kolejne filtry z rejestru. Każdy krok: {"name": ..., "params": {...}}.
+    Zastosowana jest warstwa zgodności nazw parametrów.
     """
-    out = normalize_image(arr)
-    steps = steps or []
-
-    for idx, spec in enumerate(steps):
-        t0 = time.time()
-        if not isinstance(spec, dict):
-            raise RuntimeError(f"Step {idx}: step spec must be a mapping, got {type(spec).__name__}")
-
-        name = spec.get("name")
-        params = spec.get("params", {}) or {}
-        if not isinstance(name, str) or not name:
-            raise RuntimeError(f"Step {idx}: missing 'name'")
-        if not isinstance(params, dict):
-            raise RuntimeError(f"Step {idx}: 'params' must be a mapping (dict)")
-
-        # filtry mogą honorować 'enabled: false'
-        enabled = spec.get("enabled", True)
-        if not enabled:
-            if debug_log is not None:
-                debug_log.append(f"[skip] {idx}:{name}")
+    out = normalize_image(img)
+    for i, step in enumerate(steps or []):
+        name = step.get("name")
+        params = step.get("params", {}) or {}
+        if not name:
             continue
 
+        fn = reg.get(name)
+        safe_params = _massage_params(name, fn, params, debug_log=None)
+        out = fn(out, ctx, **safe_params)
+        # Staramy się utrzymać bufor w „zdrowym” formacie
         try:
-            fn = _get_filter(name)
-        except KeyError as e:
-            msg = f"Step {idx} '{name}': {e}"
-            if fail_fast:
-                raise RuntimeError(msg) from e
-            if debug_log is not None:
-                debug_log.append("[unknown] " + msg)
-            continue
-
-        try:
-            out = fn(out, ctx, **params)
             out = normalize_image(out)
-        except Exception as e:
-            tb = traceback.format_exc(limit=1)
-            msg = f"Step {idx} '{name}' failed: {e} | params={params} | at={tb.strip()}"
-            if fail_fast:
-                raise RuntimeError(msg) from e
-            if debug_log is not None:
-                debug_log.append("[error] " + msg)
-            # w trybie nie-fail-fast: pomijamy, zachowując poprzedni 'out'
+        except Exception:
+            # jeżeli filtr celowo zwraca floaty 0..1, to tylko przytnijmy
+            arr = np.asarray(out)
+            if arr.dtype != np.uint8:
+                arr = np.clip(arr, 0, 255).astype(np.uint8)
+            out = arr
 
-        dt = (time.time() - t0) * 1000.0
-        if debug_log is not None:
-            debug_log.append(f"[ok] {idx}:{name}  {dt:.1f} ms")
-
-    return normalize_image(out)
+    return out

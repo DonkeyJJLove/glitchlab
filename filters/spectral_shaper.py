@@ -87,16 +87,7 @@ def _build_mask(mode, rn, phi, low, high, angle_deg, ang_width, soft):
 
     return M.astype(np.float32)
 
-@register("spectral_shaper", schema={
-    "mode": {"enum": ["bandpass", "bandstop", "ring", "direction"]},
-    "low": {"type": "float", "min": 0.0, "max": 1.2, "step": 0.01},
-    "high": {"type": "float", "min": 0.0, "max": 1.2, "step": 0.01},
-    "angle_deg": {"type": "float", "min": 0.0, "max": 180.0, "step": 1.0},
-    "ang_width": {"type": "float", "min": 1.0, "max": 180.0, "step": 1.0},
-    "boost": {"type": "float", "min": -1.0, "max": 5.0, "step": 0.05},
-    "soft": {"type": "float", "min": 0.0, "max": 1.0, "step": 0.05},
-    "blend": {"type": "float", "min": 0.0, "max": 1.0, "step": 0.05},
-})
+@register("spectral_shaper")
 def spectral_shaper(
     img, ctx,
     mode: str = "ring",

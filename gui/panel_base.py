@@ -70,6 +70,7 @@ class FilterPanel:
 # ———————————————————————————————————————————————————————————————
 _PANELS: Dict[str, type[FilterPanel]] = {}
 
+
 def register_panel(panel_cls: type[FilterPanel]) -> None:
     name = getattr(panel_cls, "FILTER_NAME", "")
     if not name:
@@ -77,6 +78,7 @@ def register_panel(panel_cls: type[FilterPanel]) -> None:
     if name in _PANELS:
         raise KeyError(f"Panel '{name}' already registered")
     _PANELS[name] = panel_cls
+
 
 def get_panel_class(filter_name: str) -> Optional[type[FilterPanel]]:
     return _PANELS.get(filter_name)
@@ -90,6 +92,7 @@ def coerce_value(val: Any, ty: str | None = None, vmin: Any = None, vmax: Any = 
     Koercja prostych typów wg schema: 'int' | 'float' | 'bool' | 'str'.
     Jeśli ty=None → heurystyka: spróbuj int→float→bool→str.
     """
+
     def _clamp_num(x):
         if vmin is not None:
             x = max(x, vmin)

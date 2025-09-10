@@ -10,13 +10,15 @@ FUNKCJE:
 - Amplitude & Edge Mask z GUI (działa zarówno dla presetów jak i single)
 - Ładowanie masek symbolicznych (bitmapa → ctx.masks[key])
 - Podglądy diagnostyczne: ctx.cache[*], amplitude, maska, logi
+- Analiza format-aware (entropy, edge density, JPEG blockiness, PNG alpha)
+- AST pipeline’u (drzewo) + tryb mozaiki (tile masks → mask_key)
 """
 
 from __future__ import annotations
 
 import os
 import traceback
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Tuple
 
 import numpy as np
 import tkinter as tk
@@ -25,10 +27,41 @@ from PIL import Image, ImageTk
 
 from glitchlab.core import registry as reg
 from glitchlab.core.pipeline import (
-    load_image, save_image, load_config, build_ctx, apply_pipeline, normalize_preset,
+    load_image, save_image, load_config, build_ctx, apply_pipeline,
 )
 from glitchlab.core.utils import normalize_image
 from glitchlab.core.symbols import load_mask_image, register_mask
+
+# metryki analizy
+try:
+    from glitchlab.analysis.metrics import compute_entropy, edge_density
+except Exception:
+    # fallback, gdy moduł jeszcze nie podpięty
+    def compute_entropy(a: np.ndarray) -> float:
+        g = a
+        if g.ndim == 3:
+            g = 0.299 * g[..., 0] + 0.587 * g[..., 1] + 0.114 * g[..., 2]
+        g = g.astype(np.float64)
+        if g.max() > 1.0:
+            g = g / 255.0
+        hist, _ = np.histogram(g, bins=256, range=(0, 1), density=True)
+        p = hist + 1e-12
+        import numpy as _np
+        return float(-_np.sum(p * _np.log2(p)))
+
+    def edge_density(a: np.ndarray) -> float:
+        if a.ndim == 3:
+            g = 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]
+        else:
+            g = a
+        g = g.astype(np.float64)
+        if g.max() > 1.0:
+            g = g / 255.0
+        gx = np.abs(np.diff(g, axis=1))
+        gy = np.abs(np.diff(g, axis=0))
+        gx = np.pad(gx, ((0, 0), (0, 1)), constant_values=0)
+        gy = np.pad(gy, ((0, 1), (0, 0)), constant_values=0)
+        return float(np.mean((gx + gy) / 2.0))
 
 from glitchlab.gui.panel_loader import get_panel_for_filter
 from glitchlab.gui.panel_base import PanelContext
@@ -93,6 +126,31 @@ def _gray_vis(f: np.ndarray) -> np.ndarray:
     return (f * 255.0).astype(np.uint8)
 
 
+# -------------------------- Analiza format-aware --------------------------
+
+def _estimate_jpeg_blockiness(arr: np.ndarray) -> float:
+    """Prosta miara „kratki JPEG”: kontrast na liniach 8 px – tło."""
+    g = arr
+    if g.ndim == 3:
+        g = 0.299 * g[..., 0] + 0.587 * g[..., 1] + 0.114 * g[..., 2]
+    g = g.astype(np.float64)
+    if g.max() > 1.0:
+        g = g / 255.0
+    H, W = g.shape
+    vgrid = np.abs(g[:, 8::8] - g[:, 7:-1:8]).mean() if W > 8 else 0.0
+    hgrid = np.abs(g[8::8, :] - g[7:-1:8, :]).mean() if H > 8 else 0.0
+    vbg = np.abs(g[:, 9::8] - g[:, 8:-1:8]).mean() if W > 9 else 0.0
+    hbg = np.abs(g[9::8, :] - g[8:-1:8, :]).mean() if H > 9 else 0.0
+    return float(max(0.0, (vgrid + hgrid) - (vbg + hbg)))
+
+
+def _alpha_coverage(pil_img: Image.Image) -> Optional[float]:
+    if "A" not in pil_img.getbands():
+        return None
+    a = np.asarray(pil_img.getchannel("A"), dtype=np.uint8)
+    return float((a > 0).mean())
+
+
 # -------------------------- Listy presetów/filtrów --------------------------
 
 def _presets_dir() -> str:
@@ -105,6 +163,34 @@ def list_presets() -> List[str]:
     if not os.path.isdir(pdir):
         return []
     return sorted(os.path.splitext(fn)[0] for fn in os.listdir(pdir) if fn.lower().endswith(".yaml"))
+
+
+def normalize_preset(cfg, preset_name: str | None = None):
+    """
+    Akceptuje oba formaty:
+      A) root ma 'steps' / 'edge_mask' / 'amplitude'
+      B) pojedyncza nazwana sekcja (np. {my_preset: {steps: ...}})
+    Zwraca samą sekcję z krokami/parametrami.
+    """
+    if not isinstance(cfg, dict):
+        raise ValueError("Preset YAML must be a dict.")
+
+    # Format A (już w root)
+    if ("steps" in cfg) or ("edge_mask" in cfg) or ("amplitude" in cfg):
+        return cfg
+
+    # Format B (sekcja o nazwie presetu)
+    if preset_name and preset_name in cfg and isinstance(cfg[preset_name], dict):
+        return cfg[preset_name]
+
+    # Format B (jedyna sekcja bez znajomości nazwy)
+    if len(cfg) == 1:
+        only = next(iter(cfg.values()))
+        if isinstance(only, dict):
+            return only
+
+    raise ValueError("Could not find steps/edge_mask/amplitude in preset YAML.")
+
 
 
 def list_filter_names_canonical() -> List[str]:
@@ -140,6 +226,9 @@ class App(tk.Tk):
         self.image_path: str | None = None
         self.seed: int = 7
 
+        # info o pliku (format-aware metryki)
+        self.file_info: Dict[str, Any] = {}
+
         # maski użytkownika (utrzymujemy między wywołaniami)
         self.user_masks: Dict[str, np.ndarray] = {}
 
@@ -152,6 +241,9 @@ class App(tk.Tk):
 
         # log z apply_pipeline
         self.debug_log: List[str] = []
+
+        # AST Tree
+        self.tree_ast: Optional[ttk.Treeview] = None
 
         self._build_layout()
         self._populate_initial_lists()
@@ -169,7 +261,7 @@ class App(tk.Tk):
     # -------------------------- Layout --------------------------
 
     def _build_layout(self):
-        # top bar
+        # top bar (stały — przyciski nie znikają przy zmianie panelu)
         top = tk.Frame(self, bg=BG)
         top.pack(side=tk.TOP, fill="x", padx=8, pady=6)
 
@@ -218,7 +310,7 @@ class App(tk.Tk):
         self.panel_holder.pack(fill="x", padx=8, pady=6)
         self.active_panel = None
 
-        self.aux_holder = tk.LabelFrame(right, text="Amplitude & Edge", bg=PANEL_BG, fg=FG)
+        self.aux_holder = tk.LabelFrame(right, text="Amplitude / Edge / Mosaic", bg=PANEL_BG, fg=FG)
         self.aux_holder.pack(fill="x", padx=8, pady=6)
         self._build_aux_controls(self.aux_holder)
 
@@ -227,15 +319,15 @@ class App(tk.Tk):
         ttk.Button(btns, text="Reload panels", command=self.on_reload_panels).pack(side=tk.LEFT)
         ttk.Button(btns, text="Reset params",  command=self.on_reset_params).pack(side=tk.LEFT, padx=(6, 0))
 
-        # bottom diagnostics
-        bottom_h = 300
+        # bottom diagnostics (3 kolumny: Masks/Amp, Diagnostics, Logs+AST)
+        bottom_h = 320
         self.bottom = tk.Frame(self, bg=BG, height=bottom_h)
         self.bottom.pack(side=tk.BOTTOM, fill="x", padx=8, pady=(0, 8))
         self.bottom.pack_propagate(False)
 
         self.bot_left  = tk.LabelFrame(self.bottom, text="Masks & Amplitude",  bg=PANEL_BG, fg=FG)
         self.bot_mid   = tk.LabelFrame(self.bottom, text="Filter Diagnostics", bg=PANEL_BG, fg=FG)
-        self.bot_right = tk.LabelFrame(self.bottom, text="Logs",               bg=PANEL_BG, fg=FG)
+        self.bot_right = tk.LabelFrame(self.bottom, text="Inspect",            bg=PANEL_BG, fg=FG)
 
         for lf, pad in ((self.bot_left,(0,4)), (self.bot_mid,(4,4)), (self.bot_right,(4,0))):
             lf.pack(side=tk.LEFT, fill="both", expand=True, padx=pad)
@@ -251,12 +343,20 @@ class App(tk.Tk):
         self.lbl_diag1.pack(fill="both", expand=True, padx=6, pady=6)
         self.lbl_diag2.pack(fill="both", expand=True, padx=6, pady=6)
 
-        self.log_text = tk.Text(self.bot_right, bg="#0f1114", fg=FG, wrap="word")
+        # zakładki: Logs / AST
+        self.nb = ttk.Notebook(self.bot_right)
+        self.nb.pack(fill="both", expand=True, padx=6, pady=6)
+
+        self.tab_logs = tk.Frame(self.nb, bg=PANEL_BG)
+        self.tab_ast  = tk.Frame(self.nb, bg=PANEL_BG)
+        self.nb.add(self.tab_logs, text="Logs")
+        self.nb.add(self.tab_ast,  text="AST")
+
+        self.log_text = tk.Text(self.tab_logs, bg="#0f1114", fg=FG, wrap="word")
         self.log_text.pack(fill="both", expand=True, padx=6, pady=6)
 
-        # aktualizacja przy zmianie rozmiaru dolnych ramek
-        for w in (self.bottom, self.bot_left, self.bot_mid):
-            w.bind("<Configure>", lambda e: self.after_idle(self._update_bottom_previews))
+        self.tree_ast = ttk.Treeview(self.tab_ast, columns=("value",), show="tree")
+        self.tree_ast.pack(fill="both", expand=True, padx=6, pady=6)
 
         # zdarzenia comboboxów
         self.filter_box.bind("<<ComboboxSelected>>", lambda e: self._cmd_filter_changed())
@@ -270,7 +370,7 @@ class App(tk.Tk):
     def _build_aux_controls(self, parent: tk.Widget):
         # Amplitude
         tk.Label(parent, text="Amplitude", bg=PANEL_BG, fg=ACCENT,
-                 font=("TkDefaultFont", 9, "bold")).grid(row=0, column=0, sticky="w", padx=6, pady=(6, 2), columnspan=4)
+                 font=("TkDefaultFont", 9, "bold")).grid(row=0, column=0, sticky="w", padx=6, pady=(6, 2), columnspan=6)
 
         tk.Label(parent, text="kind", bg=PANEL_BG, fg=FG).grid(row=1, column=0, sticky="w", padx=6)
         self.amp_kind = tk.StringVar(self, value="none")
@@ -297,7 +397,7 @@ class App(tk.Tk):
 
         # Edge
         tk.Label(parent, text="Edge Mask", bg=PANEL_BG, fg=ACCENT,
-                 font=("TkDefaultFont", 9, "bold")).grid(row=4, column=0, sticky="w", padx=6, pady=(8, 2), columnspan=4)
+                 font=("TkDefaultFont", 9, "bold")).grid(row=4, column=0, sticky="w", padx=6, pady=(8, 2), columnspan=6)
 
         tk.Label(parent, text="thresh", bg=PANEL_BG, fg=FG).grid(row=5, column=0, sticky="w", padx=6)
         self.edge_thresh = tk.IntVar(self, value=60)
@@ -310,6 +410,16 @@ class App(tk.Tk):
         tk.Label(parent, text="ksize", bg=PANEL_BG, fg=FG).grid(row=6, column=0, sticky="w", padx=6)
         self.edge_ksize = tk.IntVar(self, value=3)
         ttk.Entry(parent, textvariable=self.edge_ksize, width=6).grid(row=6, column=1, sticky="w")
+
+        # Mosaic
+        tk.Label(parent, text="Mosaic (tile mask → auto mask_key)", bg=PANEL_BG, fg=ACCENT,
+                 font=("TkDefaultFont", 9, "bold")).grid(row=7, column=0, sticky="w", padx=6, pady=(8, 2), columnspan=6)
+        self.mosaic_enable = tk.BooleanVar(self, False)
+        ttk.Checkbutton(parent, text="Enable", variable=self.mosaic_enable).grid(row=8, column=0, sticky="w", padx=6)
+        tk.Label(parent, text="Tiles X", bg=PANEL_BG, fg=FG).grid(row=8, column=1, sticky="w", padx=6)
+        self.mosaic_tx = tk.IntVar(self, 2); ttk.Entry(parent, textvariable=self.mosaic_tx, width=6).grid(row=8, column=2, sticky="w")
+        tk.Label(parent, text="Tiles Y", bg=PANEL_BG, fg=FG).grid(row=8, column=3, sticky="w", padx=6)
+        self.mosaic_ty = tk.IntVar(self, 2); ttk.Entry(parent, textvariable=self.mosaic_ty, width=6).grid(row=8, column=4, sticky="w")
 
     def _populate_initial_lists(self):
         self.preset_box.configure(values=list_presets())
@@ -332,6 +442,13 @@ class App(tk.Tk):
         self._tkimage_main = _np_to_tk(arr, max_side=1200)
         self.canvas_label.configure(image=self._tkimage_main, text="")
         self.canvas_label.image = self._tkimage_main
+        # analityka do logów (format-aware)
+        self._update_metrics_log(arr)
+
+    def _append_log(self, line: str):
+        self.debug_log.append(line)
+        self.log_text.delete("1.0", "end")
+        self.log_text.insert("1.0", "\n".join(self.debug_log))
 
     def _panel_context(self) -> PanelContext:
         # łączymy maski kontekstu z maskami użytkownika (priorytet user)
@@ -403,18 +520,15 @@ class App(tk.Tk):
         """
         candidates = []
 
-        # 1) ctx.masks
         if self.ctx is not None and getattr(self.ctx, "masks", None):
             for k, v in self.ctx.masks.items():
                 candidates.append((k, v))
 
-        # 2) user_masks (jeśli nie ma w ctx)
         if getattr(self, "user_masks", None):
             for k, v in self.user_masks.items():
                 if not any(k == kk for kk, _ in candidates):
                     candidates.append((k, v))
 
-        # preferencja: maska z amplitude
         try:
             if self.amp_kind.get() == "mask":
                 mk = (self.amp_mask_key.get() or "").strip()
@@ -425,12 +539,10 @@ class App(tk.Tk):
         except Exception:
             pass
 
-        # edge
         for k, v in candidates:
             if k == "edge":
                 return v, "mask:edge"
 
-        # cokolwiek
         if candidates:
             k, v = candidates[0]
             return v, f"mask:{k}"
@@ -452,7 +564,7 @@ class App(tk.Tk):
         except Exception:
             self.lbl_amp.configure(image="", text="(amplitude)")
 
-        # mask preview (edge / selected / first available)
+        # mask preview
         try:
             m, label = self._get_preview_mask()
             if m is not None:
@@ -500,10 +612,50 @@ class App(tk.Tk):
         except Exception:
             pass
 
-        # logi
+        # logi odśwież
         self.log_text.delete("1.0", "end")
         if self.debug_log:
             self.log_text.insert("1.0", "\n".join(self.debug_log))
+
+    # -------------------------- Analiza / AST --------------------------
+
+    def _update_metrics_log(self, arr: np.ndarray):
+        try:
+            ent = compute_entropy(arr)
+            edg = edge_density(arr)
+            lines = [
+                f"[Metrics] Entropy: {ent:.4f}",
+                f"[Metrics] Edge density: {edg:.4f}",
+            ]
+            # format aware
+            if self.file_info:
+                fmt = self.file_info.get("format")
+                mode = self.file_info.get("mode")
+                size = self.file_info.get("size")
+                if fmt:
+                    lines.append(f"[File] {fmt} ({mode}) {size[0]}×{size[1]}")
+                if fmt == "JPEG":
+                    blk = _estimate_jpeg_blockiness(arr)
+                    lines.append(f"[JPEG] blockiness: {blk:.6f}")
+                if fmt == "PNG" and self.file_info.get("alpha_coverage") is not None:
+                    ac = self.file_info["alpha_coverage"]
+                    lines.append(f"[PNG] alpha coverage: {ac*100:.2f}%")
+            self._append_log("\n".join(lines))
+        except Exception:
+            pass
+
+    def _update_ast_view(self, steps: List[Dict[str, Any]]):
+        try:
+            self.tree_ast.delete(*self.tree_ast.get_children())
+        except Exception:
+            return
+        root = self.tree_ast.insert("", "end", text="pipeline", open=True)
+        for i, step in enumerate(steps):
+            nm = step.get("name", f"step_{i}")
+            node = self.tree_ast.insert(root, "end", text=f"{i}: {nm}", open=False)
+            prm = step.get("params", {})
+            for k, v in prm.items():
+                self.tree_ast.insert(node, "end", text=f"{k} = {v}")
 
     # -------------------------- Zdarzenia / Komendy --------------------------
 
@@ -534,6 +686,7 @@ class App(tk.Tk):
             "dilate": int(self.edge_dilate.get() or 0),
             "ksize": int(self.edge_ksize.get() or 3),
         }
+        # mozaika tylko dla single (sterujemy poza cfg)
         return {"amplitude": amp, "edge_mask": edge}
 
     def _cmd_open(self):
@@ -544,13 +697,23 @@ class App(tk.Tk):
         if not path:
             return
         try:
+            # format-aware info z PIL
+            pil = Image.open(path)
+            fmt = pil.format or "UNKNOWN"
+            mode = pil.mode
+            size = pil.size
+            self.file_info = {
+                "path": path, "format": fmt, "mode": mode, "size": size,
+                "alpha_coverage": _alpha_coverage(pil)
+            }
+
             a = normalize_image(load_image(path))
             self.arr = a
             self.image_path = path
             self.result = None
             self.ctx = None
             self.show_image(self.arr)
-            self.set_status(f"Loaded: {os.path.basename(path)}  |  {self.arr.shape[1]}×{self.arr.shape[0]}")
+            self.set_status(f"Loaded: {os.path.basename(path)}  |  {self.arr.shape[1]}×{self.arr.shape[0]}  |  {fmt}/{mode}")
             self._update_amp_mask_dropdown()
             self._update_bottom_previews()
         except Exception as e:
@@ -581,51 +744,53 @@ class App(tk.Tk):
         if self.arr is None:
             messagebox.showwarning("Warning", "Load an image first.")
             return
+
         name = self.preset_var.get()
         if not name:
             messagebox.showwarning("Warning", "Choose a preset.")
             return
+
         path = os.path.join(_presets_dir(), f"{name}.yaml")
         if not os.path.exists(path):
             messagebox.showerror("Error", f"Preset not found:\n{path}")
             return
+
         try:
             with open(path, "r", encoding="utf-8") as f:
-                cfg = load_config(f.read())
-            cfg = normalize_preset(cfg)
+                raw = load_config(f.read())
+            cfg = normalize_preset(raw, name)
 
+            # wstrzykiwanie ustawień z panelu Amplitude/Edge:
             aux = self._collect_aux_cfg()
             for k in ("amplitude", "edge_mask"):
                 if k in aux and aux[k]:
                     cfg[k] = aux[k]
 
             self.seed = int(self.seed_var.get() or 7)
-            self.debug_log = []
             self.ctx = build_ctx(self.arr, seed=self.seed, cfg=cfg)
-
-            # maski usera
             self._inject_user_masks()
 
             steps = cfg.get("steps", [])
             self.set_status(f"Applying preset '{name}'…")
-            out = apply_pipeline(self.arr.copy(), self.ctx, steps, fail_fast=True, debug_log=self.debug_log)
+
+            out = apply_pipeline(self.arr.copy(), self.ctx, steps)  # <— BEZ fail_fast/debug_log
             self.result = _to_rgb_uint8(out)
             self.show_image(self.result)
             self._update_amp_mask_dropdown()
             self._update_bottom_previews()
             self.set_status(f"Applied preset '{name}'")
         except Exception as e:
-            tb = traceback.format_exc(limit=1)
-            messagebox.showerror("Preset error", f"{e}\n\n{tb}")
-
+            messagebox.showerror("Preset error", str(e))
     def _cmd_apply_single(self):
         if self.arr is None:
             messagebox.showwarning("Warning", "Load an image first.")
             return
+
         fname = self.filter_var.get()
         if not fname:
             messagebox.showwarning("Warning", "Choose a filter.")
             return
+
         try:
             params = {}
             if self.active_panel is not None:
@@ -638,22 +803,18 @@ class App(tk.Tk):
             cfg.update(aux)
 
             self.seed = int(self.seed_var.get() or 7)
-            self.debug_log = []
             self.ctx = build_ctx(self.arr, seed=self.seed, cfg=cfg)
-
-            # maski usera
             self._inject_user_masks()
 
             self.set_status(f"Applying filter '{fname}'…")
-            out = apply_pipeline(self.arr.copy(), self.ctx, steps, fail_fast=True, debug_log=self.debug_log)
+            out = apply_pipeline(self.arr.copy(), self.ctx, steps)  # <— BEZ fail_fast/debug_log
             self.result = _to_rgb_uint8(out)
             self.show_image(self.result)
             self._update_amp_mask_dropdown()
             self._update_bottom_previews()
             self.set_status(f"Applied filter '{fname}'")
         except Exception as e:
-            tb = traceback.format_exc(limit=1)
-            messagebox.showerror("Filter error", f"{e}\n\n{tb}")
+            messagebox.showerror("Filter error", str(e))
 
     def _cmd_load_mask(self):
         if self.arr is None:

@@ -20,34 +20,31 @@ import numpy as np
 from glitchlab.core.registry import register
 from glitchlab.core.utils import resize_mask_to
 
+
 def _fft2c(x):
     return np.fft.fftshift(np.fft.fft2(x))
+
 
 def _ifft2c(X):
     return np.fft.ifft2(np.fft.ifftshift(X))
 
-@register("phase_glitch", schema={
-    "low": {"type": "float", "min": 0.0, "max": 1.0, "step": 0.01},
-    "high": {"type": "float", "min": 0.0, "max": 1.0, "step": 0.01},
-    "strength": {"type": "float", "min": 0.0, "max": 1.0, "step": 0.01},
-    "preserve_dc": {"type": "bool"},
-    "blend": {"type": "float", "min": 0.0, "max": 1.0, "step": 0.05},
-})
+
+@register("phase_glitch")
 def phase_glitch(
-    img, ctx,
-    low: float = 0.18,
-    high: float = 0.6,
-    strength: float = 0.6,
-    preserve_dc: bool = True,
-    blend: float = 0.0,
-    mask_key: str | None = None,
+        img, ctx,
+        low: float = 0.18,
+        high: float = 0.6,
+        strength: float = 0.6,
+        preserve_dc: bool = True,
+        blend: float = 0.0,
+        mask_key: str | None = None,
 ):
     a = img.astype(np.uint8, copy=False)
     h, w, _ = a.shape
     out = np.empty_like(a)
 
-    yy, xx = np.meshgrid(np.arange(h) - h/2.0, np.arange(w) - w/2.0, indexing="ij")
-    r = np.sqrt(xx*xx + yy*yy)
+    yy, xx = np.meshgrid(np.arange(h) - h / 2.0, np.arange(w) - w / 2.0, indexing="ij")
+    r = np.sqrt(xx * xx + yy * yy)
     rmax = 0.5 * min(h, w)
     rn = r / (rmax + 1e-8)
 
@@ -90,8 +87,9 @@ def phase_glitch(
     # diagnostyka
     try:
         H, W = noise_map.shape
-        s0 = max(1, H // 256); s1 = max(1, W // 256)
-        vis = (np.mod(noise_map + np.pi, 2*np.pi) / (2*np.pi) * 255).astype(np.uint8)
+        s0 = max(1, H // 256);
+        s1 = max(1, W // 256)
+        vis = (np.mod(noise_map + np.pi, 2 * np.pi) / (2 * np.pi) * 255).astype(np.uint8)
         ctx.cache["phase_glitch/noise"] = vis[::s0, ::s1]
     except Exception:
         pass

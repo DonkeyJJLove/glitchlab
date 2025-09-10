@@ -1,88 +1,85 @@
 # glitchlab/gui/main.py
 # -*- coding: utf-8 -*-
-"""
-Bootstrap GUI dla GlitchLab (Tkinter).
-Opcjonalne uruchomienie z obrazem/presetem/filtr-em:
-
-  python -m glitchlab.gui.main --image in.png
-  python -m glitchlab.gui.main --image in.png --preset spectral_ring_lab
-  python -m glitchlab.gui.main --image in.png --filter pixel_sort_adaptive --seed 11
-"""
-
 from __future__ import annotations
-import argparse
-import sys
-import traceback
 
-# High-DPI (Windows) – nie szkodzi na innych platformach
+import os, sys, platform, traceback
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+# Upewnij się, że mamy na ścieżce katalog pakietu "glitchlab"
+THIS = os.path.abspath(os.path.dirname(__file__))                 # .../glitchlab/gui
+PKG = os.path.dirname(THIS)                                       # .../glitchlab
+ROOT = os.path.dirname(PKG)                                       # projekt
+for p in (ROOT, PKG):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+# Importuj App absolutnie (jako pakiet)
 try:
-    import ctypes  # type: ignore
-    ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PER_MONITOR_AWARE
+    from glitchlab.gui.app import App
 except Exception:
-    pass
+    # ostatnia deska (uruchamianie z katalogu gui)
+    from app import App  # type: ignore
 
-from glitchlab.gui.app import App, _to_rgb_uint8
-from glitchlab.core.pipeline import load_image
-from glitchlab.core.utils import normalize_image
+def _enable_windows_dpi():
+    if platform.system().lower() != "windows":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
 
+def _apply_theme(root: tk.Tk):
+    style = ttk.Style(root)
+    try:
+        style.theme_use("clam")
+    except Exception:
+        pass
+    bg = "#121417"; fg = "#E6E6E6"; sel = "#1B1F24"
+    style.configure(".", background=bg, foreground=fg, fieldbackground=bg)
+    style.configure("TFrame", background=bg)
+    style.configure("TLabel", background=bg, foreground=fg)
+    style.configure("TLabelframe", background=bg, foreground=fg)
+    style.configure("TLabelframe.Label", background=bg, foreground=fg)
+    style.configure("TButton", background=bg, foreground=fg)
+    style.map("TButton", background=[("active", sel)])
+    root.option_add("*Label.background", bg)
+    root.option_add("*Label.foreground", fg)
 
-def parse_args(argv=None):
-    p = argparse.ArgumentParser(description="GlitchLab GUI")
-    p.add_argument("-i", "--image", help="Ścieżka do obrazu do wczytania na start")
-    p.add_argument("--preset", help="Nazwa presetu do natychmiastowego zastosowania")
-    p.add_argument("--filter", help="Nazwa filtra do natychmiastowego zastosowania (single)")
-    p.add_argument("--seed", type=int, default=None, help="Seed RNG")
-    return p.parse_args(argv)
-
-
-def preload(app: App, image_path: str | None, preset: str | None, filter_name: str | None, seed: int | None):
-    # wczytaj obraz, jeśli wskazany
-    if image_path:
+def _install_excepthook():
+    def showbox(exc_type, exc, tb):
+        msg = "".join(traceback.format_exception(exc_type, exc, tb))
         try:
-            arr = normalize_image(load_image(image_path))
-            app.arr = arr
-            app.image_path = image_path
-            app.result = None
-            app.ctx = None
-            app.show_image(arr)
-            app.set_status(f"Loaded: {image_path}")
-        except Exception as e:
-            tb = traceback.format_exc(limit=1)
-            app.set_status("Image load error")
-            print(f"[error] cannot load image: {e}\n{tb}", file=sys.stderr)
-
-    # ustaw seed
-    if seed is not None:
-        try:
-            app.seed_var.set(int(seed))
+            messagebox.showerror("GlitchLab — błąd", msg)
         except Exception:
-            pass
+            sys.stderr.write(msg + "\n")
+    sys.excepthook = showbox
 
-    # automatyczne zastosowanie presetu/filtra (w tej kolejności)
-    if image_path and preset:
-        try:
-            app.preset_var.set(preset)
-            app.on_apply_preset()
-        except Exception as e:
-            tb = traceback.format_exc(limit=1)
-            print(f"[error] preset apply failed: {e}\n{tb}", file=sys.stderr)
-    elif image_path and filter_name:
-        try:
-            app.filter_var.set(filter_name)
-            app.on_filter_changed()   # zbuduj panel
-            app.on_apply_single()
-        except Exception as e:
-            tb = traceback.format_exc(limit=1)
-            print(f"[error] single filter apply failed: {e}\n{tb}", file=sys.stderr)
+def _bind_shortcuts(app: App):
+    app.bind_all("<Control-o>", lambda e: app.on_open())
+    app.bind_all("<Control-s>", lambda e: app.on_save())
+    app.bind_all("<F5>",        lambda e: getattr(app, "run_pipeline", lambda: None)())
+    app.bind_all("<Control-Return>", lambda e: getattr(app, "_cmd_apply_single", lambda: None)())
 
+def main() -> int:
+    _enable_windows_dpi()
+    _install_excepthook()
 
-def main():
-    args = parse_args()
     app = App()
-    # pre-load po zbudowaniu UI (panel-holder istnieje)
-    preload(app, args.image, args.preset, args.filter, args.seed)
-    app.mainloop()
+    _apply_theme(app)
 
+    app.update_idletasks()
+    w, h = 1400, 900
+    sw, sh = app.winfo_screenwidth(), app.winfo_screenheight()
+    x, y = max(0, (sw - w)//2), max(0, (sh - h)//2)
+    app.geometry(f"{w}x{h}+{x}+{y}")
+    app.minsize(1100, 720)
+
+    _bind_shortcuts(app)
+    app.title("GlitchLab — Studio")
+    app.mainloop()
+    return 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
