@@ -148,7 +148,7 @@ def my_filter(img, ctx, strength: float = 1.0, mask_key: str|None = None):
 
 ## Licencja i autorzy
 
-Wstaw tu licencję (np. MIT/Apache-2.0) oraz kontakt/maintainerów.
+Open Source — D2J3 aka Cha0s (for test and fun)
 
 ---
 
