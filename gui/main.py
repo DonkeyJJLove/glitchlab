@@ -7,9 +7,10 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 # Upewnij się, że mamy na ścieżce katalog pakietu "glitchlab"
-THIS = os.path.abspath(os.path.dirname(__file__))                 # .../glitchlab/gui
-PKG = os.path.dirname(THIS)                                       # .../glitchlab
-ROOT = os.path.dirname(PKG)                                       # projekt
+THIS = os.path.abspath(os.path.dirname(__file__))  # .../glitchlab/gui
+PKG = os.path.dirname(THIS)  # .../glitchlab
+ROOT = os.path.dirname(PKG)  # projekt
+
 for p in (ROOT, PKG):
     if p not in sys.path:
         sys.path.insert(0, p)
@@ -21,6 +22,7 @@ except Exception:
     # ostatnia deska (uruchamianie z katalogu gui)
     from app import App  # type: ignore
 
+
 def _enable_windows_dpi():
     if platform.system().lower() != "windows":
         return
@@ -30,13 +32,16 @@ def _enable_windows_dpi():
     except Exception:
         pass
 
+
 def _apply_theme(root: tk.Tk):
     style = ttk.Style(root)
     try:
         style.theme_use("clam")
     except Exception:
         pass
-    bg = "#121417"; fg = "#E6E6E6"; sel = "#1B1F24"
+    bg = "#121417";
+    fg = "#E6E6E6";
+    sel = "#1B1F24"
     style.configure(".", background=bg, foreground=fg, fieldbackground=bg)
     style.configure("TFrame", background=bg)
     style.configure("TLabel", background=bg, foreground=fg)
@@ -47,6 +52,7 @@ def _apply_theme(root: tk.Tk):
     root.option_add("*Label.background", bg)
     root.option_add("*Label.foreground", fg)
 
+
 def _install_excepthook():
     def showbox(exc_type, exc, tb):
         msg = "".join(traceback.format_exception(exc_type, exc, tb))
@@ -54,13 +60,16 @@ def _install_excepthook():
             messagebox.showerror("GlitchLab — błąd", msg)
         except Exception:
             sys.stderr.write(msg + "\n")
+
     sys.excepthook = showbox
+
 
 def _bind_shortcuts(app: App):
     app.bind_all("<Control-o>", lambda e: app.on_open())
     app.bind_all("<Control-s>", lambda e: app.on_save())
-    app.bind_all("<F5>",        lambda e: getattr(app, "run_pipeline", lambda: None)())
+    app.bind_all("<F5>", lambda e: getattr(app, "run_pipeline", lambda: None)())
     app.bind_all("<Control-Return>", lambda e: getattr(app, "_cmd_apply_single", lambda: None)())
+
 
 def main() -> int:
     _enable_windows_dpi()
@@ -72,7 +81,7 @@ def main() -> int:
     app.update_idletasks()
     w, h = 1400, 900
     sw, sh = app.winfo_screenwidth(), app.winfo_screenheight()
-    x, y = max(0, (sw - w)//2), max(0, (sh - h)//2)
+    x, y = max(0, (sw - w) // 2), max(0, (sh - h) // 2)
     app.geometry(f"{w}x{h}+{x}+{y}")
     app.minsize(1100, 720)
 
@@ -80,6 +89,7 @@ def main() -> int:
     app.title("GlitchLab — Studio")
     app.mainloop()
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

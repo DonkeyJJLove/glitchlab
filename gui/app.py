@@ -49,6 +49,7 @@ except Exception:
         import numpy as _np
         return float(-_np.sum(p * _np.log2(p)))
 
+
     def edge_density(a: np.ndarray) -> float:
         if a.ndim == 3:
             g = 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]
@@ -192,7 +193,6 @@ def normalize_preset(cfg, preset_name: str | None = None):
     raise ValueError("Could not find steps/edge_mask/amplitude in preset YAML.")
 
 
-
 def list_filter_names_canonical() -> List[str]:
     try:
         names = reg.available()
@@ -265,7 +265,7 @@ class App(tk.Tk):
         top = tk.Frame(self, bg=BG)
         top.pack(side=tk.TOP, fill="x", padx=8, pady=6)
 
-        ttk.Button(top, text="Open image…",  command=self._cmd_open).pack(side=tk.LEFT)
+        ttk.Button(top, text="Open image…", command=self._cmd_open).pack(side=tk.LEFT)
         ttk.Button(top, text="Save result…", command=self._cmd_save).pack(side=tk.LEFT, padx=(8, 0))
 
         tk.Label(top, text="Seed:", bg=BG, fg=FG).pack(side=tk.LEFT, padx=(16, 4))
@@ -284,7 +284,7 @@ class App(tk.Tk):
         self.filter_box.pack(side=tk.LEFT)
         ttk.Button(top, text="Apply single", command=self._cmd_apply_single).pack(side=tk.LEFT, padx=(8, 0))
 
-        ttk.Button(top, text="Load mask…",  command=self._cmd_load_mask).pack(side=tk.LEFT, padx=(16, 0))
+        ttk.Button(top, text="Load mask…", command=self._cmd_load_mask).pack(side=tk.LEFT, padx=(16, 0))
 
         # main area
         main = tk.Frame(self, bg=BG)
@@ -317,7 +317,7 @@ class App(tk.Tk):
         btns = tk.Frame(right, bg=PANEL_BG)
         btns.pack(fill="x", padx=8, pady=6)
         ttk.Button(btns, text="Reload panels", command=self.on_reload_panels).pack(side=tk.LEFT)
-        ttk.Button(btns, text="Reset params",  command=self.on_reset_params).pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(btns, text="Reset params", command=self.on_reset_params).pack(side=tk.LEFT, padx=(6, 0))
 
         # bottom diagnostics (3 kolumny: Masks/Amp, Diagnostics, Logs+AST)
         bottom_h = 320
@@ -325,16 +325,16 @@ class App(tk.Tk):
         self.bottom.pack(side=tk.BOTTOM, fill="x", padx=8, pady=(0, 8))
         self.bottom.pack_propagate(False)
 
-        self.bot_left  = tk.LabelFrame(self.bottom, text="Masks & Amplitude",  bg=PANEL_BG, fg=FG)
-        self.bot_mid   = tk.LabelFrame(self.bottom, text="Filter Diagnostics", bg=PANEL_BG, fg=FG)
-        self.bot_right = tk.LabelFrame(self.bottom, text="Inspect",            bg=PANEL_BG, fg=FG)
+        self.bot_left = tk.LabelFrame(self.bottom, text="Masks & Amplitude", bg=PANEL_BG, fg=FG)
+        self.bot_mid = tk.LabelFrame(self.bottom, text="Filter Diagnostics", bg=PANEL_BG, fg=FG)
+        self.bot_right = tk.LabelFrame(self.bottom, text="Inspect", bg=PANEL_BG, fg=FG)
 
-        for lf, pad in ((self.bot_left,(0,4)), (self.bot_mid,(4,4)), (self.bot_right,(4,0))):
+        for lf, pad in ((self.bot_left, (0, 4)), (self.bot_mid, (4, 4)), (self.bot_right, (4, 0))):
             lf.pack(side=tk.LEFT, fill="both", expand=True, padx=pad)
             lf.pack_propagate(False)
 
-        self.lbl_amp  = tk.Label(self.bot_left, text="(amplitude)", bg=PANEL_BG, fg="#888", anchor="center")
-        self.lbl_edge = tk.Label(self.bot_left, text="(mask)",      bg=PANEL_BG, fg="#888", anchor="center")
+        self.lbl_amp = tk.Label(self.bot_left, text="(amplitude)", bg=PANEL_BG, fg="#888", anchor="center")
+        self.lbl_edge = tk.Label(self.bot_left, text="(mask)", bg=PANEL_BG, fg="#888", anchor="center")
         self.lbl_amp.pack(fill="both", expand=True, padx=6, pady=6)
         self.lbl_edge.pack(fill="both", expand=True, padx=6, pady=6)
 
@@ -348,9 +348,9 @@ class App(tk.Tk):
         self.nb.pack(fill="both", expand=True, padx=6, pady=6)
 
         self.tab_logs = tk.Frame(self.nb, bg=PANEL_BG)
-        self.tab_ast  = tk.Frame(self.nb, bg=PANEL_BG)
+        self.tab_ast = tk.Frame(self.nb, bg=PANEL_BG)
         self.nb.add(self.tab_logs, text="Logs")
-        self.nb.add(self.tab_ast,  text="AST")
+        self.nb.add(self.tab_ast, text="AST")
 
         self.log_text = tk.Text(self.tab_logs, bg="#0f1114", fg=FG, wrap="word")
         self.log_text.pack(fill="both", expand=True, padx=6, pady=6)
@@ -417,9 +417,11 @@ class App(tk.Tk):
         self.mosaic_enable = tk.BooleanVar(self, False)
         ttk.Checkbutton(parent, text="Enable", variable=self.mosaic_enable).grid(row=8, column=0, sticky="w", padx=6)
         tk.Label(parent, text="Tiles X", bg=PANEL_BG, fg=FG).grid(row=8, column=1, sticky="w", padx=6)
-        self.mosaic_tx = tk.IntVar(self, 2); ttk.Entry(parent, textvariable=self.mosaic_tx, width=6).grid(row=8, column=2, sticky="w")
+        self.mosaic_tx = tk.IntVar(self, 2);
+        ttk.Entry(parent, textvariable=self.mosaic_tx, width=6).grid(row=8, column=2, sticky="w")
         tk.Label(parent, text="Tiles Y", bg=PANEL_BG, fg=FG).grid(row=8, column=3, sticky="w", padx=6)
-        self.mosaic_ty = tk.IntVar(self, 2); ttk.Entry(parent, textvariable=self.mosaic_ty, width=6).grid(row=8, column=4, sticky="w")
+        self.mosaic_ty = tk.IntVar(self, 2);
+        ttk.Entry(parent, textvariable=self.mosaic_ty, width=6).grid(row=8, column=4, sticky="w")
 
     def _populate_initial_lists(self):
         self.preset_box.configure(values=list_presets())
@@ -474,7 +476,7 @@ class App(tk.Tk):
             m = reg.meta(filter_name)
             doc = (m.get("doc") or "").strip()
             defaults = m.get("defaults") or {}
-            lines = [f"[{filter_name}] module={m.get('module','')}", ""]
+            lines = [f"[{filter_name}] module={m.get('module', '')}", ""]
             if doc:
                 lines += [doc, ""]
             if defaults:
@@ -639,7 +641,7 @@ class App(tk.Tk):
                     lines.append(f"[JPEG] blockiness: {blk:.6f}")
                 if fmt == "PNG" and self.file_info.get("alpha_coverage") is not None:
                     ac = self.file_info["alpha_coverage"]
-                    lines.append(f"[PNG] alpha coverage: {ac*100:.2f}%")
+                    lines.append(f"[PNG] alpha coverage: {ac * 100:.2f}%")
             self._append_log("\n".join(lines))
         except Exception:
             pass
@@ -713,7 +715,8 @@ class App(tk.Tk):
             self.result = None
             self.ctx = None
             self.show_image(self.arr)
-            self.set_status(f"Loaded: {os.path.basename(path)}  |  {self.arr.shape[1]}×{self.arr.shape[0]}  |  {fmt}/{mode}")
+            self.set_status(
+                f"Loaded: {os.path.basename(path)}  |  {self.arr.shape[1]}×{self.arr.shape[0]}  |  {fmt}/{mode}")
             self._update_amp_mask_dropdown()
             self._update_bottom_previews()
         except Exception as e:
@@ -781,6 +784,7 @@ class App(tk.Tk):
             self.set_status(f"Applied preset '{name}'")
         except Exception as e:
             messagebox.showerror("Preset error", str(e))
+
     def _cmd_apply_single(self):
         if self.arr is None:
             messagebox.showwarning("Warning", "Load an image first.")

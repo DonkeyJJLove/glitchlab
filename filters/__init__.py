@@ -26,11 +26,13 @@ _MODULES = (
     "depth_parallax",
 )
 
+
 def _safe_import(modname: str) -> None:
     try:
         importlib.import_module(f"{__name__}.{modname}")
     except Exception as e:
         print(f"[filters] skip {modname}: {e}", file=sys.stderr)
+
 
 for _m in _MODULES:
     _safe_import(_m)
