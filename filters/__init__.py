@@ -32,7 +32,8 @@ _MODULES = (
     "depth_parallax",
     "default_identity",
     "gamma_gain",
-    "rgb_glow"
+    "rgb_glow",
+    "tile_tess_probe"
 )
 
 
