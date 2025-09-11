@@ -1,0 +1,14 @@
+version: 2
+name: "51_perspective_combo"
+seed: 7
+amplitude: {kind: linear_y, strength: 1.0}
+edge_mask: {thresh: 60, dilate: 0, ksize: 3}
+steps:
+  - name: spectral_shaper
+    params: {mode: ring, low: 0.08, high: 0.22, boost: 1.1, soft: 0.06, blend: 0.0}
+  - name: anisotropic_contour_warp
+    params: {strength: 1.8, iters: 2, ksize: 3, smooth: 0.4, edge_bias: 0.3, use_amp: 1.0, clamp: true}
+  - name: block_mosh_grid
+    params: {size: 24, p: 0.25, max_shift: 16, mode: "shift+swap", swap_radius: 2, mix: 0.85, rot_p: 0.1}
+  - name: phase_glitch
+    params: {low: 0.15, high: 0.5, strength: 0.35, preserve_dc: true, blend: 0.15}

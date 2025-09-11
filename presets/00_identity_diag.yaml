@@ -1,0 +1,8 @@
+version: 2
+name: "00_identity_diag"
+seed: 7
+amplitude: {kind: linear_y, strength: 1.0}
+edge_mask: {thresh: 60, dilate: 0, ksize: 3}
+steps:
+  - name: default_identity
+    params: {mode: edges, clamp: true}
