@@ -1,227 +1,200 @@
-
 # -*- coding: utf-8 -*-
 """
-HUD (diagnostic viewer)
------------------------
-Robust, crash-proof renderer for ctx.cache diagnostics.
-- Accepts grayscale or RGB, uint8 or float32 in [0..1].
-- Accepts ndarray with shape (H,W), (H,W,1), (H,W,3), (H,W,4).
-- Gracefully skips unsupported entries and shows a placeholder instead of crashing.
-- Can be called with either a full ctx object or a raw cache dict.
-
-Public API expected by the app:
-    Hud(parent)
-    .render_from_cache(ctx_or_cache_or_None)
+Robust HUD widget for GlitchLab
+-------------------------------
+Renders ONLY image-like entries from `ctx.cache` and ignores scalars/strings/dicts.
+- Accepts: NumPy arrays (H,W), (H,W,3|4), (3,H,W), PIL.Image.Image
+- Normalizes float/bool/object inputs safely, clamps to uint8 RGB.
+- Horizontal scroll strip with thumbnails + key labels.
 """
 
 from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, Iterable, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from PIL import Image, ImageTk, ImageDraw
+from PIL import Image, ImageTk
 
-THUMB_W = 256
-THUMB_H = 256
-PAD = 8
 
-class Hud(ttk.Frame):
-    def __init__(self, parent: tk.Misc) -> None:
-        super().__init__(parent)
-        # simple scrollable canvas with an inner frame to put thumbnails in a grid
-        self.canvas = tk.Canvas(self, highlightthickness=0, bg="#202020")
-        self.vscroll = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-        self.canvas.configure(yscrollcommand=self.vscroll.set)
-        self.inner = ttk.Frame(self.canvas)
+THUMB_MAX_W = 260
+THUMB_MAX_H = 160
+TILE_PAD_X = 8
+TILE_PAD_Y = 8
 
-        self.canvas_window = self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
-        self.canvas.pack(side="left", fill="both", expand=True)
-        self.vscroll.pack(side="right", fill="y")
+
+def _is_img_like(v: Any) -> bool:
+    # quick prefilter
+    if isinstance(v, Image.Image):
+        return True
+    if isinstance(v, np.ndarray):
+        if v.dtype == object:
+            return False
+        if v.ndim == 2:
+            return True
+        if v.ndim == 3 and (v.shape[2] in (1, 3, 4) or v.shape[0] in (1, 3, 4)):
+            return True
+    return False
+
+
+def _to_rgb_u8(arr: np.ndarray) -> np.ndarray:
+    """
+    Convert array (H,W[,C]) to RGB uint8 safely.
+    - float -> auto scale using min/max (with epsilon)
+    - bool -> 0/255
+    - 2D -> gray replicated to 3 channels
+    - channel-first -> transpose to HWC
+    - alpha (4th) channel is dropped
+    """
+    if arr.dtype == object:
+        raise ValueError("object array not supported")
+    a = np.asarray(arr)
+
+    # bring to HWC
+    if a.ndim == 3 and a.shape[0] in (1, 3, 4) and a.shape[2] not in (1, 3, 4):
+        # assume CHW -> HWC
+        a = np.transpose(a, (1, 2, 0))
+
+    if a.ndim == 2:
+        a = a[:, :, None]
+
+    if a.ndim != 3:
+        raise ValueError(f"Unsupported ndarray shape {a.shape}")
+
+    # drop alpha if present
+    if a.shape[2] == 4:
+        a = a[:, :, :3]
+    elif a.shape[2] == 1:
+        a = np.repeat(a, 3, axis=2)
+    elif a.shape[2] != 3:
+        # try to coerce to 3
+        a = a[:, :, :3] if a.shape[2] > 3 else np.pad(a, ((0,0),(0,0),(0,3-a.shape[2])), mode="edge")
+
+    # dtype handling
+    if a.dtype == np.uint8:
+        out = a
+    elif a.dtype == np.bool_:
+        out = a.astype(np.uint8) * 255
+    else:
+        x = a.astype(np.float32)
+
+        # heuristic: if values are within [0,1.5] treat as [0,1] domain
+        x_min = float(np.nanmin(x))
+        x_max = float(np.nanmax(x))
+        if np.isfinite(x_min) and np.isfinite(x_max):
+            if x_min >= -0.05 and x_max <= 1.5:
+                x = np.clip(x, 0.0, 1.0) * 255.0
+            else:
+                # generic min-max scale
+                rng = (x_max - x_min) if (x_max - x_min) > 1e-12 else 1.0
+                x = (x - x_min) / rng * 255.0
+        else:
+            x = np.nan_to_num(x, nan=0.0, posinf=255.0, neginf=0.0)
+            x = np.clip(x, 0.0, 1.0) * 255.0
+        out = (x + 0.5).astype(np.uint8)
+
+    # ensure contiguous HWC
+    return np.ascontiguousarray(out)
+
+
+def _ensure_pil(v: Any) -> Optional[Image.Image]:
+    """Return PIL.Image.Image or None if not renderable."""
+    try:
+        if isinstance(v, Image.Image):
+            im = v.convert("RGB") if v.mode != "RGB" else v
+            return im
+        if isinstance(v, np.ndarray) and _is_img_like(v):
+            rgb = _to_rgb_u8(v)
+            return Image.fromarray(rgb, "RGB")
+    except Exception:
+        return None
+    return None
+
+
+class Hud(tk.Frame):
+    def __init__(self, master: Optional[tk.Misc] = None):
+        super().__init__(master, bg="#1e1e1e")
+        self._photos: List[ImageTk.PhotoImage] = []
+        self._tiles: List[tk.Widget] = []
+
+        # scrollable strip
+        self.canvas = tk.Canvas(self, bg="#1e1e1e", highlightthickness=0, height=THUMB_MAX_H + 2*TILE_PAD_Y + 20)
+        self.hbar = ttk.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
+        self.canvas.configure(xscrollcommand=self.hbar.set)
+        self.inner = tk.Frame(self.canvas, bg="#1e1e1e")
+        self.window = self.canvas.create_window(0, 0, anchor="nw", window=self.inner)
+
+        self.canvas.pack(fill="both", expand=True, side="top")
+        self.hbar.pack(fill="x", side="bottom")
 
         self.inner.bind("<Configure>", self._on_inner_configure)
         self.canvas.bind("<Configure>", self._on_canvas_configure)
 
-        self._imgs: list[ImageTk.PhotoImage] = []  # hold refs
+    # ---- public API -------------------------------------------------
 
-        # Initial message
-        self._show_empty()
-
-    # --------------- layout helpers ---------------
-    def _on_inner_configure(self, event) -> None:
-        # update scroll region
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
-    def _on_canvas_configure(self, event) -> None:
-        # keep inner width equal to canvas width
-        cw = event.width
-        self.canvas.itemconfigure(self.canvas_window, width=cw)
-
-    # --------------- public API ---------------
-    def render_from_cache(self, ctx_or_cache: Optional[Any]) -> None:
-        """Render thumbnails from ctx.cache or a raw dict."""
-        # clear previous
-        for child in self.inner.winfo_children():
-            child.destroy()
-        self._imgs.clear()
-
-        if ctx_or_cache is None:
-            self._show_empty("(brak danych)")
-            return
-
-        cache: Dict[str, Any]
-        amp = None
-        masks: Dict[str, np.ndarray] = {}
-
-        # accept either a ctx or a dict-like
-        if hasattr(ctx_or_cache, "cache"):
-            cache = getattr(ctx_or_cache, "cache", {}) or {}
-            amp = getattr(ctx_or_cache, "amplitude", None)
-            masks = getattr(ctx_or_cache, "masks", {}) or {}
-        elif isinstance(ctx_or_cache, dict):
-            cache = ctx_or_cache
-        else:
-            cache = {}
-
-        # Compose entries to show: amplitude & masks first, then diagnostic keys.
-        entries: list[Tuple[str, Any]] = []
-
-        if isinstance(amp, np.ndarray):
-            entries.append(("amplitude", amp))
-
-        if isinstance(masks, dict):
-            for k, v in sorted(masks.items()):
-                entries.append((f"mask:{k}", v))
-
-        # Prefer diag/*, then stage/0/* thumbnails, finally anything that looks like an image
-        diag_items = [(k, v) for k, v in cache.items() if isinstance(k, str) and k.startswith(("diag/", "spectral_", "phase_", "pixel_sort/trigger"))]
-        stage_items = [(k, v) for k, v in cache.items() if isinstance(k, str) and k.startswith("stage/")]
-        other_items = [(k, v) for k, v in cache.items() if (k, v) not in diag_items and (k, v) not in stage_items]
-
-        # sort for stability
-        for arr in (diag_items, stage_items, other_items):
-            arr.sort(key=lambda kv: kv[0])
-
-        entries.extend(diag_items + stage_items + other_items)
-
-        if not entries:
-            self._show_empty("(brak map diagnostycznych)")
-            return
-
-        # Render grid (2 columns on narrow, 3+ columns on wide)
-        self._render_grid(entries)
-
-    # --------------- rendering ---------------
-    def _render_grid(self, entries: Iterable[Tuple[str, Any]]) -> None:
-        # Decide number of columns based on current width
-        try:
-            width = max(1, int(self.winfo_width()))
-        except Exception:
-            width = 800
-        cols = max(2, width // (THUMB_W + 2*PAD))
-
-        r = c = 0
-        for key, val in entries:
+    def clear(self) -> None:
+        for w in self._tiles:
             try:
-                im = self._to_image(val)
-                imt = self._thumb(im, (THUMB_W, THUMB_H))
-                p = ImageTk.PhotoImage(imt)
-            except Exception as e:
-                # fallback: draw an error tile
-                imt = self._error_tile(str(e))
-                p = ImageTk.PhotoImage(imt)
-            self._imgs.append(p)  # keep ref
+                w.destroy()
+            except Exception:
+                pass
+        self._tiles.clear()
+        self._photos.clear()
 
-            frm = ttk.Frame(self.inner, padding=PAD)
-            lab = ttk.Label(frm, image=p, background="#202020")
-            cap = ttk.Label(frm, text=key, foreground="#c8c8c8")
-            lab.pack()
-            cap.pack(anchor="w")
-            frm.grid(row=r, column=c, sticky="nw")
-            c += 1
-            if c >= cols:
-                c = 0
-                r += 1
+    def render_from_cache(self, ctx) -> None:
+        """Render image-like diagnostics from ctx.cache (dict)."""
+        self.clear()
 
-    def _thumb(self, im: Image.Image, box: Tuple[int, int]) -> Image.Image:
-        w, h = im.size
-        bw, bh = map(int, box)
-        scale = min(bw / max(1, w), bh / max(1, h))
-        nw, nh = max(1, int(round(w*scale))), max(1, int(round(h*scale)))
-        return im.resize((nw, nh), Image.Resampling.LANCZOS)
+        cache = getattr(ctx, "cache", {}) or {}
+        # stable order: diagnostic first, then stage, then the rest
+        def _sort_key(k: str) -> Tuple[int, str]:
+            if k.startswith("diag/"): 
+                return (0, k)
+            if k.startswith("stage/"):
+                return (1, k)
+            return (2, k)
 
-    def _to_image(self, val: Any) -> Image.Image:
-        # Already a PIL image
-        if isinstance(val, Image.Image):
-            return val.convert("RGB")
+        keys = sorted(list(cache.keys()), key=_sort_key)
+        x = TILE_PAD_X
+        for k in keys:
+            v = cache.get(k, None)
+            im = _ensure_pil(v)
+            if im is None:
+                # not an image-like entry: skip silently
+                continue
 
-        # NumPy array
-        if isinstance(val, np.ndarray):
-            arr = val
-            # handle booleans
-            if arr.dtype == np.bool_:
-                arr = arr.astype(np.uint8) * 255
+            # thumbnail
+            im = im.copy()
+            im.thumbnail((THUMB_MAX_W, THUMB_MAX_H), Image.BICUBIC)
+            ph = ImageTk.PhotoImage(im)
+            self._photos.append(ph)  # keep reference
 
-            # float → normalize to [0..255]
-            if arr.dtype.kind in "fc":
-                # try to detect if already in 0..255 or 0..1
-                a = np.asarray(arr, dtype=np.float32)
-                a = np.nan_to_num(a, nan=0.0, posinf=1.0, neginf=0.0)
-                # First normalize to 0..1 if out of range
-                amin, amax = float(np.min(a)), float(np.max(a))
-                if amax - amin > 1e-12:
-                    a = (a - amin) / (amax - amin)
-                a = np.clip(a, 0.0, 1.0)
-                arr = (a * 255.0 + 0.5).astype(np.uint8)
+            # tile
+            tile = tk.Frame(self.inner, bg="#2b2b2b")
+            lbl = tk.Label(tile, image=ph, bg="#2b2b2b")
+            lbl.pack(padx=4, pady=4)
 
-            # int dtypes other than u8 → cast
-            if arr.dtype != np.uint8:
-                arr = arr.astype(np.uint8, copy=False)
+            cap = tk.Label(tile, text=k, fg="#c8c8c8", bg="#2b2b2b", font=("Segoe UI", 8))
+            cap.pack(fill="x", padx=4, pady=(0, 6))
 
-            # shape handling
-            if arr.ndim == 2:
-                # grayscale → RGB
-                arr = np.stack([arr, arr, arr], axis=-1)
-            elif arr.ndim == 3:
-                if arr.shape[2] == 1:
-                    arr = np.repeat(arr, 3, axis=2)
-                elif arr.shape[2] >= 3:
-                    arr = arr[..., :3]
-                else:
-                    # unexpected last dim
-                    arr = np.repeat(arr, 3, axis=2) if arr.shape[2] == 0 else arr
-            else:
-                # flatten best effort
-                flat = arr.ravel()
-                n = (flat.size // 3) * 3
-                flat = flat[:n]
-                if n == 0:
-                    return self._error_tile("(pusta macierz)")
-                h = max(1, int(np.sqrt(n // 3)))
-                w = max(1, (n // 3) // h)
-                arr = flat.reshape((h, w, 3))
+            tile.place(x=x, y=TILE_PAD_Y)
+            self._tiles.append(tile)
 
-            return Image.fromarray(arr, "RGB")
+            x += im.width + 2*TILE_PAD_X + 8
 
-        # Fallback: render value as text on tile
-        return self._text_tile(str(val))
+        # resize inner width
+        iw = max(x, self.canvas.winfo_width())
+        ih = THUMB_MAX_H + 2*TILE_PAD_Y + 24
+        self.inner.configure(width=iw, height=ih)
+        self.canvas.configure(scrollregion=(0, 0, iw, ih))
 
-    def _text_tile(self, text: str) -> Image.Image:
-        im = Image.new("RGB", (THUMB_W, THUMB_H), (32, 32, 32))
-        d = ImageDraw.Draw(im)
-        d.text((10, 10), text, fill=(230, 230, 230))
-        return im
+    # ---- geometry mgmt ----------------------------------------------
 
-    def _error_tile(self, msg: str) -> Image.Image:
-        im = Image.new("RGB", (THUMB_W, THUMB_H), (48, 24, 24))
-        d = ImageDraw.Draw(im)
-        d.text((10, 10), "HUD error", fill=(255, 240, 240))
-        d.text((10, 30), msg[:120], fill=(240, 200, 200))
-        return im
+    def _on_inner_configure(self, _event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox(self.window))
 
-    def _show_empty(self, msg: str = "(HUD idle)") -> None:
-        for child in self.inner.winfo_children():
-            child.destroy()
-        self._imgs.clear()
-        lab = ttk.Label(self.inner, text=msg, padding=PAD)
-        lab.grid(row=0, column=0, sticky="nw")
+    def _on_canvas_configure(self, event):
+        # keep inner height; expand width to canvas but keep scrollable
+        self.canvas.itemconfig(self.window, height=event.height)
+        # width is set during render
+        pass
