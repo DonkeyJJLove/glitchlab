@@ -19,5 +19,4 @@
 /filters/backup/stripes.py
 /filters/backup/wave_distort.py
 /backup/
-/core/ARCHITECTURE.md
-
+/filters/backup/
