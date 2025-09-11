@@ -9,14 +9,20 @@ from __future__ import annotations
 import importlib, sys
 
 try:
-    from glitchlab.core.registry import get as _get, register_alias
+    from glitchlab.core.registry import get as _get
+    try:
+        from glitchlab.core.registry import register_alias as _alias
+    except Exception:
+        from glitchlab.core.registry import alias as _alias  # fallback
 except Exception as e:
     _get = None  # type: ignore
-    register_alias = None  # type: ignore
+    _alias = None  # type: ignore
     print(f"[filters] WARN: registry API unavailable: {e}", file=sys.stderr)
+
 
 _MODULES = (
     "anisotropic_contour_warp",
+    "block_mosh",
     "block_mosh_grid",
     "pixel_sort_adaptive",
     "spectral_shaper",
@@ -24,6 +30,9 @@ _MODULES = (
     "rgb_offset",
     "depth_displace",
     "depth_parallax",
+    "default_identity",
+    "gamma_gain",
+    "rgb_glow"
 )
 
 
@@ -42,16 +51,13 @@ del _m
 _ALIASES = {
     "conture_flow": "anisotropic_contour_warp",
     "anisotropic_contour_flow": "anisotropic_contour_warp",
-    "block_mosh": "block_mosh_grid",
     "spectral_shaper_lab": "spectral_shaper",
 }
 
-if register_alias is not None and _get is not None:
+if _alias is not None and _get is not None:
     for _dst, _src in _ALIASES.items():
         try:
-            _get(_src)  # upewnij się, że baza istnieje
-            register_alias(_dst, _src)
+            _get(_src)           # upewnij się, że cel istnieje
+            _alias(_dst, _src)   # alias(alias_name, target_name)
         except Exception:
             pass
-
-del importlib, sys, _safe_import, _ALIASES, _MODULES, _get, register_alias

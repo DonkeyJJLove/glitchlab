@@ -1,259 +1,252 @@
-# glitchlab/filters/block_mosh_grid.py
 # -*- coding: utf-8 -*-
-"""
-Block Mosh Grid
-===============
-Glitch typu *datamosh* wykonywany w siatce bloków. Dla losowo wybranych bloków
-wykonuje przesunięcia (per-blok), ew. swapy bloków, jitter koloru, z możliwością
-sterowania prawdopodobieństwem przez maskę i skalowania siły przez amplitude.
-
-Rejestr:  @register("block_mosh_grid")
-
-Parametry:
-  size            : int        rozmiar bloku (px) – min 4
-  p               : float      prawdopodobieństwo wybrania bloku (0..1)
-  max_shift       : int        maks. |dx| i |dy| w pikselach (na blok)
-  mode            : str        'shift' (domyślnie) lub 'swap'
-  wrap            : bool       True: zawijanie na krawędziach; False: clamp
-  mask_key        : str|None   jeżeli podane – prawdopodobieństwo ważone maską
-  mask_power      : float      potęga modyfikująca wpływ maski (np. 1..3)
-  amp_influence   : float      0..2 – ile amplitude skaluje max_shift (0 wyłącza)
-  channel_jitter  : float      0..128 – szum dodany per blok (RGB) w wartości 8-bit
-  posterize_bits  : int|None   jeżeli >0 – redukcja do n bitów po moshu
-  mix             : float      0..1 – mieszanie (0: oryginał, 1: pełny mosh)
-  swap_fraction   : float      tylko dla mode='swap' – jaka część wybranych bloków tworzy pary do podmiany
-
-Diagnostyka (ctx.cache):
-  - bmg_select : mapa 0..1 wybranych bloków (upscalowana do rozdz. obrazu)
-  - bmg_dx     : mapa przesunięć X (px)  (dla mode='swap' będzie 0)
-  - bmg_dy     : mapa przesunięć Y (px)  (dla mode='swap' będzie 0)
-"""
-
 from __future__ import annotations
 import numpy as np
-from glitchlab.core.registry import register
+from typing import Any, Dict, Tuple
 
+try:
+    from glitchlab.core.registry import register
+except Exception:  # pragma: no cover
+    from core.registry import register  # type: ignore
 
-@register("block_mosh_grid")
-def block_mosh_grid(
-    img: np.ndarray,
-    ctx,
-    size: int = 16,
-    p: float = 0.5,
-    max_shift: int = 24,
-    mode: str = "shift",
-    wrap: bool = True,
-    mask_key: str | None = None,
-    mask_power: float = 1.0,
-    amp_influence: float = 1.0,
-    channel_jitter: float = 0.0,
-    posterize_bits: int | None = None,
-    mix: float = 1.0,
-    swap_fraction: float = 0.5,
-):
-    # ——— sanity ———
-    a = np.asarray(img)
-    if a.ndim != 3 or a.shape[2] < 3:
-        raise ValueError("block_mosh_grid: expected RGB-like image (H,W,C>=3)")
-    H, W, C = a.shape
-    size = max(4, int(size))
-    p = float(np.clip(p, 0.0, 1.0))
-    max_shift = max(0, int(max_shift))
-    mode = str(mode or "shift").lower()
-    wrap = bool(wrap)
-    mix = float(np.clip(mix, 0.0, 1.0))
+DOC = (
+    "Block Mosh (grid): losowe przestawianie bloków. "
+    "Tryby shift/swap, opcjonalna rotacja, channel jitter, posterize, maska i amplitude. "
+    "Emituje diagnostyki: diag/bmg_select, diag/bmg_dx, diag/bmg_dy, diag/bmg_alpha."
+)
 
-    # ——— RNG deterministyczny ———
-    rng = getattr(ctx, "rng", None)
-    if rng is None:
-        seed = int(getattr(ctx, "seed", 0))
-        rng = np.random.default_rng(seed)
+DEFAULTS: Dict[str, Any] = {
+    "size": 24,              # px
+    "p": 0.35,               # prawdopodobieństwo działania na blok
+    "max_shift": 16,         # px (dla trybu 'shift')
+    "mode": "shift",         # 'shift' | 'swap' | 'shift+swap'
+    "swap_radius": 2,        # zasięg (w blokach) dla 'swap'
+    "rot_p": 0.0,            # prawdopodobieństwo rotacji (90/180/270) bloku po operacji
+    "wrap": True,            # True: roll wewnątrz bloku; False: klamrowanie w obrębie bloku
+    "channel_jitter": 0.0,   # dodatkowy +/- jitter per kanał (px; całkowity)
+    "posterize_bits": 0,     # 0 = off; 1..7 = redukcja bitów
+    "mix": 1.0,              # 0..1 blend z oryginałem
+    "mask_key": None,        # ROI
+    "use_amp": 1.0,          # 0..2 typowo; bool => 1.0/0.0
+    "amp_influence": 1.0,    # skala wpływu amplitude na p i siłę
+    "clamp": True,           # końcowe przycięcie do u8
+}
 
-    # ——— padding do wielokrotności rozmiaru bloku ———
-    Gh = (H + size - 1) // size  # liczba bloków w pionie
-    Gw = (W + size - 1) // size
-    Hp = Gh * size
-    Wp = Gw * size
+# ----------------------------- utils --------------------------------
 
-    if (Hp, Wp) != (H, W):
-        pad = np.pad(
-            a[..., :3],
-            ((0, Hp - H), (0, Wp - W), (0, 0)),
-            mode="edge"
-        )
-    else:
-        pad = a[..., :3].copy()
+def _to_f32(u8: np.ndarray) -> np.ndarray:
+    return u8.astype(np.float32) / 255.0
 
-    # ——— maska blokowa (prawdopodobieństwo) ———
-    block_prob = np.full((Gh, Gw), p, dtype=np.float32)
+def _to_u8(f32: np.ndarray) -> np.ndarray:
+    x = np.clip(f32, 0.0, 1.0)
+    return (x * 255.0 + 0.5).astype(np.uint8)
 
-    if mask_key and getattr(ctx, "masks", None) and ctx.masks.get(mask_key) is not None:
-        m = np.asarray(ctx.masks[mask_key]).astype(np.float32)
-        if m.shape != (H, W):
-            m = _fit_mask_hw(m, H, W)
-        # uśrednij maskę w blokach
-        m_pad = np.pad(m, ((0, Hp - H), (0, Wp - W)), mode="edge")
-        m_blocks = m_pad.reshape(Gh, size, Gw, size).mean(axis=(1, 3))
-        m_blocks = np.clip(m_blocks, 0.0, 1.0) ** float(max(0.0, mask_power))
-        block_prob *= m_blocks
-
-    # ——— amplitude → skala przesunięć ———
-    amp_scale = np.ones((Gh, Gw), dtype=np.float32)
-    if amp_influence > 0 and getattr(ctx, "amplitude", None) is not None:
-        amp = np.asarray(ctx.amplitude).astype(np.float32)
-        if amp.shape != (H, W):
-            amp = _fit_mask_hw(amp, H, W)
-        amp_pad = np.pad(amp, ((0, Hp - H), (0, Wp - W)), mode="edge")
-        amp_blocks = amp_pad.reshape(Gh, size, Gw, size).mean(axis=(1, 3))
-        amp_blocks = (amp_blocks - amp_blocks.min()) / (amp_blocks.max() - amp_blocks.min() + 1e-12)
-        # skala 0.5..1.5 * amp_influence (żeby 0 nie wyłączał)
-        amp_scale = 0.5 + 1.0 * amp_blocks * float(amp_influence)
-
-    # ——— wybór bloków ———
-    pick = rng.random((Gh, Gw)) < block_prob
-    # diagnostyka (selection mapa upscalowana)
-    if getattr(ctx, "cache", None) is not None:
-        sel_vis = pick.astype(np.float32).repeat(size, 0).repeat(size, 1)
-        ctx.cache["bmg_select"] = sel_vis[:H, :W].copy()
-
-    # ——— tryb 'swap' ———
-    if mode == "swap":
-        outp = pad.copy()
-        ys, xs = np.where(pick)
-        idx = list(zip(ys.tolist(), xs.tolist()))
-        rng.shuffle(idx)
-        # ile par do wymiany?
-        n_pairs = int(len(idx) * float(np.clip(swap_fraction, 0.0, 1.0)) // 2)
-        for k in range(n_pairs):
-            (y1, x1) = idx[2 * k]
-            (y2, x2) = idx[2 * k + 1]
-            y1p, x1p = y1 * size, x1 * size
-            y2p, x2p = y2 * size, x2 * size
-            b1 = outp[y1p:y1p + size, x1p:x1p + size, :3].copy()
-            b2 = outp[y2p:y2p + size, x2p:x2p + size, :3].copy()
-            outp[y1p:y1p + size, x1p:x1p + size, :3] = b2
-            outp[y2p:y2p + size, x2p:x2p + size, :3] = b1
-        # jitter koloru
-        if channel_jitter > 0:
-            _apply_channel_jitter_blocks(outp, pick, size, rng, channel_jitter)
-        # posterize + mix
-        out = _post_and_mix(a[..., :3], outp[:H, :W, :3], posterize_bits, mix)
-
-        # diagnostyka dx/dy dla swapów (zerowa)
-        if getattr(ctx, "cache", None) is not None:
-            ctx.cache["bmg_dx"] = np.zeros((H, W), np.float32)
-            ctx.cache["bmg_dy"] = np.zeros((H, W), np.float32)
-        return _return_like_input(img, out)
-
-    # ——— tryb 'shift' ———
-    outp = pad.copy()
-
-    # mapy dx/dy (px) tylko dla wybranych bloków
-    dx_blocks = np.zeros((Gh, Gw), dtype=np.int32)
-    dy_blocks = np.zeros((Gh, Gw), dtype=np.int32)
-
-    # losuj przesunięcia per blok
-    if max_shift > 0:
-        # losuj w zakresie [-max_shift, max_shift], z wagą amplitude
-        dx_rand = rng.integers(-max_shift, max_shift + 1, size=(Gh, Gw))
-        dy_rand = rng.integers(-max_shift, max_shift + 1, size=(Gh, Gw))
-        dx_blocks[pick] = (dx_rand[pick] * amp_scale[pick]).astype(np.int32)
-        dy_blocks[pick] = (dy_rand[pick] * amp_scale[pick]).astype(np.int32)
-
-    # zastosuj przesunięcia per blok
-    for gy in range(Gh):
-        y0 = gy * size
-        y1 = y0 + size
-        for gx in range(Gw):
-            if not pick[gy, gx]:
-                continue
-            x0 = gx * size
-            x1 = x0 + size
-            dx = int(dx_blocks[gy, gx])
-            dy = int(dy_blocks[gy, gx])
-
-            if wrap:
-                xs = (np.arange(x0, x1) + dx) % Wp
-                ys = (np.arange(y0, y1) + dy) % Hp
-                blk = outp[np.ix_(ys, xs)]
-            else:
-                xs0, xs1 = _shift_span(x0, x1, dx, 0, Wp)
-                ys0, ys1 = _shift_span(y0, y1, dy, 0, Hp)
-                src = outp[ys0:ys1, xs0:xs1, :3]
-                blk = np.zeros((size, size, 3), dtype=outp.dtype)
-                blk[:src.shape[0], :src.shape[1], :] = src
-
-            outp[y0:y1, x0:x1, :3] = blk
-
-    # jitter koloru
-    if channel_jitter > 0:
-        _apply_channel_jitter_blocks(outp, pick, size, rng, channel_jitter)
-
-    # diagnostyka dx/dy upscalowana
-    if getattr(ctx, "cache", None) is not None:
-        dx_vis = dx_blocks.astype(np.float32).repeat(size, 0).repeat(size, 1)[:H, :W]
-        dy_vis = dy_blocks.astype(np.float32).repeat(size, 0).repeat(size, 1)[:H, :W]
-        ctx.cache["bmg_dx"] = dx_vis
-        ctx.cache["bmg_dy"] = dy_vis
-
-    # posterize + mix
-    out = _post_and_mix(a[..., :3], outp[:H, :W, :3], posterize_bits, mix)
-    return _return_like_input(img, out)
-
-
-# -------------------------- Helpers --------------------------
-
-def _shift_span(x0: int, x1: int, dx: int, lo: int, hi: int) -> tuple[int, int]:
-    """Zwróć [xs0,xs1) po przesunięciu, z clampingiem do [lo,hi)."""
-    xs0 = max(lo, min(hi, x0 + dx))
-    xs1 = max(lo, min(hi, x1 + dx))
-    return xs0, xs1
-
-
-def _apply_channel_jitter_blocks(pad: np.ndarray, pick: np.ndarray, size: int, rng, jitter: float):
-    """Dodaj per-blokowy jitter RGB w zakresie ±jitter (8-bit)."""
-    Gh, Gw = pick.shape
-    if jitter <= 0:
-        return
-    # los per blok, jedna wartość na kanał (R,G,B)
-    noise = rng.normal(0.0, float(jitter), size=(Gh, Gw, 3)).astype(np.float32)
-    for gy in range(Gh):
-        y0 = gy * size
-        y1 = y0 + size
-        for gx in range(Gw):
-            if not pick[gy, gx]:
-                continue
-            x0 = gx * size
-            x1 = x0 + size
-            pad[y0:y1, x0:x1, :3] = np.clip(pad[y0:y1, x0:x1, :3].astype(np.float32) + noise[gy, gx], 0, 255).astype(pad.dtype)
-
-
-def _post_and_mix(src_rgb: np.ndarray, moshed_rgb: np.ndarray, bits: int | None, mix: float) -> np.ndarray:
-    out = moshed_rgb.astype(np.float32)
-    if bits and int(bits) > 0:
-        levels = float(2 ** int(bits) - 1)
-        out = (np.round(out / 255.0 * levels) / levels) * 255.0
-    out = (1.0 - mix) * src_rgb.astype(np.float32) + mix * out
-    return np.clip(out, 0, 255).astype(np.uint8)
-
-
-def _fit_mask_hw(m: np.ndarray, H: int, W: int) -> np.ndarray:
-    """Dopasuj maskę 2D do (H,W) przez proste docięcie/padding."""
+def _fit_hw(m: np.ndarray, H: int, W: int) -> np.ndarray:
     mh, mw = m.shape[:2]
     out = np.zeros((H, W), dtype=np.float32)
     h = min(H, mh); w = min(W, mw)
     out[:h, :w] = m[:h, :w].astype(np.float32)
-    if h < H:
-        out[h:, :w] = out[h - 1:h, :w]
-    if w < W:
-        out[:H, w:] = out[:H, w - 1:w]
+    if h < H: out[h:, :w] = out[h-1:h, :w]
+    if w < W: out[:H, w:] = out[:H, w-1:w]
     return out
 
+def _resolve_mask(ctx, mask_key: str | None, H: int, W: int) -> np.ndarray:
+    m = None
+    if mask_key and getattr(ctx, "masks", None):
+        m = ctx.masks.get(mask_key)
+    if m is None:
+        return np.ones((H, W), dtype=np.float32)
+    m = np.asarray(m).astype(np.float32)
+    if m.shape != (H, W): m = _fit_hw(m, H, W)
+    return np.clip(m, 0.0, 1.0)
 
-def _return_like_input(inp: np.ndarray, rgb: np.ndarray) -> np.ndarray:
-    """Zwróć wynik o tym samym „kształcie” kanałów co wejście (RGB/RGBA)."""
-    if inp.shape[2] >= 4:
-        out = np.concatenate([rgb, inp[..., 3:4]], axis=2)
-    else:
-        out = rgb
+def _amplitude_weight_map(ctx, H: int, W: int, use_amp) -> np.ndarray:
+    if not hasattr(ctx, "amplitude") or ctx.amplitude is None:
+        return np.ones((H, W), dtype=np.float32)
+    amp = np.asarray(ctx.amplitude).astype(np.float32)
+    if amp.shape != (H, W): amp = _fit_hw(amp, H, W)
+    amp -= amp.min(); amp /= (amp.max() + 1e-12)
+    base = 0.25 + 0.75 * amp
+    if isinstance(use_amp, bool):
+        return base if use_amp else np.ones((H, W), dtype=np.float32)
+    return base * float(max(0.0, use_amp))
+
+def _posterize_u8(patch_u8: np.ndarray, bits: int) -> np.ndarray:
+    if bits <= 0: return patch_u8
+    # z 8 bitów zostaw 'bits'
+    keep = int(np.clip(bits, 1, 7))
+    levels = 2 ** keep
+    step = 256 // levels
+    return (patch_u8 // step) * step
+
+def _shift_patch(patch: np.ndarray, dx: int, dy: int, wrap: bool) -> np.ndarray:
+    """Shift 3-channel patch (H,W,3) w px. Gdy wrap=False, brak dosztukowania — brzegi zostają z oryginału."""
+    if dx == 0 and dy == 0:
+        return patch.copy()
+    if wrap:
+        return np.roll(np.roll(patch, dy, axis=0), dx, axis=1)
+    # clamp — kopiujemy obszar wspólny
+    H, W, C = patch.shape
+    out = patch.copy()
+    y_src0 = max(0, -dy); y_src1 = min(H, H - dy)
+    x_src0 = max(0, -dx); x_src1 = min(W, W - dx)
+    y_dst0 = max(0,  dy); y_dst1 = min(H, H + dy)
+    x_dst0 = max(0,  dx); x_dst1 = min(W, W + dx)
+    if y_src0 < y_src1 and x_src0 < x_src1:
+        out[y_dst0:y_dst1, x_dst0:x_dst1, :] = patch[y_src0:y_src1, x_src0:x_src1, :]
     return out
+
+def _jitter_channels(patch: np.ndarray, jitter: float, rng, wrap: bool) -> np.ndarray:
+    if jitter <= 0: return patch
+    J = int(round(abs(jitter)))
+    if J == 0: return patch
+    out = patch.copy()
+    for ch in range(3):
+        dx = int(rng.integers(-J, J+1))
+        dy = int(rng.integers(-J, J+1))
+        out[..., ch] = _shift_patch(out[..., ch:ch+1].repeat(1, axis=2)[...,0:1], dx, dy, wrap)[...,0]
+    return out
+
+def _rot_random(patch: np.ndarray, rot_p: float, rng) -> np.ndarray:
+    if rot_p <= 0.0 or rng.random() >= rot_p: return patch
+    k = int(rng.integers(1, 4))  # 90/180/270
+    return np.rot90(patch, k, axes=(0,1))
+
+# ------------------------------ main --------------------------------
+
+@register("block_mosh_grid", defaults=DEFAULTS, doc=DOC)
+def block_mosh_grid(img: np.ndarray, ctx, **p) -> np.ndarray:
+    a = np.asarray(img)
+    if a.ndim != 3 or a.shape[2] < 3:
+        raise ValueError("block_mosh_grid: expected RGB-like image (H,W,C>=3)")
+    H, W, _ = a.shape
+    rng = getattr(ctx, "rng", np.random.default_rng(7))
+    size = max(4, int(p.get("size", DEFAULTS["size"])))
+    prob = float(p.get("p", DEFAULTS["p"]))
+    max_shift = int(p.get("max_shift", DEFAULTS["max_shift"]))
+    mode = str(p.get("mode", DEFAULTS["mode"])).lower()
+    swap_radius = max(0, int(p.get("swap_radius", DEFAULTS["swap_radius"])))
+    rot_p = float(p.get("rot_p", DEFAULTS["rot_p"]))
+    wrap = bool(p.get("wrap", DEFAULTS["wrap"]))
+    jitter = float(p.get("channel_jitter", DEFAULTS["channel_jitter"]))
+    poster_bits = int(p.get("posterize_bits", DEFAULTS["posterize_bits"]))
+    mix = float(np.clip(p.get("mix", DEFAULTS["mix"]), 0.0, 1.0))
+    mask_key = p.get("mask_key", DEFAULTS["mask_key"])
+    use_amp = p.get("use_amp", DEFAULTS["use_amp"])
+    amp_infl = float(max(0.0, p.get("amp_influence", DEFAULTS["amp_influence"])))
+    clamp = bool(p.get("clamp", DEFAULTS["clamp"]))
+
+    # mapy wag
+    mask_map = _resolve_mask(ctx, mask_key, H, W)
+    amp_map  = _amplitude_weight_map(ctx, H, W, use_amp)
+
+    # diagnostyki
+    sel_map = np.zeros((H, W), dtype=np.float32)
+    dx_map  = np.zeros((H, W), dtype=np.float32) + 0.5
+    dy_map  = np.zeros((H, W), dtype=np.float32) + 0.5
+    alpha_map = np.zeros((H, W), dtype=np.float32)
+
+    out = a.copy()
+
+    # lista bloków
+    bys = list(range(0, H, size))
+    bxs = list(range(0, W, size))
+
+    # pomoc: dopasowanie drugiego bloku w promieniu
+    def _rand_block_near(bxi: int, byi: int) -> Tuple[int, int]:
+        bx0 = max(0, bxi - swap_radius); bx1 = min(len(bxs)-1, bxi + swap_radius)
+        by0 = max(0, byi - swap_radius); by1 = min(len(bys)-1, byi + swap_radius)
+        rx = int(rng.integers(bx0, bx1+1))
+        ry = int(rng.integers(by0, by1+1))
+        return rx, ry
+
+    for yi, by in enumerate(bys):
+        y2 = min(H, by + size)
+        for xi, bx in enumerate(bxs):
+            x2 = min(W, bx + size)
+
+            m_avg = float(mask_map[by:y2, bx:x2].mean())
+            a_avg = float(amp_map [by:y2, bx:x2].mean())
+            weight = np.clip(m_avg * (0.25 + 0.75*a_avg) * amp_infl, 0.0, 2.0)
+
+            p_eff = np.clip(prob * (0.5 + 0.5 * weight), 0.0, 1.0)
+            if rng.random() >= p_eff:
+                continue
+
+            patch = out[by:y2, bx:x2, :].copy()
+            base_patch = patch.copy()
+
+            did_shift = False
+            did_swap  = False
+
+            # --- tryb operacji ---
+            if mode in ("shift", "shift+swap"):
+                dx = int(rng.integers(-max_shift, max_shift+1))
+                dy = int(rng.integers(-max_shift, max_shift+1))
+                dx = int(round(dx * weight))
+                dy = int(round(dy * weight))
+                patch = _shift_patch(patch, dx, dy, wrap)
+                did_shift = True
+                # zapisz dx/dy diag (0.0..1.0)
+                if max_shift > 0:
+                    dxx = 0.5 + 0.5 * float(np.clip(dx, -max_shift, max_shift)) / float(max_shift)
+                    dyy = 0.5 + 0.5 * float(np.clip(dy, -max_shift, max_shift)) / float(max_shift)
+                else:
+                    dxx = dyy = 0.5
+                dx_map[by:y2, bx:x2] = dxx
+                dy_map[by:y2, bx:x2] = dyy
+
+            if mode in ("swap", "shift+swap"):
+                rx_i, ry_i = _rand_block_near(xi, yi)
+                rb_x, rb_y = bxs[rx_i], bys[ry_i]
+                rb_x2, rb_y2 = min(W, rb_x + size), min(H, rb_y + size)
+                other = out[rb_y:rb_y2, rb_x:rb_x2, :].copy()
+                # swap rozmiary mogą się różnić (krawędzie) – wyrównanie do wspólnego min
+                hh = min(patch.shape[0], other.shape[0])
+                ww = min(patch.shape[1], other.shape[1])
+                if hh > 0 and ww > 0:
+                    tmp = patch[:hh, :ww, :].copy()
+                    patch[:hh, :ww, :] = other[:hh, :ww, :]
+                    out[rb_y:rb_y+hh, rb_x:rb_x+ww, :] = tmp
+                    did_swap = True
+
+            # rotacja losowa
+            patch = _rot_random(patch, rot_p, rng)
+
+            # jitter per-channel
+            if jitter > 0:
+                # stosujemy jitter już na patchu (ten sam wrap co dla shifta)
+                pj = patch.copy()
+                for ch in range(3):
+                    dxj = int(rng.integers(-int(jitter), int(jitter)+1))
+                    dyj = int(rng.integers(-int(jitter), int(jitter)+1))
+                    pj[..., ch:ch+1] = _shift_patch(pj[..., ch:ch+1], dxj, dyj, wrap)
+                patch = pj
+
+            # posterize
+            if poster_bits > 0:
+                patch = _posterize_u8(_to_u8(patch), poster_bits)
+                patch = _to_f32(patch)
+
+            # alpha/mix
+            alpha = np.clip(mix * (0.5 + 0.5 * weight), 0.0, 1.0)
+            alpha_map[by:y2, bx:x2] = alpha
+            patch = base_patch*(1.0 - alpha) + patch*alpha
+
+            # zapis do wyjścia
+            out[by:y2, bx:x2, :] = patch
+
+            # diagnostyka: zaznaczenie wybranych bloków
+            sel_map[by:y2, bx:x2] = np.maximum(sel_map[by:y2, bx:x2], float(p_eff))
+
+    # diagnostyki HUD
+    if getattr(ctx, "cache", None) is not None:
+        def _u(g: np.ndarray) -> np.ndarray:
+            g = np.clip(g.astype(np.float32), 0.0, 1.0)
+            u = (g*255.0 + 0.5).astype(np.uint8)
+            return np.stack([u, u, u], axis=-1)
+        ctx.cache["diag/bmg_select"] = _u(sel_map)
+        ctx.cache["diag/bmg_dx"]     = _u(dx_map)
+        ctx.cache["diag/bmg_dy"]     = _u(dy_map)
+        ctx.cache["diag/bmg_alpha"]  = _u(alpha_map)
+
+    return _to_u8(out) if clamp else (np.clip(out,0,1)*255.0).astype(np.uint8)

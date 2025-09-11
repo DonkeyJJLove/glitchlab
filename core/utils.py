@@ -1,263 +1,315 @@
 # glitchlab/core/utils.py
-# -*- coding: utf-8 -*-
 """
-Podstawowe narzędzia backendu:
-- Ctx: kontekst przetwarzania (maski, amplitude, RNG, meta, cache)
-- Normalizacja obrazu (uint8 RGB), konwersja do szarości
-- Mapy krawędzi + budowa maski krawędzi (z opcjonalną dylacją)
-- Generatory amplitudy (linear_x/y, radial, perlin, z maski)
-- Pomocnicze resize/clip i RNG
+---
+version: 2
+kind: module
+id: "core-utils"
+created_at: "2025-09-11"
+name: "glitchlab.core.utils"
+author: "GlitchLab v2"
+role: "Core Utilities (image/mask conversions & helpers)"
+description: >
+  Lekki zestaw funkcji pomocniczych wspólny dla core/filters/GUI: konwersje RGB↔Gray,
+  stabilna konwersja do uint8, bezpieczne przycinanie [0,1], zmiana rozmiaru (Pillow),
+  deterministyczny RNG i prosty BoxBlur dla masek. Bez SciPy/OpenCV.
 
-Uwaga: brak SciPy – do dylacji używamy Pillow (ImageFilter.MaxFilter).
+inputs:
+  image_rgb?: {dtype: "uint8|float32", shape: "(H,W,3)", desc: "obraz RGB"}
+  image_gray?: {dtype: "uint8|float32", shape: "(H,W)",   desc: "obraz w odcieniach szarości"}
+  size_hw?: {type: "(int,int)", desc: "nowy rozmiar (H,W) dla resize_u8"}
+  seed?: {type: "int|null", desc: "ziarno RNG dla make_rng"}
+  blur.radius?: {type: "float", min: 0, desc: "promień BoxBlur dla box_blur"}
+
+outputs:
+  gray_f32?: {dtype: "float32", shape: "(H,W)", range: "[0,1]"}
+  rgb_u8?:   {dtype: "uint8",   shape: "(H,W,3)"}
+  resized?:  {dtype: "uint8",   shape: "(H,W[,3])"}
+  rng?:      {type: "np.random.Generator"}
+
+interfaces:
+  exports:
+    - "to_gray_f32_u8"
+    - "to_u8_rgb"
+    - "resize_u8"
+    - "make_rng"
+    - "safe_clip01"
+    - "box_blur"
+  depends_on: ["numpy","Pillow"]
+  used_by: ["glitchlab.core.pipeline","glitchlab.core.roi","glitchlab.filters","glitchlab.gui"]
+
+contracts:
+  - "funkcje są czyste i deterministyczne; nie mutują wejść"
+  - "Gray zawsze jako float32 w [0,1]"
+  - "to_u8_rgb zwraca uint8 (H,W,3); clamp domyślnie ON"
+  - "resize_u8 obsługuje 'nearest'|'bilinear'|'bicubic'"
+
+constraints:
+  - "no SciPy/OpenCV"
+  - "wejścia muszą mieć poprawny kształt i dtype"
+
+hud:
+  note: "Moduł nie zapisuje telemetrii; pośrednio wspiera HUD przez pipeline/analizę."
+
+tests_smoke:
+  - "to_gray_f32_u8(np.zeros((16,16,3),uint8)) → (16,16) f32 [0,1]"
+  - "to_u8_rgb(np.zeros((8,8,3),float32)) → (8,8,3) uint8"
+  - "resize_u8(np.zeros((8,8,3),uint8),(4,4)) → (4,4,3) uint8"
+license: "Proprietary"
+---
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional, Any, Tuple
-
+from typing import Optional, Tuple, Mapping, Any
 import numpy as np
 from PIL import Image, ImageFilter
 
-# opcjonalny Perlin (pnoise2); jeśli brak, mamy fallback sinusowy
-try:
-    import noise as _noise  # pip install noise
-except Exception:
-    _noise = None
-
-# =============================================================================
-# Kontekst
-# =============================================================================
-
-@dataclass
-class Ctx:
-    """Kontekst przetwarzania jednego pipeline’u."""
-    masks: Dict[str, np.ndarray] = field(default_factory=dict)   # str -> (H,W) float32 [0,1]
-    amplitude: Optional[np.ndarray] = None                       # (H,W) float32 (dowolna skala dodatnia)
-    rng: np.random.Generator = field(default_factory=lambda: np.random.default_rng(7))
-    seed: int = 7
-    meta: Dict[str, Any] = field(default_factory=dict)
-    cache: Dict[str, Any] = field(default_factory=dict)
-
-    def reseed(self, seed: Optional[int] = None) -> None:
-        if seed is None:
-            seed = self.seed
-        else:
-            self.seed = int(seed)
-        self.rng = np.random.default_rng(self.seed)
-
-
-# =============================================================================
-# Konwersje/normalizacje
-# =============================================================================
-
-def normalize_image(a: np.ndarray) -> np.ndarray:
-    """
-    Zwraca obraz w formacie (H,W,3) uint8.
-    Obsługa wejść: L/LA/RGB/RGBA/float/int.
-    """
-    a = np.asarray(a)
-    if a.ndim == 2:
-        a = np.stack([a, a, a], axis=-1)
-    if a.ndim == 3 and a.shape[2] == 4:  # RGBA -> RGB na białym tle
-        alpha = a[..., 3:4].astype(np.float32) / 255.0
-        rgb = a[..., :3].astype(np.float32)
-        a = (rgb * alpha + 255.0 * (1.0 - alpha)).astype(np.uint8)
-    if a.dtype != np.uint8:
-        if np.issubdtype(a.dtype, np.floating):
-            scale = 255.0 if a.max() <= 1.0 else 1.0
-            a = np.clip(a * scale, 0, 255).astype(np.uint8)
-        else:
-            a = np.clip(a, 0, 255).astype(np.uint8)
-    if a.ndim != 3 or a.shape[2] != 3:
-        raise ValueError("normalize_image: oczekiwano (H,W,3) po normalizacji")
-    return np.ascontiguousarray(a)
-
-
-def to_gray(arr: np.ndarray) -> np.ndarray:
-    """Konwersja do szarości float32 (0..255)."""
-    arr = normalize_image(arr)
-    g = 0.299 * arr[..., 0] + 0.587 * arr[..., 1] + 0.114 * arr[..., 2]
-    return g.astype(np.float32)
-
-
-# =============================================================================
-# Maski / krawędzie
-# =============================================================================
-
-def compute_edges(arr: np.ndarray, gain: float = 1.0) -> np.ndarray:
-    """
-    Prosty gradient (różnice sąsiednie) → mapa krawędzi float32 0..1.
-    """
-    g = to_gray(arr) / 255.0
-    gx = np.zeros_like(g)
-    gy = np.zeros_like(g)
-    gx[:, 1:] = np.abs(g[:, 1:] - g[:, :-1])
-    gy[1:, :] = np.abs(g[1:, :] - g[:-1, :])
-    e = np.clip((gx + gy) * gain, 0.0, 1.0)
-    if (e.max() - e.min()) > 1e-8:
-        e = (e - e.min()) / (e.max() - e.min())
-    return e.astype(np.float32)
-
-
-def _dilate_mask_pillow(mask: np.ndarray, ksize: int, iters: int) -> np.ndarray:
-    """
-    Dylacja binarna 2D przez Pillow (MaxFilter). mask musi być float 0..1.
-    """
-    if iters <= 0 or ksize <= 1:
-        return mask
-    if ksize % 2 == 0:
-        ksize += 1  # MaxFilter wymaga nieparzystego
-    im = Image.fromarray((mask * 255).astype(np.uint8), mode="L")
-    for _ in range(iters):
-        im = im.filter(ImageFilter.MaxFilter(ksize))
-    out = np.asarray(im, dtype=np.uint8).astype(np.float32) / 255.0
-    return np.clip(out, 0.0, 1.0)
-
-
-def build_edge_mask(arr: np.ndarray, thresh: float = 60, dilate: int = 0, ksize: int = 3) -> np.ndarray:
-    """
-    Buduje maskę krawędzi: progowanie gradientu + opcjonalna dylacja.
-    - thresh: próg w skali 0..255 (po zeskalowaniu gradientu do 0..255)
-    - dilate: liczba iteracji dylacji
-    - ksize : rozmiar okna MaxFilter (nieparzysty)
-    """
-    e = compute_edges(arr, gain=1.2)  # 0..1
-    m = (e * 255.0 >= float(thresh)).astype(np.float32)
-    if dilate > 0:
-        m = _dilate_mask_pillow(m, ksize=max(3, int(ksize)), iters=int(dilate))
-    return m  # 0..1 float32
-
-
-def resize_mask_to(mask: np.ndarray, shape_hw: Tuple[int, int]) -> np.ndarray:
-    """
-    Skalowanie maski do rozmiaru (H,W) przez Pillow (BICUBIC).
-    """
-    H, W = shape_hw
-    im = Image.fromarray((np.clip(mask, 0, 1) * 255).astype(np.uint8), mode="L")
-    im = im.resize((W, H), Image.BICUBIC)
-    return (np.asarray(im, dtype=np.uint8).astype(np.float32) / 255.0).clip(0, 1)
-
-
-# =============================================================================
-# Amplitudy (pola sterujące)
-# =============================================================================
-
-def _perlin2d(width: int, height: int, scale: float, octaves: int = 4,
-              persistence: float = 0.5, lacunarity: float = 2.0, base: int = 0) -> np.ndarray:
-    """
-    2D Perlin (z `noise`) albo fallback sinusowy, gdy brak pakietu.
-    Zwraca float32 0..1.
-    """
-    if _noise is None or scale <= 0:
-        # fallback: łagodna siatka sinus/cos
-        yy, xx = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
-        f = 2.0 * np.pi / max(16.0, scale or 16.0)
-        z = np.sin(xx * f) * np.cos(yy * f)
-        z = (z - z.min()) / (z.max() - z.min() + 1e-8)
-        return z.astype(np.float32)
-
-    z = np.zeros((height, width), dtype=np.float32)
-    for y in range(height):
-        for x in range(width):
-            z[y, x] = _noise.pnoise2(
-                x / scale, y / scale,
-                octaves=octaves,
-                persistence=persistence,
-                lacunarity=lacunarity,
-                repeatx=1024, repeaty=1024,
-                base=base,
-            )
-    z = (z - z.min()) / (z.max() - z.min() + 1e-8)
-    return z.astype(np.float32)
-
-
-def make_amplitude(shape_hw: Tuple[int, int],
-                   kind: str = "none",
-                   strength: float = 1.0,
-                   ctx: Optional[Ctx] = None,
-                   **kwargs) -> np.ndarray:
-    """
-    Buduje pole amplitudy (H,W) float32 dodatnie.
-    kind:
-      - 'none'      : jedynki
-      - 'linear_x'  : rampa w osi X (0..1)
-      - 'linear_y'  : rampa w osi Y (0..1)
-      - 'radial'    : kołowo od środka (0..1)
-      - 'perlin'    : szum perlin (wymaga pip noise; jest fallback)
-      - 'mask'      : z maski ctx.masks[mask_key] (param: mask_key)
-    strength: mnożnik końcowy (>0)
-    kwargs:
-      - dla perlin: scale, octaves, persistence, lacunarity, base
-      - dla mask : mask_key
-    """
-    H, W = shape_hw
-    if strength <= 0:
-        strength = 1.0
-
-    if kind == "none":
-        amp = np.ones((H, W), dtype=np.float32)
-
-    elif kind == "linear_x":
-        x = np.linspace(0.0, 1.0, W, dtype=np.float32)
-        amp = np.tile(x[None, :], (H, 1))
-
-    elif kind == "linear_y":
-        y = np.linspace(0.0, 1.0, H, dtype=np.float32)
-        amp = np.tile(y[:, None], (1, W))
-
-    elif kind == "radial":
-        yy, xx = np.meshgrid(np.linspace(-1, 1, H), np.linspace(-1, 1, W), indexing="ij")
-        r = np.sqrt(xx * xx + yy * yy)
-        r = (r - r.min()) / (r.max() - r.min() + 1e-8)
-        amp = 1.0 - r  # większa amplituda w centrum
-
-    elif kind == "perlin":
-        scale = float(kwargs.get("scale", 96.0))
-        octaves = int(kwargs.get("octaves", 4))
-        persistence = float(kwargs.get("persistence", 0.5))
-        lacunarity = float(kwargs.get("lacunarity", 2.0))
-        base = int(kwargs.get("base", 0 if ctx is None else ctx.seed))
-        amp = _perlin2d(W, H, scale, octaves, persistence, lacunarity, base)
-
-    elif kind == "mask":
-        mask_key = kwargs.get("mask_key")
-        if ctx is None or not isinstance(mask_key, str) or mask_key not in ctx.masks:
-            raise KeyError("make_amplitude(kind='mask'): wymagany ctx.masks[mask_key]")
-        amp = resize_mask_to(ctx.masks[mask_key].astype(np.float32), (H, W))
-
-    else:
-        raise ValueError(f"make_amplitude: nieznany kind='{kind}'")
-
-    # skala dodatnia
-    amp = np.clip(amp, 0.0, None).astype(np.float32)
-    if (amp.max() - amp.min()) > 1e-8:
-        amp = (amp - amp.min()) / (amp.max() - amp.min())
-    amp = np.clip(amp * float(strength), 1e-6, None)
-    return amp
-
-
-# =============================================================================
-# RNG i pomocnicze
-# =============================================================================
-
-def build_rng(seed: int = 7) -> np.random.Generator:
-    """Deterministyczny generator liczb losowych."""
-    return np.random.default_rng(int(seed))
-
-
-def set_seed(ctx: Ctx, seed: int) -> None:
-    ctx.reseed(seed)
-
 
 __all__ = [
-    "Ctx",
-    "normalize_image",
-    "to_gray",
-    "compute_edges",
-    "build_edge_mask",
-    "resize_mask_to",
-    "make_amplitude",
-    "build_rng",
-    "set_seed",
+    "to_gray_f32_u8",
+    "to_u8_rgb",
+    "resize_u8",
+    "make_rng",
+    "safe_clip01",
+    "box_blur",
 ]
+
+# --------------------------------------------------------------------------------------
+# Type helpers
+# --------------------------------------------------------------------------------------
+
+def to_gray_f32_u8(img_u8: np.ndarray) -> np.ndarray:
+    """Gray f32 [0,1] from uint8 RGB."""
+    if img_u8.dtype != np.uint8 or img_u8.ndim != 3 or img_u8.shape[-1] != 3:
+        raise ValueError("to_gray_f32_u8: expected uint8 RGB (H,W,3)")
+    f = img_u8.astype(np.float32) / 255.0
+    g = 0.299 * f[..., 0] + 0.587 * f[..., 1] + 0.114 * f[..., 2]
+    return np.clip(g, 0.0, 1.0)
+
+def _sobel_mag_gray01(g: np.ndarray) -> np.ndarray:
+    """Sobel magnitude for gray f32 [0,1], kernel 3x3, returns [0,1]."""
+    assert g.ndim == 2
+    Kx = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.float32)
+    Ky = np.array([[1,2,1],[0,0,0],[-1,-2,-1]], dtype=np.float32)
+    pad = np.pad(g, 1, mode="edge")
+    H, W = g.shape
+    gx = np.zeros_like(g, dtype=np.float32)
+    gy = np.zeros_like(g, dtype=np.float32)
+    for i in range(3):
+        for j in range(3):
+            sl = pad[i:i+H, j:j+W]
+            gx += sl * Kx[i, j]
+            gy += sl * Ky[i, j]
+    mag = np.sqrt(gx*gx + gy*gy) * (1.0/8.0)
+    return np.clip(mag, 0.0, 1.0)
+
+def compute_edges(img_u8: np.ndarray, *, ksize: int = 3,
+                  thresh: Optional[float] = None,
+                  dilate: int = 0) -> np.ndarray:
+    """
+    Zwraca maskę krawędzi f32 [0,1], ten sam rozmiar co obraz.
+    - ksize: obecnie tylko 3 (zachowane dla kompatybilności)
+    - thresh: jeśli podano, binarzuje (0/1) wg progu [0..1]
+    - dilate: piksele rozszerzania (0 = bez); realizowane MaxFilter (Pillow)
+    """
+    if img_u8.ndim == 3 and img_u8.shape[-1] == 3 and img_u8.dtype == np.uint8:
+        g = to_gray_f32_u8(img_u8)
+    elif img_u8.ndim == 2:
+        g = np.clip(img_u8.astype(np.float32), 0, 255) / 255.0
+    else:
+        raise ValueError("compute_edges: expected uint8 RGB or grayscale")
+    if ksize != 3:
+        # placeholder: trzymamy interfejs, ale realnie używamy 3x3
+        pass
+    mag = _sobel_mag_gray01(g)
+
+    if thresh is not None:
+        m = (mag >= float(thresh)).astype(np.float32)
+    else:
+        m = mag.astype(np.float32)
+
+    if dilate and dilate > 0:
+        # Pillow MaxFilter: rozmiar okna musi być nieparzysty
+        win = int(dilate) * 2 + 1
+        u8 = (np.clip(m, 0, 1) * 255.0 + 0.5).astype(np.uint8)
+        im = Image.fromarray(u8, mode="L").filter(ImageFilter.MaxFilter(win))
+        m = np.asarray(im, dtype=np.float32) / 255.0
+
+    return np.clip(m, 0.0, 1.0)
+
+def resize_mask_to(mask_f32: np.ndarray,
+                   like_or_hw: Tuple[int, int] | np.ndarray,
+                   *, method: str = "bicubic") -> np.ndarray:
+    """
+    Skaluje maskę f32 [0,1] do (H,W) celu lub rozmiaru obrazu referencyjnego.
+    """
+    if isinstance(like_or_hw, np.ndarray):
+        H, W = like_or_hw.shape[:2]
+    else:
+        H, W = like_or_hw
+    mode = {"nearest": Image.NEAREST, "bilinear": Image.BILINEAR,
+            "bicubic": Image.BICUBIC}.get(method.lower(), Image.BICUBIC)
+    u8 = (np.clip(mask_f32.astype(np.float32), 0, 1) * 255.0 + 0.5).astype(np.uint8)
+    im = Image.fromarray(u8, mode="L").resize((W, H), mode)
+    out = np.asarray(im, dtype=np.float32) / 255.0
+    return np.clip(out, 0.0, 1.0)
+
+def make_amplitude(shape_or_img: Tuple[int,int] | np.ndarray,
+                   *, kind: str = "none", strength: float = 1.0,
+                   scale: float = 96.0, octaves: int = 3,
+                   persistence: float = 0.5, lacunarity: float = 2.0,
+                   center: Optional[Tuple[float,float]] = None) -> np.ndarray:
+    """
+    Generuje mapę amplitudy f32 [0,1] (H,W):
+      - none:      ones
+      - linear_x:  0..1 po osi X
+      - linear_y:  0..1 po osi Y
+      - radial:    0..1 od centrum (domyślnie środek)
+      - perlin:    lekka, bezbiblioteczna "value-noise" z oktawami
+    'strength' skaluje wynik (potem i tak filtry mogą mieć use_amp).
+    """
+    if isinstance(shape_or_img, np.ndarray):
+        H, W = shape_or_img.shape[:2]
+    else:
+        H, W = shape_or_img
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    if kind == "none":
+        base = np.ones((H, W), np.float32)
+    elif kind == "linear_x":
+        base = xx / max(W-1, 1)
+    elif kind == "linear_y":
+        base = yy / max(H-1, 1)
+    elif kind == "radial":
+        cx, cy = (W-1)/2.0, (H-1)/2.0
+        if center is not None:
+            cx, cy = float(center[0]), float(center[1])
+        r = np.sqrt((xx - cx)**2 + (yy - cy)**2)
+        base = r / (np.sqrt(cx*cx + cy*cy) + 1e-6)
+        base = np.clip(1.0 - base, 0.0, 1.0)  # 1 w środku, 0 na brzegu
+    elif kind == "perlin":
+        # szybki "value noise": losowa siatka -> bilinear upsample; nakładamy oktawy
+        rng = np.random.default_rng(12345)
+        def octave(freq_px: float) -> np.ndarray:
+            gH = max(1, int(max(H,1) / max(freq_px, 1.0)))
+            gW = max(1, int(max(W,1) / max(freq_px, 1.0)))
+            grid = rng.random((gH, gW), dtype=np.float32)
+            im = Image.fromarray((grid*255).astype(np.uint8), "L").resize((W, H), Image.BILINEAR)
+            return np.asarray(im, np.float32) / 255.0
+        amp = 0.0
+        total = 0.0
+        freq = max(scale, 8.0)
+        amp_w = 1.0
+        for _ in range(int(max(1, octaves))):
+            amp += octave(freq) * amp_w
+            total += amp_w
+            freq = max(4.0, freq / max(lacunarity, 1.0001))
+            amp_w *= float(persistence)
+        base = (amp / max(total, 1e-6)).astype(np.float32)
+        base = np.clip(base, 0.0, 1.0)
+    else:
+        base = np.ones((H, W), np.float32)
+
+    out = np.clip(base * float(strength), 0.0, 1.0)
+    return out
+
+
+def to_gray_f32_u8(img_u8: np.ndarray) -> np.ndarray:
+    """
+    RGB uint8 (H,W,3) -> gray float32 [0,1].
+    Jeśli wejście jest float w [0,1] i ma 3 kanały, rzutuje na gray bez skalowania.
+    """
+    if img_u8.ndim == 2:
+        a = img_u8
+        if a.dtype == np.uint8:
+            g = a.astype(np.float32) / 255.0
+        else:
+            g = a.astype(np.float32, copy=False)
+        return np.clip(g, 0.0, 1.0, out=g)
+
+    if img_u8.ndim != 3 or img_u8.shape[-1] != 3:
+        raise ValueError("to_gray_f32_u8: expected (H,W,3) or (H,W) array")
+
+    if img_u8.dtype == np.uint8:
+        a = img_u8.astype(np.float32) / 255.0
+    else:
+        a = img_u8.astype(np.float32, copy=False)
+
+    y = 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]
+    return np.clip(y, 0.0, 1.0, out=y)
+
+
+def to_u8_rgb(img_f: np.ndarray, *, clamp: bool = True) -> np.ndarray:
+    """
+    float (H,W,3) w ~[0,1] -> uint8 (H,W,3). Jeśli clamp=True, przycina do [0,1].
+    Przyjmuje też uint8 i zwraca kopię (stabilizator typu).
+    """
+    if img_f.ndim != 3 or img_f.shape[-1] != 3:
+        raise ValueError("to_u8_rgb: expected (H,W,3)")
+
+    if img_f.dtype == np.uint8:
+        return img_f.copy()
+
+    a = img_f.astype(np.float32, copy=False)
+    if clamp:
+        np.clip(a, 0.0, 1.0, out=a)
+    return (a * 255.0 + 0.5).astype(np.uint8)
+
+
+def resize_u8(img_u8: np.ndarray, size_hw: Tuple[int, int], *, method: str = "bicubic") -> np.ndarray:
+    """
+    Zmiana rozmiaru RGB/Gray uint8 do (H,W). Metody: 'nearest'|'bilinear'|'bicubic'.
+    """
+    if img_u8.ndim not in (2, 3):
+        raise ValueError("resize_u8: expected 2D gray or 3D RGB array")
+    h, w = int(size_hw[0]), int(size_hw[1])
+    if h <= 0 or w <= 0:
+        raise ValueError("resize_u8: size must be positive")
+
+    if img_u8.ndim == 2:
+        mode = "L"
+    else:
+        if img_u8.shape[-1] != 3:
+            raise ValueError("resize_u8: only RGB supported for 3D arrays")
+        mode = "RGB"
+
+    method = (method or "bicubic").lower()
+    if method == "nearest":
+        resample = Image.NEAREST
+    elif method == "bilinear":
+        resample = Image.BILINEAR
+    else:
+        resample = Image.BICUBIC
+
+    im = Image.fromarray(img_u8, mode=mode)
+    im = im.resize((w, h), resample=resample)
+    arr = np.asarray(im, dtype=np.uint8)
+    if img_u8.ndim == 2:
+        return arr
+    # PIL może zwrócić shape (h,w,3) lub (h,w) jeśli obraz degeneruje – upewnij się o 3 kanałach
+    if arr.ndim == 2:
+        arr = np.stack([arr, arr, arr], axis=-1)
+    return arr
+
+
+def make_rng(seed: Optional[int]) -> np.random.Generator:
+    """Deterministyczny RNG (NumPy PCG64) dla podanego ziarna."""
+    return np.random.default_rng(seed)
+
+
+def safe_clip01(a: np.ndarray) -> np.ndarray:
+    """Bezpieczne przycięcie do [0,1] z rzutowaniem do float32."""
+    f = a.astype(np.float32, copy=False)
+    return np.clip(f, 0.0, 1.0, out=f)
+
+
+def box_blur(mask_f32: np.ndarray, radius: float) -> np.ndarray:
+    """
+    BoxBlur dla maski float32 [0,1]. Zwraca float32 [0,1].
+    Dla radius<=0 zwraca wejście (kopię jeśli potrzeba).
+    """
+    if radius <= 0:
+        return mask_f32.astype(np.float32, copy=True)
+    im = Image.fromarray((safe_clip01(mask_f32) * 255.0 + 0.5).astype(np.uint8), mode="L")
+    im = im.filter(ImageFilter.BoxBlur(radius=float(radius)))
+    out = np.asarray(im, dtype=np.uint8).astype(np.float32) / 255.0
+    return safe_clip01(out)

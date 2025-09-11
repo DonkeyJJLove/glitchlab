@@ -4,152 +4,165 @@
 spectral_shaper — kształtowanie widma (FFT) przez maski radialne/kierunkowe.
 
 Tworzy kontrolowany "błąd widmowy": podbija/tłumi pasma (ring, band, directional).
-Dodatkowo zapisuje do ctx.cache:
-  - 'spectral_shaper/mag'  : ostatnia mapa |F| (downsample 256x256, uint8)
-  - 'spectral_shaper/mask' : użyta maska w dziedzinie częstotliwości (uint8)
+Zapis diagnostyczny (uint8, downsample):
+  - ctx.cache['spectral_shaper/mag']   : log|F| (≈256×256)
+  - ctx.cache['spectral_shaper/mask']  : użyta maska częstotliwościowa
 
 Parametry:
     mode        : 'bandpass' | 'bandstop' | 'ring' | 'direction'
-    low         : float [0..1]    (dolna granica radialna, jako frakcja Nyquista)
-    high        : float [0..1]    (górna granica radialna)
-    angle_deg   : float           (dla 'direction': kąt osi pasma, 0=poziomo)
-    ang_width   : float [0..180]  (szerokość kątowa pasma w stopniach)
-    boost       : float           (współczynnik modyfikacji, np. -0.8..+3.0)
-    soft        : float           (piórko krawędzi maski, 0..1)
-    blend       : float [0..1]    (miks z oryginałem w dziedzinie obrazu)
-    mask_key    : str|None        (jeśli podany, miksuje wynik w przestrzeni obrazu)
-
-Uwaga:
- - 'low'/'high' jako frakcja promienia Nyquista: 1.0 ≈ min(H,W)/2.
- - 'boost' > 0 podbija, < 0 tłumi. Efektywnie: |F|' = |F| * (1 + boost*M).
+    low         : float [0..1]      (dolna granica radialna)
+    high        : float [0..1]      (górna granica radialna)
+    angle_deg   : float             (dla 'direction': kąt osi pasma, 0=poziomo)
+    ang_width   : float [0..180]    (szerokość kątowa pasma, w stopniach)
+    boost       : float             (współczynnik modyfikacji, np. -1.0..+3.0)
+    soft        : float             (piórko krawędzi maski, 0..1)
+    blend       : float [0..1]      (miks z oryginałem w dziedzinie obrazu)
+    mask_key    : str|None          (jeśli podany, miksuje wynik wg maski w obrazie)
 """
 
 from __future__ import annotations
 import numpy as np
-from glitchlab.core.registry import register
-from glitchlab.core.utils import resize_mask_to
+from typing import Any, Dict
 
-def _fft2c(x):
+try:
+    from glitchlab.core.registry import register
+except Exception:  # pragma: no cover
+    from core.registry import register  # type: ignore
+
+# opcjonalny utils; zapewniamy fallback, żeby nie „skipowało” modułu
+try:
+    from glitchlab.core.utils import resize_mask_to as _resize_mask_to  # type: ignore
+except Exception:
+    _resize_mask_to = None  # fallback poniżej
+
+DOC = "Kształtowanie widma (FFT): ring/band/direction z miękkimi krawędziami; miks i maskowanie przestrzenne."
+DEFAULTS: Dict[str, Any] = {
+    "mode": "ring",
+    "low": 0.15,
+    "high": 0.45,
+    "angle_deg": 0.0,
+    "ang_width": 20.0,
+    "boost": 0.8,
+    "soft": 0.08,
+    "blend": 0.0,
+    "mask_key": None,
+}
+
+def _fft2c(x: np.ndarray) -> np.ndarray:
     return np.fft.fftshift(np.fft.fft2(x))
 
-def _ifft2c(X):
+def _ifft2c(X: np.ndarray) -> np.ndarray:
     return np.fft.ifft2(np.fft.ifftshift(X))
 
-def _radial_angular_grids(h, w):
+def _radial_angular_grids(h: int, w: int) -> tuple[np.ndarray, np.ndarray]:
     yy, xx = np.meshgrid(np.arange(h) - h/2.0, np.arange(w) - w/2.0, indexing="ij")
-    r = np.sqrt(xx*xx + yy*yy)
-    phi = np.arctan2(yy, xx)  # [-pi,pi]
+    r = np.sqrt(xx*xx + yy*yy).astype(np.float32)
+    phi = np.arctan2(yy, xx).astype(np.float32)  # [-pi,pi]
     rmax = 0.5 * min(h, w)
-    rn = (r / (rmax + 1e-8)).astype(np.float32)  # 0..~1.4
+    rn = (r / (rmax + 1e-8)).astype(np.float32)  # ~0..1.4
     return rn, phi
 
-def _soft_step(x, edge, feather):
-    # płynne przejście 0..1; feather w [0..1] → grubość przejścia
+def _soft_step(x: np.ndarray, edge: float, feather: float) -> np.ndarray:
     if feather <= 0:
         return (x >= edge).astype(np.float32)
     k = 1.0 / max(1e-6, feather)
-    return (1.0 / (1.0 + np.exp(-(x - edge) * k))).astype(np.float32)
+    return (1.0 / (1.0 + np.exp(-(x - float(edge)) * k))).astype(np.float32)
 
-def _build_mask(mode, rn, phi, low, high, angle_deg, ang_width, soft):
-    low = np.clip(float(low), 0.0, 1.5)
+def _build_mask(mode: str, rn: np.ndarray, phi: np.ndarray,
+                low: float, high: float, angle_deg: float, ang_width: float, soft: float) -> np.ndarray:
+    low  = np.clip(float(low),  0.0, 1.5)
     high = np.clip(float(high), 0.0, 1.5)
     soft = float(soft)
-
-    if mode == "ring":
-        # wieniec wokół (low..high) z miękkimi krawędziami
-        inner = _soft_step(rn, low, soft)
-        outer = 1.0 - _soft_step(rn, high, soft)
-        M = inner * outer
-
-    elif mode in ("bandpass", "bandstop"):
-        inner = _soft_step(rn, low, soft)
-        outer = 1.0 - _soft_step(rn, high, soft)
-        ring = inner * outer
-        M = ring
-
-    elif mode == "direction":
-        # pas kątowy ± ang_width wokół angle_deg
+    if mode == "direction":
         ang = np.deg2rad(float(angle_deg))
-        # minimalna odległość kątowa
         dphi = np.abs((phi - ang + np.pi) % (2*np.pi) - np.pi)
         width = np.deg2rad(max(1e-3, float(ang_width)))
-        M = 1.0 - _soft_step(dphi, width, soft)
-        # (opcjonalnie można też ograniczyć radialnie przez [low,high])
+        Mdir = 1.0 - _soft_step(dphi, width, soft)
         inner = _soft_step(rn, low, soft)
         outer = 1.0 - _soft_step(rn, high, soft)
-        M = M * inner * outer
-
+        return (Mdir * inner * outer).astype(np.float32)
     else:
-        # domyślnie zwykły ring band
         inner = _soft_step(rn, low, soft)
         outer = 1.0 - _soft_step(rn, high, soft)
-        M = inner * outer
+        return (inner * outer).astype(np.float32)
 
-    return M.astype(np.float32)
+def _downsample_approx(x: np.ndarray, target: int = 256) -> np.ndarray:
+    H, W = x.shape[:2]
+    s0 = max(1, H // target); s1 = max(1, W // target)
+    return x[::s0, ::s1]
 
-@register("spectral_shaper")
-def spectral_shaper(
-    img, ctx,
-    mode: str = "ring",
-    low: float = 0.15,
-    high: float = 0.45,
-    angle_deg: float = 0.0,
-    ang_width: float = 20.0,
-    boost: float = 0.8,
-    soft: float = 0.08,
-    blend: float = 0.0,
-    mask_key: str | None = None,
-):
-    """
-    Kształtowanie widma przez maskę M (0..1):  |F|' = |F| * (1 + boost*M).
-    """
+def _fit_mask_nn(m: np.ndarray, hw: tuple[int, int]) -> np.ndarray:
+    """Prosty fallback NN bez zależności: szybki i wystarczający do miksu."""
+    H, W = hw
+    m = np.asarray(m, dtype=np.float32)
+    if m.shape[:2] == (H, W):
+        return np.clip(m, 0.0, 1.0)
+    mh, mw = m.shape[:2]
+    ys = np.linspace(0, mh - 1, H).astype(np.int32)
+    xs = np.linspace(0, mw - 1, W).astype(np.int32)
+    out = m[ys][:, xs]
+    return np.clip(out, 0.0, 1.0)
+
+@register("spectral_shaper", defaults=DEFAULTS, doc=DOC)
+def spectral_shaper(img: np.ndarray, ctx, **p: Any) -> np.ndarray:
     a = img.astype(np.uint8, copy=False)
-    h, w, c = a.shape
-    out = np.empty_like(a)
+    H, W, C = a.shape
+    if C < 3:
+        raise ValueError("spectral_shaper: expected RGB-like image (H,W,C>=3)")
 
-    rn, phi = _radial_angular_grids(h, w)
+    mode      = str(p.get("mode", DEFAULTS["mode"])).lower()
+    low       = float(p.get("low", DEFAULTS["low"]))
+    high      = float(p.get("high", DEFAULTS["high"]))
+    angle_deg = float(p.get("angle_deg", DEFAULTS["angle_deg"]))
+    ang_width = float(p.get("ang_width", DEFAULTS["ang_width"]))
+    boost     = float(p.get("boost", DEFAULTS["boost"]))
+    soft      = float(p.get("soft", DEFAULTS["soft"]))
+    blend     = float(np.clip(p.get("blend", DEFAULTS["blend"]), 0.0, 1.0))
+    mask_key  = p.get("mask_key", DEFAULTS["mask_key"])
+
+    rn, phi = _radial_angular_grids(H, W)
     M = _build_mask(mode, rn, phi, low, high, angle_deg, ang_width, soft)  # 0..1
 
-    # Diagnostyka (downsample do 256x256)
-    def _down8(x):
-        H, W = x.shape
-        s0 = max(1, H // 256); s1 = max(1, W // 256)
-        return x[::s0, ::s1]
-
+    out = np.empty_like(a)
     last_mag = None
+
     for ch in range(3):
         X = _fft2c(a[..., ch].astype(np.float32))
-        mag = np.abs(X)
+        mag   = np.abs(X)
         phase = np.angle(X)
 
         if last_mag is None:
             last_mag = np.log1p(mag)
 
         if mode == "bandstop":
+            # clamp boost do [-1,1] by nie odwracać widma
             new_mag = mag * (1.0 - np.clip(boost, -1.0, 1.0) * M)
         else:
-            new_mag = mag * (1.0 + float(boost) * M)
+            new_mag = mag * (1.0 + boost * M)
 
         Y = new_mag * np.exp(1j * phase)
         y = np.real(_ifft2c(Y))
         out[..., ch] = np.clip(y, 0, 255)
 
-    # opcjonalny miks w przestrzeni obrazu
-    if 0.0 < float(blend) < 1.0:
-        out = np.clip(out.astype(np.float32) * (1.0 - blend) + a.astype(np.float32) * blend, 0, 255).astype(np.uint8)
+    # miks globalny w domenie obrazu
+    if 0.0 < blend < 1.0:
+        out = (out.astype(np.float32) * (1.0 - blend) + a.astype(np.float32) * blend).clip(0, 255).astype(np.uint8)
 
-    # opcjonalne mieszanie maską przestrzenną
-    if isinstance(mask_key, str) and hasattr(ctx, "masks") and mask_key in ctx.masks:
+    # miks maską przestrzenną (fallback bez resize_mask_to)
+    if isinstance(mask_key, str) and getattr(ctx, "masks", None) and mask_key in ctx.masks:
         m = ctx.masks[mask_key]
-        if m.shape != (h, w):
-            m = resize_mask_to(m, (h, w))
-        m3 = m[..., None]
-        out = (out.astype(np.float32) * m3 + a.astype(np.float32) * (1.0 - m3)).astype(np.uint8)
+        if m.shape[:2] != (H, W):
+            m = _resize_mask_to(m, (H, W)) if _resize_mask_to is not None else _fit_mask_nn(m, (H, W))
+        m = np.clip(m.astype(np.float32), 0.0, 1.0)
+        out = (out.astype(np.float32) * m[..., None] + a.astype(np.float32) * (1.0 - m[..., None])).clip(0, 255).astype(np.uint8)
 
-    # zapisz diagnostykę
+    # diagnostyka do HUD
     try:
-        ctx.cache["spectral_shaper/mag"] = (255 * (_down8(last_mag) / (last_mag.max() + 1e-8))).astype(np.uint8)
-        ctx.cache["spectral_shaper/mask"] = (255 * _down8(M)).astype(np.uint8)
+        mag_vis  = _downsample_approx(last_mag)
+        mag_vis  = (255.0 * (mag_vis / (mag_vis.max() + 1e-8))).astype(np.uint8)
+        mask_vis = (255.0 * _downsample_approx(M)).astype(np.uint8)
+        ctx.cache["spectral_shaper/mag"]  = mag_vis
+        ctx.cache["spectral_shaper/mask"] = mask_vis
     except Exception:
         pass
 

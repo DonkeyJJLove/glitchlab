@@ -1,99 +1,135 @@
 # glitchlab/core/registry.py
-# -*- coding: utf-8 -*-
-"""
-Lekki rejestr filtrów:
-- @register("nazwa") – dekorator do rejestracji filtrów
-- get(name)         – pobierz funkcję filtra (uwzględnia aliasy)
-- available()       – listuje wszystkie nazwy (łącznie z aliasami)
-- canonical(name)   – rozwija alias do nazwy bazowej
-- meta(name)        – metadane filtra
-- register_alias(dst, src) – rejestracja aliasu (druga nazwa tego samego filtra)
-
-Filtr ma sygnaturę:  f(img: np.ndarray, ctx: Ctx, **params) -> np.ndarray
-"""
-
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Any
 
-@dataclass
-class _Entry:
-    fn: Callable
-    module: str
-    alias_of: Optional[str] = None
-    defaults: Dict[str, Any] = None
-    doc: str = ""
+from threading import RLock
+from typing import Any, Callable, Dict, List, Optional
 
-_REGISTRY: Dict[str, _Entry] = {}
+__all__ = [
+    "register",
+    "get",
+    "available",
+    "canonical",
+    "alias",
+    "meta",
+    "register_alias",
+]
 
-def _extract_defaults(fn: Callable) -> Dict[str, Any]:
-    import inspect
-    sig = getattr(fn, "__signature__", None) or inspect.signature(fn)
-    out: Dict[str, Any] = {}
-    params = list(sig.parameters.values())
-    for p in params[2:]:  # pomiń img, ctx
-        if p.default is not inspect._empty:
-            out[p.name] = p.default
-    return out
+# Internal state (lowercased keys)
+_LOCK = RLock()
+_FUNCS: Dict[str, Callable[..., Any]] = {}
+_DEFAULTS: Dict[str, Dict[str, Any]] = {}
+_DOCS: Dict[str, str] = {}
+_ALIASES: Dict[str, str] = {}  # alias_name -> target_canonical (both lowercased)
 
-def register(name: Optional[str] = None):
-    """Dekorator rejestrujący filtr pod wskazaną nazwą."""
-    def deco(fn: Callable):
-        nonlocal name
-        if name is None:
-            name = fn.__name__
-        _REGISTRY[name] = _Entry(
-            fn=fn,
-            module=getattr(fn, "__module__", ""),
-            alias_of=None,
-            defaults=_extract_defaults(fn),
-            doc=(fn.__doc__ or "").strip(),
-        )
-        return fn
-    return deco
 
-def register_alias(dst: str, src: str) -> None:
-    """Zarejestruj alias 'dst' wskazujący na istniejący filtr 'src'."""
-    base = _REGISTRY.get(src)
-    if base is None:
-        return
-    _REGISTRY[dst] = _Entry(
-        fn=base.fn, module=base.module, alias_of=src,
-        defaults=base.defaults, doc=base.doc
-    )
+def _lc(name: str) -> str:
+    if not isinstance(name, str):
+        raise TypeError("name must be str")
+    return name.strip().lower()
 
-def get(name: str) -> Callable:
-    ent = _REGISTRY.get(name)
-    if ent is None:
-        raise KeyError(f"Unknown filter '{name}'")
-    return ent.fn
 
 def canonical(name: str) -> str:
+    """Resolve alias chain to a canonical registered name. Raises KeyError if not found."""
+    key = _lc(name)
     seen = set()
-    cur = name
-    while True:
-        if cur in seen:
-            return cur
-        seen.add(cur)
-        ent = _REGISTRY.get(cur)
-        if not ent or not ent.alias_of:
-            return cur
-        cur = ent.alias_of
+    with _LOCK:
+        while key in _ALIASES:
+            if key in seen:
+                # Break alias loops defensively
+                break
+            seen.add(key)
+            key = _ALIASES[key]
+        if key not in _FUNCS:
+            raise KeyError(f"Unknown filter: {name!r}")
+        return key
 
-def available() -> list[str]:
-    return sorted(_REGISTRY.keys(), key=str.casefold)
+
+def available() -> List[str]:
+    """List canonical registered filter names (sorted)."""
+    with _LOCK:
+        return sorted(_FUNCS.keys())
+
+
+def get(name: str) -> Callable[..., Any]:
+    """Return the callable for a (possibly aliased) filter name."""
+    key = canonical(name)
+    with _LOCK:
+        return _FUNCS[key]
+
 
 def meta(name: str) -> Dict[str, Any]:
-    ent = _REGISTRY.get(name)
-    if ent is None:
-        raise KeyError(name)
-    return {
-        "module": ent.module,
-        "alias_of": ent.alias_of,
-        "defaults": ent.defaults,
-        "doc": ent.doc,
-    }
+    """Return metadata: {'name','defaults','doc','aliases'} for the (possibly aliased) name."""
+    key = canonical(name)
+    with _LOCK:
+        # aliases that resolve to this canonical
+        aliases = [a for a, tgt in _ALIASES.items() if tgt == key]
+        return {
+            "name": key,
+            "defaults": dict(_DEFAULTS.get(key, {})),
+            "doc": _DOCS.get(key, ""),
+            "aliases": sorted(aliases),
+        }
 
-# Debug (opcjonalnie)
-def _dump_registry() -> Dict[str, Dict[str, Any]]:
-    return {k: {"module": v.module, "alias_of": v.alias_of} for k, v in _REGISTRY.items()}
+
+def alias(alias_name: str, target_name: str) -> bool:
+    """
+    Create/overwrite an alias. Returns True on success, False if target doesn't exist
+    or alias would shadow another canonical function (different from target).
+    """
+    a = _lc(alias_name)
+    t = _lc(target_name)
+    with _LOCK:
+        if t not in _FUNCS:
+            return False
+        # Do not allow creating alias that collides with an existing canonical function
+        if a in _FUNCS and a != t:
+            return False
+        # Resolve final target to avoid chains where possible
+        try:
+            t_final = canonical(t)
+        except KeyError:
+            return False
+        # Prevent trivial self-alias loops
+        if a == t_final:
+            # No-op alias (alias of itself) is acceptable; ensure it's removed if present
+            _ALIASES.pop(a, None)
+            return True
+        _ALIASES[a] = t_final
+        return True
+
+
+def register(name: str, defaults: Optional[Dict[str, Any]] = None, doc: Optional[str] = None):
+    """
+    Decorator for registering a filter function with optional defaults/doc.
+    Usage:
+        @register("anisotropic_contour_warp", defaults={"strength":1.0}, doc="Warp along contours")
+        def anisotropic_contour_warp(img, ctx, **params): ...
+    """
+    key = _lc(name)
+
+    def _decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        if not callable(fn):
+            raise TypeError("register: fn must be callable")
+        with _LOCK:
+            _FUNCS[key] = fn
+            if defaults is not None:
+                if not isinstance(defaults, dict):
+                    raise TypeError("register: defaults must be a dict or None")
+                _DEFAULTS[key] = dict(defaults)
+            else:
+                _DEFAULTS.setdefault(key, {})
+            if doc is not None:
+                if not isinstance(doc, str):
+                    raise TypeError("register: doc must be a str or None")
+                _DOCS[key] = doc
+            else:
+                _DOCS.setdefault(key, "")
+            # Any alias pointing to this key remains valid; nothing else to do
+        return fn
+
+    return _decorator
+
+
+# Back-compat helper name (no-op wrapper)
+def register_alias(dst: str, src: str) -> bool:
+    return alias(dst, src)

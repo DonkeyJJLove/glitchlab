@@ -1,145 +1,189 @@
+# glitchlab/core/graph.py
 """
-Graph specification and execution engine for glitchlab.
-
-This module defines the data structures used to represent a
-processing graph (DAG) and provides a simple evaluator to run
-graphs. A graph consists of a set of global parameters and a
-list of node definitions. Each node refers to an operator by
-name and specifies local parameters and input dependencies.
-
-During evaluation, global parameters can be referenced in the
-local parameter values by name or via the ``@map(x, a, b)``
-expression, which linearly maps a normalised global value ``x``
-to the range ``[a, b]``. For example ``@map(depth, 20, 100)``
-will take the global parameter ``depth`` (assumed between 0 and
-1) and produce a value between 20 and 100.
-
-Graphs are evaluated in the order nodes are defined; users
-should ensure that dependencies appear before their dependants.
-Output artifacts are cached under the node id for reuse by
-subsequent nodes.
+---
+version: 2
+kind: module
+id: "core-graph"
+created_at: "2025-09-11"
+name: "glitchlab.core.graph"
+author: "GlitchLab v2"
+role: "DAG Builder & Metrics Aggregator"
+description: >
+  Buduje liniowy DAG (nodes/edges) na podstawie steps oraz metryk zapisanych w ctx.cache
+  przez pipeline. Agreguje czasy, metryki in/out, diff_stats i wylicza delty (out−in).
+  Eksportuje lekki JSON gotowy dla HUD/GUI pod kluczem 'ast/json'.
+inputs:
+  steps: "list[Step{name:str, params:dict}]"
+  cache: "dict (ctx.cache) z kluczami stage/{i}/metrics_in|metrics_out|diff_stats|t_ms"
+outputs:
+  graph:
+    nodes: "list[Node{id,name,params,t_ms,metrics_in,metrics_out,diff_stats,delta?,status}]"
+    edges: "list[Edge{src,dst}]"
+    meta:  "{steps_count:int, metrics_keys:list[str], has_missing:bool}"
+  cache_key: "ast/json"  # miejsce zapisu w ctx.cache (opcjonalnie)
+record_model:
+  Node:  ["id","name","params","t_ms","metrics_in","metrics_out","diff_stats","delta?","status"]
+  Edge:  ["src","dst"]
+  Graph: ["nodes[]","edges[]","meta{steps_count,metrics_keys,has_missing}"]
+interfaces:
+  exports: ["build_graph_from_cache","export_ast_json","build_and_export_graph"]
+  depends_on: ["typing"]  # brak ciężkich zależności
+  used_by: ["glitchlab.core.pipeline","glitchlab.gui","glitchlab.analysis.exporters"]
+policy:
+  deterministic: true
+  side_effects: "opcjonalny zapis do ctx.cache['ast/json']"
+constraints:
+  - "no SciPy/OpenCV"
+  - "JSON-serializowalny output (bez macierzy)"
+telemetry:
+  metrics: ["delta per metric","t_ms per stage","diff_stats{mean,p95,max}"]
+hud:
+  channels:
+    ast_json: "ast/json"
+license: "Proprietary"
+---
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Callable, Optional
-import re
+from __future__ import annotations
 
-from .artifact import Artifact
-from .operator import OperatorSpec, get_operator, available as available_operators
+from typing import Any, Dict, List, Mapping, Optional, TypedDict
 
 
-@dataclass
-class Node:
-    """A single node in a processing graph.
+class Node(TypedDict, total=False):
+    id: int
+    name: str
+    params: Dict[str, Any]
+    t_ms: float
+    metrics_in: Dict[str, float]
+    metrics_out: Dict[str, float]
+    diff_stats: Dict[str, float]
+    delta: Dict[str, float]        # metrics_out - metrics_in (wspólne klucze)
+    status: str                    # "ok" | "missing"
 
-    Each node applies a specified operator to its inputs with
-    local parameters. The operator must be registered in the
-    operator registry. Inputs are given as a list of strings; each
-    string references either an input alias (like ``"image_in"``)
-    or the ``id`` of another node in the graph.
+class Edge(TypedDict):
+    src: int
+    dst: int
+
+class Graph(TypedDict):
+    nodes: List[Node]
+    edges: List[Edge]
+    meta: Dict[str, Any]
+
+
+def _as_float_dict(d: Mapping[str, Any]) -> Dict[str, float]:
+    out: Dict[str, float] = {}
+    for k, v in (d or {}).items():
+        try:
+            out[k] = float(v)
+        except Exception:
+            # pomiń wartości nienumeryczne
+            continue
+    return out
+
+
+def _compute_delta(m_in: Mapping[str, Any], m_out: Mapping[str, Any]) -> Dict[str, float]:
+    a = _as_float_dict(m_in)
+    b = _as_float_dict(m_out)
+    keys = a.keys() & b.keys()
+    return {k: b[k] - a[k] for k in keys}
+
+
+def build_graph_from_cache(
+    steps: List[Mapping[str, Any]],
+    cache: Dict[str, Any],
+    *,
+    attach_delta: bool = True,
+) -> Graph:
     """
-
-    id: str
-    op: str
-    inputs: List[str] = field(default_factory=list)
-    params: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class GraphSpec:
-    """A specification of a processing graph.
-
-    Attributes
-    ----------
-    globals:
-        Mapping of global parameter names to values. Values are
-        assumed to be floats in the range [0, 1] for mapping
-        operations, but this is not enforced.
-    nodes:
-        A sequence of node definitions. The order of nodes
-        dictates the evaluation order and should satisfy all
-        dependencies.
+    Buduje liniowy DAG (i->i+1) korzystając z metryk zapisanych w ctx.cache przez pipeline.
+    Nie odczytuje obrazów; wyłącznie liczby i parametry.
     """
+    nodes: List[Node] = []
+    edges: List[Edge] = []
 
-    globals: Dict[str, Any] = field(default_factory=dict)
-    nodes: List[Node] = field(default_factory=list)
+    n = len(steps)
+    for i in range(n):
+        s = steps[i]
+        name = str(s.get("name", "")).strip()
+        params = dict(s.get("params", {}))
+
+        m_in = _as_float_dict(cache.get(f"stage/{i}/metrics_in", {}))
+        m_out = _as_float_dict(cache.get(f"stage/{i}/metrics_out", {}))
+        diff_stats = _as_float_dict(cache.get(f"stage/{i}/diff_stats", {}))
+        t_ms = float(cache.get(f"stage/{i}/t_ms", 0.0)) if f"stage/{i}/t_ms" in cache else 0.0
+
+        node: Node = {
+            "id": i,
+            "name": name,
+            "params": params,
+            "t_ms": t_ms,
+            "metrics_in": m_in,
+            "metrics_out": m_out,
+            "diff_stats": diff_stats,
+            "status": "ok" if (m_in or m_out or diff_stats or t_ms > 0.0) else "missing",
+        }
+        if attach_delta:
+            node["delta"] = _compute_delta(m_in, m_out)
+
+        nodes.append(node)
+
+        if i < n - 1:
+            edges.append({"src": i, "dst": i + 1})
+
+    meta: Dict[str, Any] = {
+        "steps_count": n,
+        "metrics_keys": sorted(
+            set().union(
+                *[nodes[i].get("metrics_out", {}).keys() for i in range(n)]  # type: ignore[arg-type]
+            )
+        ) if n else [],
+        "has_missing": any(nd.get("status") == "missing" for nd in nodes),
+    }
+
+    return {"nodes": nodes, "edges": edges, "meta": meta}
 
 
-class GraphRunner:
-    """Evaluate a processing graph on a set of input artifacts.
-
-    This runner interprets parameter expressions referencing
-    global variables and caches intermediate artifacts under
-    node identifiers. It is a minimal execution engine and does
-    not implement sophisticated scheduling or parallelism.
+def export_ast_json(
+    graph: Graph,
+    ctx_like: Optional[Mapping[str, Any]] = None,
+    *,
+    cache_key: str = "ast/json",
+) -> Dict[str, Any]:
     """
+    Zwraca serializowalny JSON (dict). Jeśli podasz obiekt z 'cache' (np. Ctx),
+    zapisze również pod wskazanym kluczem.
+    """
+    # graf jest już JSON-serializowalny (słowniki/liczby/listy)
+    if ctx_like is not None:
+        cache = None
+        # obsłuż zarówno Ctx z atrybutem 'cache', jak i dict zawierający cache
+        if hasattr(ctx_like, "cache"):
+            cache = getattr(ctx_like, "cache", None)
+        elif isinstance(ctx_like, Mapping):
+            cache = ctx_like.get("cache")
+        if isinstance(cache, dict):
+            cache[cache_key] = graph
+    return graph
 
-    def __init__(self, spec: GraphSpec, ctx: Any):
-        self.spec = spec
-        self.ctx = ctx
-        self.cache: Dict[str, Artifact] = {}
 
-    def _eval_expr(self, expr: Any) -> Any:
-        """Evaluate a parameter expression.
+def build_and_export_graph(
+    steps: List[Mapping[str, Any]],
+    ctx_like: Any,
+    *,
+    attach_delta: bool = True,
+    cache_key: str = "ast/json",
+) -> Dict[str, Any]:
+    """
+    Wygodne połączenie: buduj graf z ctx.cache i zapisz go jako JSON w cache.
+    """
+    cache: Dict[str, Any]
+    if hasattr(ctx_like, "cache"):
+        cache = getattr(ctx_like, "cache")
+    elif isinstance(ctx_like, Mapping) and "cache" in ctx_like:
+        cache = ctx_like["cache"]  # type: ignore[index]
+    else:
+        raise TypeError("ctx_like must expose a dict 'cache'")
 
-        Parameter values may be either raw values, names of
-        global parameters, or mapping expressions of the form
-        ``@map(var, a, b)``. Mapping expressions linearly map
-        ``var`` (looked up in ``spec.globals``) to the interval
-        [a, b]. If the expression is not a string or does not
-        start with ``@map``, the value is returned unchanged.
-        """
-        if isinstance(expr, str):
-            # direct global reference
-            if expr in self.spec.globals:
-                return self.spec.globals[expr]
-            # mapping pattern
-            m = re.match(r"@map\(([^,]+),\s*([^,]+),\s*([^\)]+)\)", expr)
-            if m:
-                var_name = m.group(1).strip()
-                a = float(m.group(2))
-                b = float(m.group(3))
-                base = float(self.spec.globals.get(var_name, 0.0))
-                return a + (b - a) * base
-        return expr
-
-    def run(self, inputs: Dict[str, Artifact]) -> Dict[str, Artifact]:
-        """Execute the graph and return a mapping of node ids to artifacts."""
-        # Start with provided inputs; e.g. {"image_in": artifact}
-        for node in self.spec.nodes:
-            # Resolve operator spec
-            spec = get_operator(node.op)
-            # Evaluate local parameters
-            local_params = {}
-            if node.params:
-                for k, v in node.params.items():
-                    local_params[k] = self._eval_expr(v)
-            # Build transformer from factory
-            transformer = spec.fn_factory(self.ctx, **(local_params or {}))
-            # Gather input artifacts
-            input_art: Optional[Artifact] = None
-            if spec.inputs == 0:
-                # Operators with zero inputs (e.g. generators) ignore input_art
-                input_art = None
-            else:
-                # For unary operators, take the first available input
-                if not node.inputs:
-                    # fallback to a default alias
-                    input_art = inputs.get("image_in")
-                else:
-                    src = node.inputs[0]
-                    if src in inputs:
-                        input_art = inputs[src]
-                    elif src in self.cache:
-                        input_art = self.cache[src]
-                    else:
-                        raise KeyError(f"Missing input '{src}' for node {node.id}")
-            # Execute operator
-            try:
-                out_art = transformer(input_art) if input_art is not None else transformer(None)
-            except Exception as e:
-                # Represent the error as a special artifact
-                out_art = Artifact("error", {"node": node.id, "exc": repr(e)}, {"origin": node.op})
-            # Cache result under node id
-            self.cache[node.id] = out_art
-        return self.cache
+    graph = build_graph_from_cache(steps, cache, attach_delta=attach_delta)
+    export_ast_json(graph, ctx_like, cache_key=cache_key)
+    return graph

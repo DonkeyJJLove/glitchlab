@@ -1,3 +1,0 @@
-depth_parallax:
-  steps:
-    - { name: depth_parallax, params: { scale: 70, freq: 100.0, octaves: 5, shading: true, stereo: true } }
