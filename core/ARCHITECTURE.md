@@ -273,5 +273,3 @@ Open Source — D2J3 aka Cha0s (for test and fun)
 * [**ANALYSIS**](analysis/analysis.md)
 
 ---
-
-To wszystko — gotowe do wklejenia jako README.md. Po tym przechodzimy do **systemu GUI**: rozpiszę skeleton stałego layoutu, kontrakty paneli, loader paneli, oraz widżety `graph_view` i `mosaic_view` (z kluczami HUD już obsłużonymi w core).

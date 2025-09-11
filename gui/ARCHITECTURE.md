@@ -289,10 +289,3 @@ Panel wywołuje `on_change()` → App zbiera `get_params()` → aktualizuje **Ui
 
 ---
 
-### Podsumowanie
-
-* Mamy prosty, **przewidywalny** GUI-stack (Tkinter), ale o **dużej ergonomii**: dock/float, pełny HUD, mini-graf, mozaika.
-* System paneli jest *otwarty*: panele dedykowane lub autogenerowane.
-* GUI nie liczy metryk; **tylko** wyświetla to, co wystawia core/analysis HUD-kanałami.
-* `main.py` dostawimy na końcu — po dopięciu `widgets/`, docking i paneli.
-
