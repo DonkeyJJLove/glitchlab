@@ -267,7 +267,7 @@ Open Source — D2J3 aka Cha0s (for test and fun)
 ---
 
 ## Dalsza lektura
-
+* [**ARCHITECTURE**](ARCHITECTURE.md)
 * [**GUI ARCHITECTURE**](gui/ARCHITECTURE.md)
 * [**CORE ARCHITECTURE**](core/ARCHITECTURE.md)
 * [**ANALYSIS**](analysis/analysis.md)
