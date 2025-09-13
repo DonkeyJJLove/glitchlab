@@ -40,8 +40,6 @@ license: "Proprietary"
 ---
 """
 
-
-
 # glitchlab/analysis/diff.py
 from __future__ import annotations
 
@@ -50,6 +48,7 @@ import numpy as np
 from PIL import Image
 
 __all__ = ["to_rgb_f32", "resize_like", "compute_diff"]
+
 
 # -----------------------------
 # Konwersje i skalowanie
@@ -120,6 +119,7 @@ def _resize_max_side_rgb(a_rgb: np.ndarray, b_rgb: np.ndarray, max_side: int) ->
     Skaluje oba obrazy (RGB f32 [0,1]) tak, by ich max(H,W) <= max_side i miały identyczny rozmiar.
     Rozmiar docelowy – rozmiar mniejszego po downsamplingu.
     """
+
     def down(a: np.ndarray) -> np.ndarray:
         H, W = a.shape[:2]
         m = max(H, W)
@@ -142,15 +142,16 @@ def _resize_max_side_rgb(a_rgb: np.ndarray, b_rgb: np.ndarray, max_side: int) ->
         B = np.asarray(im, dtype=np.float32) / 255.0
     return A, B
 
+
 # -----------------------------
 # Różnice i statystyki
 # -----------------------------
 def compute_diff(
-    a: np.ndarray,
-    b: np.ndarray,
-    *,
-    max_side: int = 1024,
-    add_psnr: bool = False,
+        a: np.ndarray,
+        b: np.ndarray,
+        *,
+        max_side: int = 1024,
+        add_psnr: bool = False,
 ) -> Dict[str, Any]:
     """
     Zwraca:

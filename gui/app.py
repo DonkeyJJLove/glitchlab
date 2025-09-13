@@ -3,7 +3,6 @@
 from __future__ import annotations
 import os
 import importlib
-import json
 from pathlib import Path
 import threading
 import time
@@ -206,11 +205,18 @@ class _Ruler(ttk.Frame):
 
     def update_marker_view_px(self, view_px: int):
         c = self.canvas
+        if self._marker_line_id is not None:
+            try: c.delete(self._marker_line_id)
+            except Exception: pass
+            self._marker_line_id = None
+        if self._marker_text_id is not None:
+            try: c.delete(self._marker_text_id)
+            except Exception: pass
+            self._marker_text_id = None
+
         if self.orientation == "x":
             x = int(view_px)
             h = int(c.winfo_height() or 26)
-            if self._marker_line_id: c.delete(self._marker_line_id)
-            if self._marker_text_id: c.delete(self._marker_text_id)
             self._marker_line_id = c.create_line(x, 0, x, h, fill="#e0e0e0", dash=(4, 3))
             img_coord = int(round(x / max(self.zoom, 1e-6)))
             self._marker_text_id = c.create_text(x+4, h-2, anchor="se",
@@ -218,8 +224,6 @@ class _Ruler(ttk.Frame):
         else:
             y = int(view_px)
             w = int(c.winfo_width() or 28)
-            if self._marker_line_id: c.delete(self._marker_line_id)
-            if self._marker_text_id: c.delete(self._marker_text_id)
             self._marker_line_id = c.create_line(0, y, w, y, fill="#e0e0e0", dash=(4, 3))
             img_coord = int(round(y / max(self.zoom, 1e-6)))
             self._marker_text_id = c.create_text(w-2, y+2, anchor="se",
@@ -230,7 +234,7 @@ class _Ruler(ttk.Frame):
         c.delete("all")
         try:
             if self.orientation == "x":
-                c.create_text(4, 2, anchor="nw", text="X →", fill="#9fbfff", font=("", 9, "bold"))
+                c.create_text(6, 2, anchor="nw", text="X →", fill="#9fbfff", font=("", 9, "bold"))
             else:
                 c.create_text(2, 2, anchor="nw", text="Y ↓", fill="#9fbfff", font=("", 9, "bold"))
         except Exception:
@@ -247,6 +251,44 @@ class _Ruler(ttk.Frame):
             for y in range(0, h, step):
                 c.create_line(0, y, 12, y, fill="#aaaaaa")
                 c.create_text(14, y+2, anchor="nw", text=str(int(y/self.zoom)), fill="#cccccc", font=("", 8))
+
+
+# ----------------- TOOLBOX -----------------
+class _Toolbox(ttk.Frame):
+    """Mini-widget na tryby + toggles (crosshair/rulers)."""
+    def __init__(self, master, on_mode_change, on_toggle):
+        super().__init__(master)
+        self.on_mode_change = on_mode_change
+        self.on_toggle = on_toggle
+
+        self.var_mode = tk.StringVar(value="hand")
+        self.var_cross = tk.BooleanVar(value=True)
+        self.var_rulers = tk.BooleanVar(value=True)
+
+        self._mode_btn("🖐", "hand",  "Pan / drag").pack(side="left", padx=(4,0))
+        self._mode_btn("🔍", "zoom",  "Zoom tool").pack(side="left", padx=2)
+        self._mode_btn("🎯", "pick",  "Color picker").pack(side="left", padx=2)
+        self._mode_btn("📏", "measure","Measure distance").pack(side="left", padx=2)
+
+        ttk.Separator(self, orient="vertical").pack(side="left", fill="y", padx=6)
+
+        self._toggle_btn("⊕", self.var_cross, "cross", "Crosshair").pack(side="left", padx=2)
+        self._toggle_btn("📐", self.var_rulers,"rulers","Rulers").pack(side="left", padx=2)
+
+    def _mode_btn(self, text, value, tip):
+        b = ttk.Radiobutton(self, text=text, value=value, variable=self.var_mode, style="Toolbutton",
+                            command=lambda: self.on_mode_change(self.var_mode.get()))
+        b.tooltip = tip
+        return b
+
+    def _toggle_btn(self, text, var, key, tip):
+        b = ttk.Checkbutton(self, text=text, variable=var, style="Toolbutton",
+                            command=lambda: self.on_toggle(key, bool(var.get())))
+        b.tooltip = tip
+        return b
+
+    def set_cross(self, v: bool):   self.var_cross.set(bool(v))
+    def set_rulers(self, v: bool):  self.var_rulers.set(bool(v))
 
 
 # ------- główna aplikacja -------
@@ -297,7 +339,7 @@ class App(ttk.Frame):
         self.cmb_filter: ttk.Combobox | None = None
         self.menu_objects: dict[str, tk.Menu] = {}
 
-        # rulers / crosshair
+        # rulers / crosshair (sterowane przez toolbox)
         self.ruler_top: _Ruler | None = None
         self.ruler_left: _Ruler | None = None
         self.var_rulers = tk.BooleanVar(value=True)
@@ -307,9 +349,12 @@ class App(ttk.Frame):
         self.cross_h: tk.Canvas | None = None  # wys. 1px
         self.cross_v: tk.Canvas | None = None  # szer. 1px
 
-        # overlay z osiami i współrzędnymi (prawy-dolny róg)
+        # overlay z osiami i współrzędnymi
         self.axes: tk.Canvas | None = None
         self.axes_coord_id = None
+
+        # toolbox
+        self.toolbox: _Toolbox | None = None
 
         # bieżąca pozycja kursora (w przestrzeni widoku)
         self._mouse_view_x = 0
@@ -330,7 +375,7 @@ class App(ttk.Frame):
         self.root.bind("<F9>",  lambda e: self._toggle_slot("right"))
         self.root.bind("<F8>",  lambda e: self._toggle_left_tools())
 
-        # globalny tracking kursora (eliminuje „miganie” przy overlay'ach)
+        # globalny tracking kursora
         self.root.bind_all("<Motion>", self._on_any_motion)
 
     # ---------- UI ----------
@@ -350,9 +395,7 @@ class App(ttk.Frame):
         m_view.add_command(label="Toggle right (F9)",   command=lambda: self._toggle_slot("right"))
         m_view.add_command(label="Toggle left tools (F8)", command=self._toggle_left_tools)
         m_view.add_separator()
-        m_view.add_checkbutton(label="Rulers", variable=self.var_rulers, command=self._apply_view_overlays)
-        m_view.add_checkbutton(label="Crosshair", variable=self.var_cross, command=self._apply_view_overlays)
-        m_view.add_separator()
+        # (usunięto duplikaty checkboxów Crosshair/Rulers – steruje Toolbox)
         m_view.add_command(label="Zoom 100%", command=self.on_zoom_100)
         m_view.add_command(label="Fit to window", command=self.on_zoom_fit)
         m_view.add_command(label="Center", command=self.on_center)
@@ -395,15 +438,18 @@ class App(ttk.Frame):
         ttk.Button(toolbar, text="Fit", command=self.on_zoom_fit).pack(side="left", padx=(6,0), pady=3)
         ttk.Button(toolbar, text="100%", command=self.on_zoom_100).pack(side="left", padx=(6,0))
         ttk.Button(toolbar, text="Center", command=self.on_center).pack(side="left", padx=(6,0))
-        ttk.Checkbutton(toolbar, text="rulers", variable=self.var_rulers,
-                        command=self._apply_view_overlays).pack(side="left", padx=(12,0))
-        ttk.Checkbutton(toolbar, text="crosshair", variable=self.var_cross,
-                        command=self._apply_view_overlays).pack(side="left", padx=(6,0))
+
+        # TOOLBOX
+        self.toolbox = _Toolbox(
+            toolbar,
+            on_mode_change=self._on_tool_mode_change,
+            on_toggle=self._on_tool_toggle
+        )
+        self.toolbox.pack(side="left", padx=(12,0))
+
         ttk.Label(toolbar, text="Zoom").pack(side="left", padx=(12,4))
         self.zoom_scale = ttk.Scale(toolbar, from_=0.1, to=8.0, value=1.0, command=self._on_zoom_slider)
         self.zoom_scale.pack(side="left", fill="x", expand=True, padx=(0,6))
-
-        # (dawny mały narożnik z osiami – usunięty; zastępuje go overlay po przekątnej)
 
         # rulers
         self.ruler_top = _Ruler(self.viewer_host, orientation="x", height=26); self.ruler_top.grid(row=1, column=1, sticky="ew")
@@ -419,15 +465,11 @@ class App(ttk.Frame):
         # dynamiczny krzyż – wąskie canvasy nad obrazem (1 px)
         self._init_crosshair_overlays()
 
-        # overlay z osiami i współrzędnymi (prawy-dolny róg)
+        # overlay z osiami i współrzędnymi (pseudo-alpha + odsunięcie)
         self._init_axes_overlay()
 
-        # reaguj na rozmiar – odśwież crosshair/rulers/pozycję overlayów
+        # reaguj na rozmiar
         self.canvas.bind("<Configure>", lambda _e: self._on_canvas_configure())
-
-        # zachowanie kursora tylko kosmetycznie (globalny Motion i tak śledzi)
-        self.canvas.bind("<Enter>",  lambda _e: self._on_canvas_enter())
-        self.canvas.bind("<Leave>",  lambda _e: self._on_canvas_leave())
 
         # grid weights
         self.viewer_host.columnconfigure(1, weight=1)
@@ -454,7 +496,7 @@ class App(ttk.Frame):
         self.tech_log.pack(fill="both", expand=True)
         self._log("--- app started ---")
 
-        # left tools
+        # left tools (transformy widoku)
         self.left_tools = ttk.Frame(self.hsplit)
         self._build_left_tools(self.left_tools)
         self.hsplit.add(self.left_tools, weight=0)
@@ -477,20 +519,18 @@ class App(ttk.Frame):
     def _build_left_tools(self, p: ttk.Frame):
         p.columnconfigure(0, weight=1)
         ttk.Label(p, text="Tools", font=("", 10, "bold")).grid(row=0, column=0, sticky="ew", padx=6, pady=(6,4))
-        ttk.Checkbutton(p, text="Rulers",    variable=self.var_rulers, command=self._apply_view_overlays).grid(row=1, column=0, sticky="w", padx=8)
-        ttk.Checkbutton(p, text="Crosshair", variable=self.var_cross,  command=self._apply_view_overlays).grid(row=2, column=0, sticky="w", padx=8)
-        ttk.Separator(p).grid(row=3, column=0, sticky="ew", padx=6, pady=6)
-        ttk.Label(p, text="View Transform (preview):").grid(row=4, column=0, sticky="w", padx=8)
-        self._mk_slider(p, "Roll (Z°)", self.var_roll, -180, 180, row=5)
-        self._mk_slider(p, "Pitch (°)", self.var_pitch, -45, 45, row=6)
-        self._mk_slider(p, "Yaw (°)",   self.var_yaw,   -45, 45, row=7)
-        btns = ttk.Frame(p); btns.grid(row=8, column=0, sticky="ew", padx=8, pady=(2,8))
+        ttk.Separator(p).grid(row=1, column=0, sticky="ew", padx=6, pady=6)
+        ttk.Label(p, text="View Transform (preview):").grid(row=2, column=0, sticky="w", padx=8)
+        self._mk_slider(p, "Roll (Z°)", self.var_roll, -180, 180, row=3)
+        self._mk_slider(p, "Pitch (°)", self.var_pitch, -45, 45, row=4)
+        self._mk_slider(p, "Yaw (°)",   self.var_yaw,   -45, 45, row=5)
+        btns = ttk.Frame(p); btns.grid(row=6, column=0, sticky="ew", padx=8, pady=(2,8))
         ttk.Button(btns, text="Reset view", command=self._reset_view_transform).pack(side="left", padx=(0,6))
         ttk.Button(btns, text="Show Tech log", command=self._show_tech_log).pack(side="left")
         for v in (self.var_roll, self.var_pitch, self.var_yaw):
             v.trace_add("write", lambda *_: self._refresh_display())
-        ttk.Separator(p).grid(row=9, column=0, sticky="ew", padx=6, pady=6)
-        ttk.Button(p, text="Hide Tools (F8)", command=self._toggle_left_tools).grid(row=10, column=0, sticky="ew", padx=8, pady=(0,6))
+        ttk.Separator(p).grid(row=7, column=0, sticky="ew", padx=6, pady=6)
+        ttk.Button(p, text="Hide Tools (F8)", command=self._toggle_left_tools).grid(row=8, column=0, sticky="ew", padx=8, pady=(0,6))
 
     def _mk_slider(self, parent, label, var, vmin, vmax, row):
         fr = ttk.Frame(parent); fr.grid(row=row, column=0, sticky="ew", padx=8, pady=2)
@@ -519,17 +559,6 @@ class App(ttk.Frame):
 
     def _show_tech_log(self):
         self._select_bottom_tab("Tech")
-
-    def _apply_view_overlays(self):
-        # rulers
-        show_r = bool(self.var_rulers.get())
-        try:
-            self.ruler_top.grid() if show_r else self.ruler_top.grid_remove()
-            self.ruler_left.grid() if show_r else self.ruler_left.grid_remove()
-        except Exception:
-            pass
-        # crosshair overlay
-        self._update_crosshair_visibility()
 
     # ---------- GLOBAL TAB ----------
     def _build_global_tab(self, p: ttk.Frame):
@@ -609,11 +638,11 @@ class App(ttk.Frame):
             ttk.Label(p, text="(PresetManager unavailable)").pack(fill="both", expand=True)
             return
 
+        # GÓRNY 'Edit JSON…' usunięty – dolny edytor z PresetManagera wystarcza
         bar_top = ttk.Frame(p); bar_top.pack(fill="x", pady=(6, 2))
         ttk.Button(bar_top, text="Change…", command=self.on_choose_preset_dir).pack(side="left", padx=(6, 0))
         self.lbl_preset_dir = ttk.Label(bar_top, text=f"Preset folder: {_win_path(self.preset_dir)}")
         self.lbl_preset_dir.pack(side="left", padx=(6, 0))
-        ttk.Button(bar_top, text="Edit JSON…", command=self._edit_preset_json).pack(side="right", padx=6)
 
         def _get_cfg():
             self.preset_cfg["__preset_dir"] = str(self.preset_dir)
@@ -836,7 +865,10 @@ class App(ttk.Frame):
             for m in ("file", "view", "settings", "help"):
                 menu = self.menu_objects.get(m)
                 if not menu: continue
-                for i in range(menu.index("end") or -1):
+                end = menu.index("end")
+                if end is None:
+                    continue
+                for i in range(end + 1):
                     try:
                         menu.entryconfig(i, state=("disabled" if busy else "normal"))
                     except Exception:
@@ -972,6 +1004,12 @@ class App(ttk.Frame):
             im = im.rotate(roll_deg, resample=Image.BILINEAR, expand=True, fillcolor=(16,16,16))
         return np.array(im, dtype=np.uint8)
 
+    def _get_canvas_bg(self) -> str:
+        try:
+            return self.canvas.cget("bg")
+        except Exception:
+            return "#101010"
+
     def _show_on_canvas(self, img_u8: np.ndarray):
         if hasattr(self.canvas, "set_image"):
             try:
@@ -1010,19 +1048,14 @@ class App(ttk.Frame):
         except Exception:
             pass
 
-    # ---------- dynamiczny krzyż (przerywane linie) ----------
+    # ---------- dynamiczny krzyż ----------
     def _init_crosshair_overlays(self):
-        # 1px canvasy nad obrazem (nie ustawiamy bg="", bo to błąd – brak koloru)
-        self.cross_h = tk.Canvas(self.viewer_host, height=1, highlightthickness=0, bd=0, takefocus=0)
+        bg = self._get_canvas_bg()
+        self.cross_h = tk.Canvas(self.viewer_host, height=1, bg=bg, highlightthickness=0, bd=0, takefocus=0)
         self.cross_h.place(in_=self.canvas, x=0, y=0, relwidth=1, height=1)
 
-        self.cross_v = tk.Canvas(self.viewer_host, width=1, highlightthickness=0, bd=0, takefocus=0)
+        self.cross_v = tk.Canvas(self.viewer_host, width=1, bg=bg, highlightthickness=0, bd=0, takefocus=0)
         self.cross_v.place(in_=self.canvas, x=0, y=0, width=1, relheight=1)
-
-        for ov in (self.cross_h, self.cross_v):
-            # forwarduj Enter/Leave żeby nie znikało przy najechaniu na overlay
-            ov.bind("<Enter>",  lambda _e: self._on_canvas_enter())
-            ov.bind("<Leave>",  lambda _e: self._on_canvas_leave())
 
         self._redraw_crosshair_lines()
         self._update_crosshair_visibility()
@@ -1030,14 +1063,14 @@ class App(ttk.Frame):
     def _redraw_crosshair_lines(self):
         try:
             ch = self.cross_h
-            cw = int(ch.winfo_width() or self.canvas.winfo_width() or 1)
+            cw = max(1, int(ch.winfo_width() or self.canvas.winfo_width() or 1))
             ch.delete("all")
-            ch.create_line(0, 0, max(1, cw), 0, fill="#e8e8e8", dash=(6, 4))
+            ch.create_line(0, 0, cw, 0, fill="#e8e8e8", dash=(6, 4))
 
             cv = self.cross_v
-            chh = int(cv.winfo_height() or self.canvas.winfo_height() or 1)
+            chh = max(1, int(cv.winfo_height() or self.canvas.winfo_height() or 1))
             cv.delete("all")
-            cv.create_line(0, 0, 0, max(1, chh), fill="#e8e8e8", dash=(6, 4))
+            cv.create_line(0, 0, 0, chh, fill="#e8e8e8", dash=(6, 4))
         except Exception:
             pass
 
@@ -1047,8 +1080,7 @@ class App(ttk.Frame):
             if show:
                 self.cross_h.place(in_=self.canvas, x=0, y=self._mouse_view_y, relwidth=1, height=1)
                 self.cross_v.place(in_=self.canvas, x=self._mouse_view_x, y=0, width=1, relheight=1)
-                # upewnij się, że linie mają aktualny rozmiar
-                self.root.after(0, self._redraw_crosshair_lines)
+                self.root.after_idle(self._redraw_crosshair_lines)
             else:
                 self.cross_h.place_forget()
                 self.cross_v.place_forget()
@@ -1057,25 +1089,34 @@ class App(ttk.Frame):
 
     # ---------- overlay osi + współrzędne ----------
     def _init_axes_overlay(self):
-        self.axes = tk.Canvas(self.viewer_host, width=160, height=72, bg="#2b2b2b", highlightthickness=0)
+        # tło overlay = tło canvas (brak crasha, brak białego kwadratu)
+        self.axes = tk.Canvas(self.viewer_host, width=200, height=110,
+                              bg=self._get_canvas_bg(), highlightthickness=0, bd=0)
+        self._draw_axes_overlay()
         self._position_axes_overlay()
-        # statyczne strzałki
-        self.axes.delete("all")
-        # ramka z lekką przezroczystością imitowaną ciemnym tłem
-        self.axes.create_rectangle(0, 0, 160, 72, fill="#2b2b2b", outline="#3a3a3a")
-        # strzałka X (w prawo)
-        self.axes.create_line(16, 50, 140, 50, fill="#9fbfff", width=3, arrow="last")
-        self.axes.create_text(145, 50, anchor="w", text="X→", fill="#d0e0ff", font=("", 11, "bold"))
-        # strzałka Y (w górę – żeby trzymać konwencję obrazu, pokazujemy „Y↑”)
-        self.axes.create_line(16, 56, 16, 16, fill="#9fbfff", width=3, arrow="last")
-        self.axes.create_text(16, 11, anchor="s", text="Y↑", fill="#d0e0ff", font=("", 11, "bold"))
-        # miejsce na współrzędne
-        self.axes_coord_id = self.axes.create_text(82, 64, anchor="s", text="(x: -, y: -)", fill="#ffffff", font=("", 10, "bold"))
+
+    def _draw_axes_overlay(self):
+        c = self.axes
+        c.delete("all")
+        pad = 8
+        w = int(c.cget("width")); h = int(c.cget("height"))
+        # „półprzezroczysta” płytka (stipple jako pseudo-alpha)
+        c.create_rectangle(0, 0, w, h, fill="#000000", outline="", stipple="gray50")
+
+        # osie z marginesami i czytelnym odstępem od krawędzi
+        c.create_line(pad+18, h-pad-28, w-pad-30, h-pad-28, fill="#9fbfff", width=3, arrow="last")
+        c.create_text(w-pad-20, h-pad-28, anchor="w", text="X→", fill="#d0e0ff", font=("", 12, "bold"))
+
+        c.create_line(pad+18, h-pad-22, pad+18, pad+22, fill="#9fbfff", width=3, arrow="last")
+        c.create_text(pad+18, pad+14, anchor="s", text="Y↑", fill="#d0e0ff", font=("", 12, "bold"))
+
+        self.axes_coord_id = c.create_text(w//2, h-pad-8, anchor="s",
+                                           text="(x: -, y: -)", fill="#ffffff", font=("", 11, "bold"))
 
     def _position_axes_overlay(self):
         try:
-            # po przekątnej względem linijek (czyli prawy-dolny róg)
-            self.axes.place(in_=self.canvas, relx=1.0, rely=1.0, x=-170, y=-82, anchor="se")
+            # prawa-dolna ćwiartka, minimalny offset od krawędzi obrazu
+            self.axes.place(in_=self.canvas, relx=1.0, rely=1.0, x=-12, y=-12, anchor="se")
         except Exception:
             pass
 
@@ -1086,34 +1127,60 @@ class App(ttk.Frame):
         except Exception:
             pass
 
-    # ---------- globalne śledzenie myszy ----------
+    # ---------- toolbox callbacks ----------
+    def _on_tool_mode_change(self, mode: str):
+        if mode == "hand":
+            try: self.canvas.configure(cursor="fleur")
+            except Exception: pass
+        elif mode == "zoom":
+            try: self.canvas.configure(cursor="tcross")
+            except Exception: pass
+        elif mode == "pick":
+            try: self.canvas.configure(cursor="circle")
+            except Exception: pass
+        elif mode == "measure":
+            try: self.canvas.configure(cursor="crosshair")
+            except Exception: pass
+
+    def _on_tool_toggle(self, key: str, state: bool):
+        if key == "cross":
+            self.var_cross.set(bool(state))
+            self._update_crosshair_visibility()
+        elif key == "rulers":
+            self.var_rulers.set(bool(state))
+            self._apply_view_overlays()
+
+    def _apply_view_overlays(self):
+        show_r = bool(self.var_rulers.get())
+        try:
+            self.ruler_top.grid() if show_r else self.ruler_top.grid_remove()
+            self.ruler_left.grid() if show_r else self.ruler_left.grid_remove()
+        except Exception:
+            pass
+        self._update_crosshair_visibility()
+        if self.toolbox:
+            self.toolbox.set_rulers(self.var_rulers.get())
+            self.toolbox.set_cross(self.var_cross.get())
+
+    # ---------- obsługa rozmiaru / myszy ----------
+    def _on_canvas_configure(self):
+        self._redraw_crosshair_lines()
+        self._update_rulers()
+        self._position_axes_overlay()
+
     def _on_any_motion(self, _e):
         try:
-            # czy kursor jest nad obszarem canvasa?
             rx, ry = self.canvas.winfo_rootx(), self.canvas.winfo_rooty()
             cx, cy = self.root.winfo_pointerx() - rx, self.root.winfo_pointery() - ry
             inside = (0 <= cx < self.canvas.winfo_width() and 0 <= cy < self.canvas.winfo_height())
         except Exception:
             inside = False
         if inside:
-            self._on_canvas_motion_xy(cx, cy)
+            self._on_canvas_motion_xy(int(cx), int(cy))
         else:
-            # poza obszarem – ukryj krzyż i wyczyść koordy
             self._on_canvas_leave()
 
-    def _on_canvas_enter(self):
-        try:
-            self.canvas.configure(cursor="crosshair")
-        except Exception:
-            pass
-        if bool(self.var_cross.get()):
-            self._update_crosshair_visibility()
-
     def _on_canvas_leave(self):
-        try:
-            self.canvas.configure(cursor="")
-        except Exception:
-            pass
         try:
             self.cross_h.place_forget()
             self.cross_v.place_forget()
@@ -1132,13 +1199,9 @@ class App(ttk.Frame):
             except Exception:
                 pass
         self._update_rulers()
-        ix, iy, _kind = self._view_to_image_coords(x, y)
+        ix, iy, _ = self._view_to_image_coords(x, y)
         self.lbl_coord.config(text=f"(x: {ix}, y: {iy})")
         self._update_axes_coords(ix, iy)
-
-    # kompatybilność (gdyby coś w kodzie wywołało stary handler z eventem)
-    def _on_canvas_motion(self, e):
-        self._on_canvas_motion_xy(int(e.x), int(e.y))
 
     def _view_to_image_coords(self, x: int, y: int) -> tuple[int,int,str]:
         try:
@@ -1180,46 +1243,6 @@ class App(ttk.Frame):
         self.var_pitch.set(0.0)
         self.var_yaw.set(0.0)
         self._refresh_display()
-
-    # ---------- prosty edytor JSON presetów ----------
-    def _edit_preset_json(self):
-        top = tk.Toplevel(self)
-        top.title("Edit Preset JSON")
-        top.geometry("700x600")
-        fr = ttk.Frame(top); fr.pack(fill="both", expand=True)
-        txt = tk.Text(fr, wrap="none", bg="#1e1e1e", fg="#f0f0f0", insertbackground="#f0f0f0")
-        txt.pack(fill="both", expand=True)
-        try:
-            txt.insert("1.0", json.dumps(self.preset_cfg, indent=2, ensure_ascii=False))
-        except Exception:
-            txt.insert("1.0", "{}")
-        bar = ttk.Frame(top); bar.pack(fill="x")
-        def _validate():
-            try:
-                json.loads(txt.get("1.0","end"))
-                messagebox.showinfo("JSON", "OK")
-            except Exception as e:
-                messagebox.showerror("JSON", str(e))
-        def _save():
-            try:
-                cfg = json.loads(txt.get("1.0","end"))
-            except Exception as e:
-                messagebox.showerror("JSON", str(e)); return
-            if not isinstance(cfg, dict):
-                messagebox.showerror("JSON", "Root must be an object (dict)."); return
-            self.preset_cfg = cfg
-            try:
-                d = self.preset_cfg.get("__preset_dir")
-                if d: self.preset_dir = Path(d)
-                self.lbl_preset_dir.config(text=f"Preset folder: {_win_path(self.preset_dir)}")
-            except Exception:
-                pass
-            self._sync_preset_dir_to_mgr()
-            self._log("Preset JSON updated.")
-            top.destroy()
-        ttk.Button(bar, text="Validate", command=_validate).pack(side="left", padx=6, pady=6)
-        ttk.Button(bar, text="Save", command=_save).pack(side="right", padx=6, pady=6)
-        ttk.Button(bar, text="Cancel", command=top.destroy).pack(side="right", padx=6, pady=6)
 
 
 # --- bootstrap ---
