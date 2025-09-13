@@ -58,6 +58,7 @@ Rejestr (**core/registry.py**) trzyma kanony i aliasy. Przykłady mapowania:
 
 ## Dokumentacja
 
+* GlitchLab Filters v2: [ARCHITECTURE.md](ARCHITECTURE.md)
 * Interfejsy i kanały HUD: [../core/ARCHITECTURE.md](../core/ARCHITECTURE.md)
 * Zasady i preset v2: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 

@@ -1,5 +1,3 @@
-# filters/ARCHITECTURE.md
-
 # GlitchLab Filters v2 — Architektura (warstwa `filters/`)
 
 Ten dokument opisuje **warstwę filtrów** GlitchLab v2: kontrakty API, konwencje, katalog dostępnych rodzin filtrów, standard diagnostyki (HUD), wzorce implementacyjne oraz testy smoke. Jest spójny z dokumentami:
@@ -455,4 +453,3 @@ Open Source — D2J3 aka Cha0s (for test and fun)
 
 ---
 
-**Koniec pliku**
