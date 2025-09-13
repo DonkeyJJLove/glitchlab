@@ -37,7 +37,7 @@ Wymagania: Python 3.9+, NumPy, Pillow, Tkinter.
 
 ```bash
 pip install -r requirements.txt
-python -m glitchlab.gui.main
+python -m glitchlab.gui.app
 ```
 
 Workflow:
