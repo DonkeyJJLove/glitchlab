@@ -66,7 +66,7 @@ Szczegóły:
 * [core/ARCHITECTURE.md](core/ARCHITECTURE.md)
 * [analysis/ARCHITECTURE.md](analysis/ARCHITECTURE.md)
 * [filters/ARCHITECTURE.md](filters/ARCHITECTURE.md)
-* [gui/ARCHITECTURE.md](gui/ARCHITECTURE.md)
+* [gui/ARCHITECTURE.md](../backup/gui/ARCHITECTURE.md)
 
 ---
 
