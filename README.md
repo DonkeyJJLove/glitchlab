@@ -1,5 +1,3 @@
-# File: README.md
-
 # GlitchLab — controlled glitch for analysis
 
 ![UI](screen.png)
