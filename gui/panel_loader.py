@@ -3,6 +3,7 @@
 from __future__ import annotations
 import importlib, inspect, sys
 from tkinter import ttk
+from typing import Type
 
 
 def get_panel_class(filter_name: str) -> type[ttk.Frame]:

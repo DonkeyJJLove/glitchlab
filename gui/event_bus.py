@@ -1,200 +1,87 @@
 """
----
-version: 3
-kind: module
-id: "gui-event-bus"
-created_at: "2025-09-13"
-name: "glitchlab.gui.event_bus"
-author: "GlitchLab v3"
-role: "Lekki pub/sub dla akcji UI i zdarzeń runtime (Tk-safe)"
-description: >
-Zapewnia tematyczny publish/subscribe z doprowadzeniem callbacków do wątku GUI
-przez root.after(0, ...). Służy jako wspólna szyna komunikacyjna dla Views,
-Services i Paneli, zachowując jednokierunkowy przepływ danych.
-event_model:
-event: {topic: "str", ts: "float(unix)", payload: "dict"}
-qos: "at-most-once"
-ordering: "w obrębie tego samego topicu"
-dispatch: "UI-thread via root.after(0, ...)"
+event_bus.py
+================
 
-topics:
+This module implements a simple publish/subscribe mechanism for the GUI.
 
-• "ui.*" # interakcje użytkownika (open/save/select/apply, zmiany pól)
+It is a lightweight event bus inspired by the planned refactoring in
+``gui/REFACTORING.md``.  Views and services can publish events on
+string topics and subscribe callbacks to those topics.  All callbacks
+are executed in the Tkinter mainloop via the ``after`` mechanism to
+avoid thread‐safety issues.  The bus does not enforce any
+thread‐safety on its own; the UI code should schedule messages on the
+bus using the master widget's ``after`` method if they originate from
+background threads.
 
-• "run.*" # życie zadania pipeline (request/progress/done/error/cancel)
+Example usage::
 
-• "hud.*" # zmiany mapowania HUD i odświeżenia
+    from glitchlab.gui.event_bus import EventBus
+    bus = EventBus(master=root)
 
-• "preset.*" # operacje na presetach (load/validate/save/history)
+    def on_run_done(payload: dict) -> None:
+        print("pipeline finished", payload)
 
-• "files.*" # open/save/recent
+    bus.subscribe("run.done", on_run_done)
+    bus.publish("run.done", {"result": "ok"})
 
-• "masks.*" # load/normalize/list
-
-• "layout.*" # dock/undock, zapis/odczyt layoutu
-
-    interfaces:
-    exports:
-
-    • "EventBus(root_like).subscribe(topic: str, handler: Callable[[dict], None]) -> str # sub_id"
-
-    • "EventBus.publish(topic: str, payload: dict) -> None"
-
-    • "EventBus.unsubscribe(sub_id: str) -> bool"
-
-    • "EventBus.clear_topic(topic_pattern: str) -> int # opcjonalnie"
-    used_by:
-
-    • "glitchlab.gui.app_shell"
-
-    • "glitchlab.gui.views.*"
-
-    • "glitchlab.gui.services.*"
-
-    • "glitchlab.gui.panels.*"
-
-    depends_on:
-
-• "threading"
-
-• "time"
-
-• "re"
-
-• "weakref"
-
-• "typing"
-
-    policy:
-    deterministic: true
-    thread_safe_publish: true
-    ui_dispatch_guarantee: "tak — wszystkie handlery wywoływane w wątku GUI"
-    constraints:
-
-• "brak zewnętrznych zależności"
-
-• "wzorce topiców wspierają '*' (wildcard segment)"
-
-• "handlery powinny być krótkie; ciężkie prace trafiają do Services"
-telemetry:
-counters: ["events_total","subs_total","subs_active","drops"]
-license: "Proprietary"
----
+Topics are hierarchical: subscribing to ``"run.*"`` will receive
+events published on any topic that starts with ``"run."``.  Callbacks
+must accept a single ``dict`` payload.
 """
-# glitchlab/gui/event_bus.py
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
-import threading
-import fnmatch
-import uuid
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Callable, Dict, List, Any, Optional
 
-EventCallback = Callable[[str, Dict[str, Any]], None]
+import tkinter as tk
+
+Callback = Callable[[Dict[str, Any]], None]
 
 
 @dataclass
-class _Sub:
-    id: str
-    pattern: str
-    cb: EventCallback
-    on_ui: bool
-
-
 class EventBus:
+    """A simple pub/sub event bus for UI messages.
+
+    Subscribers can register callbacks for specific topics (exact match
+    or prefix ``"topic.*"``).  Publishers send a payload dict on a
+    topic.  All callbacks are scheduled on the Tkinter event loop via
+    ``master.after`` if a master widget was provided on construction.
     """
-    Lekki pub/sub z prostymi wzorcami tematów (glob):
-      - dokładny temat: "ui.open"
-      - wzorzec z '*': "ui.*" (jedna sekcja)
-      - wzorzec z '**': "run.**" (dowolna głębokość)
-    Jeśli `on_ui=True` i podano `root_like` z metodą `.after(ms, fn)`,
-    wywołania trafią do wątku GUI.
-    """
 
-    def __init__(self, root_like: Any | None = None) -> None:
-        self._root = root_like
-        self._subs: List[_Sub] = []
-        self._lock = threading.RLock()
+    master: Optional[tk.Misc] = None
+    _subscribers: Dict[str, List[Callback]] = field(default_factory=lambda: defaultdict(list))
 
-    # ---------------------------
-    # Subskrypcja / rejestracja
-    # ---------------------------
+    def subscribe(self, topic: str, callback: Callback) -> None:
+        """Subscribe a callback to a topic.
 
-    def subscribe(self, pattern: str, cb: EventCallback, *, on_ui: bool = False) -> str:
+        If the topic ends with ``".*"`` the callback will be invoked
+        for any event whose topic shares the prefix before the ``".*"``.
         """
-        Rejestruje subskrypcję i zwraca subscription_id (string UUID).
-        Wzorce zgodne z fnmatch: '*', '?'. Konwencja '**' traktowana jak '*' z kropkami.
+        self._subscribers[topic].append(callback)
+
+    def publish(self, topic: str, payload: Dict[str, Any]) -> None:
+        """Publish an event with a payload.
+
+        All matching subscribers receive a copy of the payload.  If
+        ``master`` was provided the calls will be scheduled on the
+        Tkinter thread via ``after``; otherwise callbacks fire
+        synchronously.
         """
-        if not isinstance(pattern, str) or not callable(cb):
-            raise TypeError("subscribe(pattern:str, cb:callable, on_ui:bool=False)")
-        sid = uuid.uuid4().hex
-        sub = _Sub(id=sid, pattern=pattern, cb=cb, on_ui=bool(on_ui))
-        with self._lock:
-            self._subs.append(sub)
-        return sid
-
-    def unsubscribe(self, subscription_id: str) -> bool:
-        with self._lock:
-            before = len(self._subs)
-            self._subs = [s for s in self._subs if s.id != subscription_id]
-            return len(self._subs) != before
-
-    def clear(self, pattern: Optional[str] = None) -> None:
-        with self._lock:
-            if pattern is None:
-                self._subs.clear()
+        # Collect callbacks by matching exact topic and prefix subscriptions
+        callbacks: List[Callback] = []
+        for t, subs in self._subscribers.items():
+            if t.endswith(".*"):
+                prefix = t[:-2]
+                if topic.startswith(prefix):
+                    callbacks.extend(subs)
+            elif t == topic:
+                callbacks.extend(subs)
+        # Execute or schedule callbacks
+        for cb in callbacks:
+            if self.master is not None:
+                # schedule on the Tkinter event loop
+                self.master.after(0, cb, payload.copy())
             else:
-                self._subs = [s for s in self._subs if not self._match(pattern, s.pattern)]
-
-    # -------------
-    # Publikacja
-    # -------------
-
-    def publish(self, topic: str, payload: Dict[str, Any] | None = None) -> None:
-        """
-        Publikuje zdarzenie. Jeśli subskrypcja ma on_ui=True i mamy root_like,
-        callback zostanie wywołany przez `root.after(0, ...)`.
-        """
-        if not isinstance(topic, str):
-            raise TypeError("publish(topic:str, payload:dict|None)")
-        data = dict(payload or {})
-        data.setdefault("event_id", uuid.uuid4().hex)
-        callbacks: List[Tuple[_Sub, EventCallback]] = []
-
-        with self._lock:
-            for s in list(self._subs):
-                if self._match(s.pattern, topic):
-                    callbacks.append((s, s.cb))
-
-        for sub, cb in callbacks:
-            if sub.on_ui and hasattr(self._root, "after"):
-                try:
-                    self._root.after(0, self._safe_call, cb, topic, data)
-                except Exception:
-                    # Fallback: jeśli root zamknięty, spróbuj synchronicznie
-                    self._safe_call(cb, topic, data)
-            else:
-                self._safe_call(cb, topic, data)
-
-    # ----------------
-    # Narzędzia
-    # ----------------
-
-    @staticmethod
-    def _match(pattern: str, topic: str) -> bool:
-        """
-        Dopasowanie wzorca do tematu.
-        Konwencja '**' → odpowiada dowolnej sekwencji z kropkami.
-        """
-        if "**" in pattern:
-            # Zamień '**' na '*' w duchu fnmatch (glob bezpośredni).
-            pattern = pattern.replace("**", "*")
-        return fnmatch.fnmatchcase(topic, pattern)
-
-    @staticmethod
-    def _safe_call(cb: EventCallback, topic: str, data: Dict[str, Any]) -> None:
-        try:
-            cb(topic, data)
-        except Exception:
-            # Brak loggera: celowo nie podnosimy błędów busa
-            pass
+                cb(payload.copy())

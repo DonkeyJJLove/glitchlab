@@ -6,7 +6,7 @@ from tkinter import ttk
 from typing import Any, Dict, Optional, List
 
 try:
-    from gui import PanelContext  # type: ignore
+    from glitchlab.gui.panel_base import PanelContext  # type: ignore
 except Exception:  # pragma: no cover
     class PanelContext:
         def __init__(self, **kw): self.__dict__.update(kw)

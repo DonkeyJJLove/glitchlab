@@ -1,134 +1,274 @@
-# GlitchLab — controlled glitch for analysis
+# glitchlab — controlled glitch for analysis
 
-![UI](screen.png)
+![Interfejs](screen.png)
 
-GlitchLab to narzędzie badawczo-analityczne do **kontrolowanej generacji artefaktów** w obrazach 2D. Błąd traktujemy jako **sygnał diagnostyczny**: sterując **gdzie** (maski ROI) i **jak mocno** (pole amplitudy) występuje, wyciągamy wnioski o **strukturze danych** i **sprzężeniach między transformacjami**. Całość jest deterministyczna (seed RNG), lekka (NumPy + Pillow), a diagnostyka jest produktem pierwszej klasy — wszystkie kroki odkładają telemetrię do `ctx.cache` (HUD).
-
-> **Teza praktyczna:** artefakt = obserwowalny sygnał. Sterowanie jego lokalizacją i energią umożliwia wnioskowanie o strukturach i relacjach.
+GlitchLab to narzędzie do **kontrolowanej generacji artefaktów** w obrazach (2D), projektowane pod **analizę** i **wnioskowanie**. Błąd traktujemy jako **sygnał diagnostyczny**: poprzez maski (ROI), pola amplitudy (siła lokalna) i deterministyczne filtry można **wywołać** i **ukształtować** artefakty tak, by ujawniały informacje o strukturze danych i relacjach między transformacjami.
 
 ---
 
-## Spis treści
+## Co nowego w v2
 
-* [Cele i założenia](#cele-i-założenia)
-* [Szybki start](#szybki-start)
-* [Mapa warstw (E2E)](#mapa-warstw-e2e)
-* [Meta-struktura mozaikowa i „metametryka”](#meta-struktura-mozaikowa-i-metametryka)
-* [Przepływy badań (protokóły)](#przepływy-badań-protokóły)
-* [Artefakty a struktury (przykłady)](#artefakty-a-struktury-przykłady)
-* [Struktura repo i dokumentacja](#struktura-repo-i-dokumentacja)
-* [Licencja i autorzy](#licencja-i-autorzy)
+* **Spójne API filtrów:** `fn(img_u8, ctx, **params) -> np.ndarray` + wspólne parametry `mask_key | use_amp | clamp`.
+* **Jedno schema presetów (v2):** `version/name/amplitude/edge_mask/steps` + walidator i dry-run.
+* **Pipeline z metrykami:** metryki wejścia/wyjścia, diff, czasy, telemetria do `ctx.cache` (HUD).
+* **DAG procesu:** lekki graf (nodes/edges/delta) eksportowany jako JSON dla GUI.
+* **Mozaika/AST:** wspólna „soczewka” wizualizacji metryk blokowych i struktury kodu (AST→mosaic).
+* **GUI/HUD v2:** stały layout, panele parametrów nie „znikają”, powiększany podgląd, pływające panele.
 
 ---
 
-## Cele i założenia
+## Instalacja
 
-* **Deterministyczność:** jeden seed (`ctx.rng`), brak ukrytej losowości.
-* **Jedno API filtrów:** `fn(img_u8, ctx, **params) -> np.ndarray` (wew. `float32 [0,1]`, I/O `uint8 RGB`).
-* **Diagnostyka jako produkt:** każdy krok emituje kanały HUD (`stage/{i}/…`, `diag/<filter>/…`, `ast/json`, itp.).
-* **Lekkość zależności:** Python 3.9+, **NumPy**, **Pillow**, **Tkinter** (GUI). **Bez** SciPy/OpenCV.
-* **Spójne nazwy i presety v2:** jedno schema `version/name/amplitude/edge_mask/steps`.
-
----
-
-## Szybki start
-
-Wymagania: Python 3.9+, NumPy, Pillow, Tkinter.
+Wymagania: Python 3.9+, NumPy, Pillow, Tkinter (systemowe).
 
 ```bash
+git clone https://github.com/you/glitchlab
+cd glitchlab
 pip install -r requirements.txt
-python -m glitchlab.gui.app
 ```
 
-Workflow:
+---
 
-1. **Open image…**
-2. Ustaw **Amplitude/Edge/Mask** (prawy panel).
-3. Wybierz **Preset** lub **Filter** → **Apply**.
-4. Odczytaj diagnostykę w HUD, iteruj parametry.
-5. **Save result…**
+## Uruchomienie (GUI)
 
-Do szybkich testów użyj planszy kalibracyjnej:
+```bash
+python -m glitchlab.gui.main
+```
 
-![Test chart](glitchlab_testchart_v1.png)
+**Workflow (skrót):**
+
+1. **Open image…** (PNG/JPG/WEBP)
+2. Ustaw **Amplitude & Edge** (prawy panel)
+3. (Opcjonalnie) **Load mask…** (ROI) — maska od razu w HUD
+4. Wybierz **Preset** lub **Filter** → **Apply**
+5. Odczytaj mapy w **Filter Diagnostics** i iteruj parametry
+6. **Save result…**
 
 ---
 
-## Mapa warstw (E2E)
+## Po co to (analitycznie)?
 
-* **Core (`glitchlab/core`)** – rejestr filtrów, pipeline (metryki/diff), DAG procesu, mozaika, AST→graf, narzędzia.
-* **Analysis (`glitchlab/analysis`)** – metryki (globalne/kafelkowe), diff, FFT/hist, forensyka formatu, eksport DTO.
-* **Filters (`glitchlab/filters`)** – moduły z `@register`, spójne parametry (`mask_key|use_amp|clamp`), diagnostyki do HUD.
-* **GUI (`glitchlab/gui`)** – stały layout: duży viewer, prawa kolumna „Parameters”, trzy sloty HUD, panele pływające.
+Artefakty są wytwarzane **intencjonalnie** i **lokalnie**. Dzięki temu możesz:
 
-Szczegóły:
+* **weryfikować hipotezy** o strukturze (anizotropia, kontury),
+* **wykrywać rezonanse** (siatka bloków, ślady kompresji/skalowania),
+* **badać relacje filtrów** (test komutacji A/B, czułość kolejności).
 
-* [core/ARCHITECTURE.md](core/ARCHITECTURE.md)
-* [analysis/ARCHITECTURE.md](analysis/ARCHITECTURE.md)
-* [filters/ARCHITECTURE.md](filters/ARCHITECTURE.md)
-* [gui/ARCHITECTURE.md](../backup/gui/ARCHITECTURE.md)
+Więcej w **ANALYSIS.md** (protokół A/B, sweepy, SSIM/PSNR/entropia).
 
 ---
 
-## Meta-struktura mozaikowa i „metametryka”
-
-**Mozaika** jest wspólną soczewką: raster komórek (square/hex) łączący obraz, statystyki blokowe i **strukturę kodu** (AST) w jednej przestrzeni wizualnej.
-
-* `core/mosaic.py` – tworzy mapę etykiet komórek i projektuje metryki blokowe na overlay RGB.
-* `core/astmap.py` – parsuje Python AST → lekki graf (węzły: funkcje/klasy; krawędzie: `contains`, `calls`) z metrykami:
-  `weight` (rozmiar poddrzewa), `branching` (liczba {If/For/While/Try}), `fan_in/out`. Graf może być rzutowany na mozaikę.
-
-**Metametryka** (warstwa spajająca):
-
-* **Obraz → bloki:** `analysis.metrics.block_stats` → entropia, krawędzie, kontrast per blok.
-* **Kod → węzły:** `astmap.ast_to_graph` → `weight/branching/fan_out`.
-* **Mapowanie do RGB:** np. `R←branching`, `G←weight`, `B←fan_out` (normalizacja po grafie).
-* **HUD:** `stage/{i}/mosaic` + `ast/json` — te same sloty służą do oglądania obrazu i struktury kodu.
-
-> Dzięki temu ta sama „siatka uwagi” służy obserwacji **geometrii obrazu** i **geometrii programu**.
-
----
-
-## Przepływy badań (protokóły)
-
-* **Test komutacji (A/B):** sprawdza, czy kolejność filtrów ma znaczenie (`Δ = 1 − SSIM(A,B)`).
-* **ROI-scan:** zmieniaj maskę ROI i porównuj |artefakt| w/poza ROI → lokalność/nielokalność.
-* **Sweep parametrów:** szukaj progów (nagłe zmiany metryk).
-* **Seed sweep:** deterministycznie, ale z kontrolą komponentu losowego.
-
-Zobacz: [analysis/ARCHITECTURE.md](analysis/ARCHITECTURE.md) (sekcje: protokoły, metryki, receptury YAML).
-
----
-
-## Artefakty a struktury (przykłady)
-
-* **Anizotropia (ACW):** *anisotropic\_contour\_warp* przesuwa piksele **wzdłuż** konturów. Stabilna czytelność po kilku iteracjach ⇒ treść leży tangencjalnie do ∇I.
-* **Blokowość/kompresja (BMG):** *block\_mosh\_grid* ujawnia rezonanse skali (np. 8/16). Histogram `bmg_dx/dy` i „siatka ducha” na test charcie naprowadzają na rozmiary bloków/skalowanie.
-* **Pasma i aliasy:** widoczne w FFT/hist; kierunki odpowiadają dominującej geometrii tekstur.
-
----
-
-## Struktura repo i dokumentacja
+## Struktura projektu
 
 ```
 glitchlab/
   core/        # registry, pipeline, graph, mosaic, astmap, metrics, utils, roi, symbols
-  analysis/    # metrics, diff, spectral, formats, exporters
-  filters/     # filtry z @register
+  analysis/    # metrics, diff, spectral, formats, exporters (warstwa badawcza)
+  filters/     # filtry rejestrowane dekoratorem (API v2)
+  presets/     # YAML v2 (schemat poniżej)
   gui/         # aplikacja i panele (HUD, graf, mozaika, parametry)
-  presets/     # YAML v2
-  screen.png
-  glitchlab_testchart_v1.png
 ```
 
-Każdy dział posiada **ARCHITECTURE.md** (interfejsy/kontrakty) i ten **README** (użycie, praktyki, metapoziom).
+---
+
+## Architektura (skrót)
+
+* **Core**: rejestr filtrów, pipeline z metrykami/diff i DAG, mozaika/AST, narzędzia.
+* **Analysis**: metryki globalne/kafelkowe, FFT/histogram, forensyka formatu, bundling DTO.
+* **GUI**: stały układ (viewer + parameters + 3 sloty diagnostyk), panele per filtr, pływające/dokowane okna, mini-graf.
+
+---
+
+## Standardy API
+
+### Filtr (v2)
+
+```python
+def my_filter(img: np.ndarray, ctx: Ctx, **params) -> np.ndarray
+# Wejście: uint8 RGB (H,W,3); praca: float32 [0,1]; zwrot: uint8
+# Wspólne parametry: mask_key: str|None, use_amp: float|bool, clamp: bool=True
+# RNG: wyłącznie ctx.rng; diagnostyki → ctx.cache[f"diag/<name>/..."]
+```
+
+### Rejestr
+
+```python
+@register(name: str, defaults: dict|None = None, doc: str|None = None)
+get(name) -> callable
+available() -> list[str]
+canonical(name) -> str
+alias(src, dst) -> bool
+meta(name) -> {"name","defaults","doc","aliases"}
+```
+
+### Kontekst (`Ctx`) i HUD-channels
+
+```python
+@dataclass
+class Ctx:
+    rng: np.random.Generator                # deterministyczny seed
+    amplitude: np.ndarray                   # (H,W) f32 [0..1]
+    masks: Dict[str, np.ndarray]            # maski (H,W) f32 [0..1]
+    cache: Dict[str, Any]                   # telemetria dla HUD
+    meta: Dict[str, Any]                    # {source, versions, ...}
+```
+
+**Kanały min.:**
+`stage/{i}/in|out|diff|t_ms`,
+`stage/{i}/metrics_in|metrics_out|diff_stats`,
+`stage/{i}/fft_mag|hist|mosaic|mosaic_meta`,
+`diag/<filter>/...`, `ast/json`, `format/jpg_grid`, `format/notes`, `cfg/*`, `run/id`, `run/snapshot`.
+
+---
+
+## Presety (YAML v2)
+
+```yaml
+version: 2
+name: "example"
+seed: 7
+amplitude:
+  kind: perlin        # none|linear_x|linear_y|radial|perlin|mask
+  strength: 1.0
+  scale: 96
+  octaves: 4
+  persistence: 0.5
+  lacunarity: 2.0
+edge_mask:
+  thresh: 60
+  dilate: 0
+  ksize: 3
+steps:
+  - name: anisotropic_contour_warp
+    params: { strength: 1.2, iters: 2, edge_bias: 0.5, use_amp: 1.0, clamp: true }
+  - name: block_mosh_grid
+    params: { size: 24, p: 0.45, max_shift: 32, mix: 0.9 }
+```
+
+**Alias → kanon (skrót):**
+`conture_flow|anisotropic_contour_flow → anisotropic_contour_warp`
+`block_mosh → block_mosh_grid`
+`spectral_shaper_lab|spectral_ring → spectral_shaper`
+`perlin_grid|nosh_perlin_grid → noise_perlin_grid`
+
+---
+
+## Filtry referencyjne (skrót merytoryczny)
+
+### `anisotropic_contour_warp`
+
+* **Cel:** przemieszcza piksele **wzdłuż konturów** (tangent do ∇I).
+* **Użycie:** test **anizotropii** (stabilność semantyki na tangencie).
+* **Parametry:** `strength`, `iters`, `ksize`, `smooth`, `edge_bias`, `mask_key`, `use_amp`.
+* **Diag:** `acw_mag` (|∇I|), `acw_tx/ty` (tangenty).
+
+### `block_mosh_grid`
+
+* **Cel:** przestawianie/rotacja bloków (siatka).
+* **Użycie:** **skala i blokowość** (rezonans rozmiaru bloku).
+* **Parametry:** `size`, `p`, `max_shift`, `mode`, `wrap`, `mask_key`, `amp_influence`, `channel_jitter`, `posterize_bits`, `mix`.
+* **Diag:** `bmg_select`, `bmg_dx/dy`.
+
+---
+
+## Szybki smoke-test (offline)
+
+```python
+import numpy as np
+from glitchlab.core.pipeline import normalize_preset, build_ctx, apply_pipeline
+from glitchlab.core.registry import available
+
+cfg = {
+  "version": 2,
+  "seed": 7,
+  "amplitude": {"kind":"none","strength":1.0},
+  "edge_mask": {"thresh":60,"dilate":0,"ksize":3},
+  "steps": [{"name": available()[0], "params": {}}]  # pierwszy dostępny filtr
+}
+cfg = normalize_preset(cfg)
+
+img = np.zeros((96,128,3), np.uint8) + 40
+ctx = build_ctx(img, seed=cfg.get("seed", 7), cfg=cfg)
+out = apply_pipeline(img, ctx, cfg["steps"], fail_fast=True, metrics=True)
+
+print(out.shape, out.dtype)         # (96,128,3) uint8
+print(sorted(k for k in ctx.cache)) # sprawdź kanały HUD
+```
+
+---
+
+## Rozszerzanie
+
+### Nowy filtr
+
+```python
+from glitchlab.core.registry import register
+import numpy as np
+
+DEFAULTS = {"strength":1.0, "mask_key":None, "use_amp":1.0, "clamp":True}
+DOC = "Przykładowy filtr v2; pracuje w f32 [0..1], zwraca u8."
+
+@register("my_filter", defaults=DEFAULTS, doc=DOC)
+def my_filter(img: np.ndarray, ctx, **p) -> np.ndarray:
+    # wewnątrz f32 [0,1]
+    x = img.astype(np.float32) / 255.0
+    strength = float(p.get("strength", 1.0))
+    amp = float(p.get("use_amp", 1.0))
+    mkey = p.get("mask_key")
+    m = None
+    if mkey and mkey in ctx.masks:
+        m = ctx.masks[mkey].astype(np.float32)
+        if m.shape != x.shape[:2]:
+            # tu zwykle resize do (H,W)
+            m = np.clip(m, 0, 1)
+    # przykładowy efekt: lekkie rozjaśnienie
+    eff = np.clip(x * (1.0 + strength*0.2*amp), 0, 1)
+    if m is not None:
+        eff = (1 - m[...,None]) * x + m[...,None] * eff
+    out = np.clip(eff, 0, 1)
+    ctx.cache["diag/my_filter/amp"] = amp
+    if m is not None:
+        ctx.cache["diag/my_filter/mask"] = m
+    return (out * 255.0 + 0.5).astype(np.uint8)
+```
+
+### Nowy preset
+
+Skorzystaj z **Prompt P1** (patrz **SYSTEM\_ARCHITECTURE.md** / **ARCHITECTURE.md**), a następnie zweryfikuj **Prompt P3** (walidacja + dry-run).
+
+### Panele GUI
+
+* Dodaj panel do `glitchlab/gui/panels/panel_<filter>.py`.
+* Pobierz `defaults/doc` z `registry.meta(name)`.
+* Emituj parametry jako dict → GUI odpala rerun; mapy diagnostyczne pokażą się automatycznie (klucze `diag/<filter>/...`).
+
+---
+
+## Maski i amplitude (praktyka)
+
+* **Maski**: grayscale (0..255) → \[0..1]; wczytywane w GUI; dostępne jako `ctx.masks["<key>"]`.
+* **Amplitude**: `linear_x/y`, `radial`, `perlin`, `mask`; zwykle mnoży siłę efektu (`use_amp`).
+* Dla stabilności zalecana baza **>0** (np. `0.25 + 0.75*A`), by uniknąć „dziur”.
+
+---
+
+## Rozwiązywanie problemów
+
+* **„Unknown filter '…'”** — upewnij się, że moduł filtra jest jawnie importowany w `filters/__init__.py` i/lub alias istnieje w rejestrze.
+* **„Maska nie w HUD”** — sprawdź rozmiar maski (musi równać się obrazowi) i klucz w `ctx.masks`.
+* **„Brak efektu”** — podnieś `strength/p/mix` lub `use_amp`; sprawdź mapy diagnostyczne.
 
 ---
 
 ## Licencja i autorzy
 
-Open Source — D2J3 aka Cha0s (for test and fun).
-Wkład: struktury v2, HUD, mozaika/AST, metametryka.
+Open Source — D2J3 aka Cha0s (for test and fun)
 
 ---
+
+## Dalsza lektura
+* [**ARCHITECTURE**](ARCHITECTURE.md)
+* [**GUI ARCHITECTURE**](gui/ARCHITECTURE.md)
+* [**CORE ARCHITECTURE**](core/ARCHITECTURE.md)
+* [**ANALYSIS**](analysis/analysis.md)
 

@@ -52,6 +52,10 @@ class Panel(ttk.Frame):
             .grid(row=2, column=0, columnspan=2, sticky="w", pady=(6,0))
         g.columnconfigure(1, weight=1)
 
+        # przycisk Apply (opcjonalnie — szybki trigger)
+        bar = ttk.Frame(self, padding=(8,0,8,8)); bar.pack(fill="x")
+        ttk.Button(bar, text="Apply", command=self._emit).pack(side="right")
+
         # --- powiązania ---
         for v in (self.var_lift, self.var_sat, self.var_mask, self.var_amp, self.var_clamp):
             v.trace_add("write", lambda *_: self._emit())
