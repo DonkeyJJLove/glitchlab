@@ -1,200 +1,124 @@
-# -*- coding: utf-8 -*-
-"""
-Robust HUD widget for GlitchLab
--------------------------------
-Renders ONLY image-like entries from `ctx.cache` and ignores scalars/strings/dicts.
-- Accepts: NumPy arrays (H,W), (H,W,3|4), (3,H,W), PIL.Image.Image
-- Normalizes float/bool/object inputs safely, clamps to uint8 RGB.
-- Horizontal scroll strip with thumbnails + key labels.
-"""
 
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, List, Optional, Tuple
-
-import numpy as np
 from PIL import Image, ImageTk
+import numpy as np
+from typing import Any, Optional
 
 
-THUMB_MAX_W = 260
-THUMB_MAX_H = 160
-TILE_PAD_X = 8
-TILE_PAD_Y = 8
-
-
-def _is_img_like(v: Any) -> bool:
-    # quick prefilter
-    if isinstance(v, Image.Image):
-        return True
-    if isinstance(v, np.ndarray):
-        if v.dtype == object:
-            return False
-        if v.ndim == 2:
-            return True
-        if v.ndim == 3 and (v.shape[2] in (1, 3, 4) or v.shape[0] in (1, 3, 4)):
-            return True
-    return False
-
-
-def _to_rgb_u8(arr: np.ndarray) -> np.ndarray:
-    """
-    Convert array (H,W[,C]) to RGB uint8 safely.
-    - float -> auto scale using min/max (with epsilon)
-    - bool -> 0/255
-    - 2D -> gray replicated to 3 channels
-    - channel-first -> transpose to HWC
-    - alpha (4th) channel is dropped
-    """
-    if arr.dtype == object:
-        raise ValueError("object array not supported")
-    a = np.asarray(arr)
-
-    # bring to HWC
-    if a.ndim == 3 and a.shape[0] in (1, 3, 4) and a.shape[2] not in (1, 3, 4):
-        # assume CHW -> HWC
-        a = np.transpose(a, (1, 2, 0))
-
-    if a.ndim == 2:
-        a = a[:, :, None]
-
-    if a.ndim != 3:
-        raise ValueError(f"Unsupported ndarray shape {a.shape}")
-
-    # drop alpha if present
-    if a.shape[2] == 4:
-        a = a[:, :, :3]
-    elif a.shape[2] == 1:
-        a = np.repeat(a, 3, axis=2)
-    elif a.shape[2] != 3:
-        # try to coerce to 3
-        a = a[:, :, :3] if a.shape[2] > 3 else np.pad(a, ((0,0),(0,0),(0,3-a.shape[2])), mode="edge")
-
-    # dtype handling
-    if a.dtype == np.uint8:
-        out = a
-    elif a.dtype == np.bool_:
-        out = a.astype(np.uint8) * 255
-    else:
-        x = a.astype(np.float32)
-
-        # heuristic: if values are within [0,1.5] treat as [0,1] domain
-        x_min = float(np.nanmin(x))
-        x_max = float(np.nanmax(x))
-        if np.isfinite(x_min) and np.isfinite(x_max):
-            if x_min >= -0.05 and x_max <= 1.5:
-                x = np.clip(x, 0.0, 1.0) * 255.0
-            else:
-                # generic min-max scale
-                rng = (x_max - x_min) if (x_max - x_min) > 1e-12 else 1.0
-                x = (x - x_min) / rng * 255.0
-        else:
-            x = np.nan_to_num(x, nan=0.0, posinf=255.0, neginf=0.0)
-            x = np.clip(x, 0.0, 1.0) * 255.0
-        out = (x + 0.5).astype(np.uint8)
-
-    # ensure contiguous HWC
-    return np.ascontiguousarray(out)
-
-
-def _ensure_pil(v: Any) -> Optional[Image.Image]:
-    """Return PIL.Image.Image or None if not renderable."""
+def _to_rgb_image(value: Any) -> Optional[Image.Image]:
+    """Accepts np arrays (H,W), (H,W,1), (H,W,3), uint8/float; strings -> None (text slot)."""
     try:
-        if isinstance(v, Image.Image):
-            im = v.convert("RGB") if v.mode != "RGB" else v
-            return im
-        if isinstance(v, np.ndarray) and _is_img_like(v):
-            rgb = _to_rgb_u8(v)
-            return Image.fromarray(rgb, "RGB")
+        if isinstance(value, Image.Image):
+            im = value
+        elif isinstance(value, np.ndarray):
+            arr = value
+            if arr.ndim == 2:
+                # grayscale -> RGB
+                a = arr.astype(np.float32)
+                if a.max() <= 1.001: a = a * 255.0
+                a = np.clip(a, 0, 255).astype(np.uint8)
+                rgb = np.stack([a, a, a], axis=-1)
+                im = Image.fromarray(rgb, "RGB")
+            elif arr.ndim == 3 and arr.shape[-1] in (1, 3, 4):
+                a = arr.astype(np.float32)
+                if a.max() <= 1.001: a = a * 255.0
+                a = np.clip(a, 0, 255).astype(np.uint8)
+                if a.shape[-1] == 1:
+                    a = np.repeat(a, 3, axis=-1)
+                if a.shape[-1] == 4:
+                    a = a[..., :3]
+                im = Image.fromarray(a, "RGB")
+            else:
+                return None
+        elif isinstance(value, (bytes, bytearray)):
+            try:
+                from io import BytesIO
+                im = Image.open(BytesIO(value)).convert("RGB")
+            except Exception:
+                return None
+        else:
+            return None
+        return im
     except Exception:
         return None
-    return None
 
 
-class Hud(tk.Frame):
-    def __init__(self, master: Optional[tk.Misc] = None):
-        super().__init__(master, bg="#1e1e1e")
-        self._photos: List[ImageTk.PhotoImage] = []
-        self._tiles: List[tk.Widget] = []
+class _HudSlot(ttk.Frame):
+    def __init__(self, parent, title: str):
+        super().__init__(parent, padding=4)
+        self.var_title = tk.StringVar(value=title)
+        self.var_text = tk.StringVar(value="")
+        self.label = ttk.Label(self, textvariable=self.var_title, font=("", 10, "bold"))
+        self.label.pack(anchor="w")
+        self.canvas = tk.Label(self, bd=1, relief="sunken")  # for image
+        self.canvas.pack(fill="both", expand=True, pady=(2, 0))
+        self.text = ttk.Label(self, textvariable=self.var_text, foreground="#444", justify="left", anchor="w")
+        self.text.pack(fill="x", pady=(2, 0))
+        self._img_ref = None  # keep PhotoImage alive
 
-        # scrollable strip
-        self.canvas = tk.Canvas(self, bg="#1e1e1e", highlightthickness=0, height=THUMB_MAX_H + 2*TILE_PAD_Y + 20)
-        self.hbar = ttk.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
-        self.canvas.configure(xscrollcommand=self.hbar.set)
-        self.inner = tk.Frame(self.canvas, bg="#1e1e1e")
-        self.window = self.canvas.create_window(0, 0, anchor="nw", window=self.inner)
+    def set_title(self, text: str):
+        self.var_title.set(text)
 
-        self.canvas.pack(fill="both", expand=True, side="top")
-        self.hbar.pack(fill="x", side="bottom")
+    def set_text(self, text: str):
+        self.var_text.set(text)
 
-        self.inner.bind("<Configure>", self._on_inner_configure)
-        self.canvas.bind("<Configure>", self._on_canvas_configure)
+    def set_image(self, value: Any, max_size=(256, 256)):
+        im = _to_rgb_image(value)
+        if im is None:
+            self._img_ref = None
+            self.canvas.configure(image="")
+            return
+        im2 = im.copy()
+        im2.thumbnail(max_size, Image.BICUBIC)
+        tkimg = ImageTk.PhotoImage(im2)
+        self.canvas.configure(image=tkimg)
+        self._img_ref = tkimg
 
-    # ---- public API -------------------------------------------------
 
-    def clear(self) -> None:
-        for w in self._tiles:
-            try:
-                w.destroy()
-            except Exception:
-                pass
-        self._tiles.clear()
-        self._photos.clear()
+class Hud(ttk.Frame):
+    """
+    3-slotowy HUD dla diagnostyki.
+    Oczekuje obrazów/map w ctx.cache pod przewidywalnymi kluczami, ale jest odporny na braki.
+    """
+    def __init__(self, parent):
+        super().__init__(parent)
+        grid = ttk.Frame(self); grid.pack(fill="both", expand=True)
+        grid.columnconfigure(0, weight=1)
+        grid.columnconfigure(1, weight=1)
+        grid.columnconfigure(2, weight=1)
+        self.s1 = _HudSlot(grid, "Slot 1"); self.s1.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        self.s2 = _HudSlot(grid, "Slot 2"); self.s2.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        self.s3 = _HudSlot(grid, "Slot 3"); self.s3.grid(row=0, column=2, sticky="nsew", padx=4, pady=4)
 
-    def render_from_cache(self, ctx) -> None:
-        """Render image-like diagnostics from ctx.cache (dict)."""
-        self.clear()
-
+    def render_from_cache(self, ctx):
         cache = getattr(ctx, "cache", {}) or {}
-        # stable order: diagnostic first, then stage, then the rest
-        def _sort_key(k: str) -> Tuple[int, str]:
-            if k.startswith("diag/"): 
-                return (0, k)
-            if k.startswith("stage/"):
-                return (1, k)
-            return (2, k)
 
-        keys = sorted(list(cache.keys()), key=_sort_key)
-        x = TILE_PAD_X
-        for k in keys:
-            v = cache.get(k, None)
-            im = _ensure_pil(v)
-            if im is None:
-                # not an image-like entry: skip silently
-                continue
+        # Priorytet: amplitude, edge mask, fft/mag
+        picked1 = cache.get("cfg/amplitude/vis") or cache.get("amplitude/vis") or cache.get("stage/0/fft_mag") \
+                  or cache.get("spectral_shaper/mag")
+        picked2 = cache.get("edge_mask/vis") or cache.get("pixel_sort/trigger")
+        picked3 = cache.get("spectral_shaper/mask") or cache.get("phase_glitch/noise")
 
-            # thumbnail
-            im = im.copy()
-            im.thumbnail((THUMB_MAX_W, THUMB_MAX_H), Image.BICUBIC)
-            ph = ImageTk.PhotoImage(im)
-            self._photos.append(ph)  # keep reference
+        # Titles
+        self.s1.set_title("Amplitude / FFT")
+        self.s2.set_title("Edges / Trigger")
+        self.s3.set_title("Mask / Phase noise")
 
-            # tile
-            tile = tk.Frame(self.inner, bg="#2b2b2b")
-            lbl = tk.Label(tile, image=ph, bg="#2b2b2b")
-            lbl.pack(padx=4, pady=4)
+        # Robust assignment
+        if isinstance(picked1, str):
+            self.s1.set_text(picked1); self.s1.set_image(None)
+        else:
+            self.s1.set_text(""); self.s1.set_image(picked1)
 
-            cap = tk.Label(tile, text=k, fg="#c8c8c8", bg="#2b2b2b", font=("Segoe UI", 8))
-            cap.pack(fill="x", padx=4, pady=(0, 6))
+        if isinstance(picked2, str):
+            self.s2.set_text(picked2); self.s2.set_image(None)
+        else:
+            self.s2.set_text(""); self.s2.set_image(picked2)
 
-            tile.place(x=x, y=TILE_PAD_Y)
-            self._tiles.append(tile)
-
-            x += im.width + 2*TILE_PAD_X + 8
-
-        # resize inner width
-        iw = max(x, self.canvas.winfo_width())
-        ih = THUMB_MAX_H + 2*TILE_PAD_Y + 24
-        self.inner.configure(width=iw, height=ih)
-        self.canvas.configure(scrollregion=(0, 0, iw, ih))
-
-    # ---- geometry mgmt ----------------------------------------------
-
-    def _on_inner_configure(self, _event=None):
-        self.canvas.configure(scrollregion=self.canvas.bbox(self.window))
-
-    def _on_canvas_configure(self, event):
-        # keep inner height; expand width to canvas but keep scrollable
-        self.canvas.itemconfig(self.window, height=event.height)
-        # width is set during render
-        pass
+        if isinstance(picked3, str):
+            self.s3.set_text(picked3); self.s3.set_image(None)
+        else:
+            self.s3.set_text(""); self.s3.set_image(picked3)

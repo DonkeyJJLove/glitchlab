@@ -2,7 +2,7 @@
 from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 try:
     from glitchlab.gui.panel_base import PanelContext  # type: ignore
@@ -10,21 +10,28 @@ except Exception:  # pragma: no cover
     class PanelContext:
         def __init__(self, **kw): self.__dict__.update(kw)
 
+
+PLACEHOLDER_NONE = "<none>"
+
+
 class BlockMoshGridPanel(ttk.Frame):
     """
     Panel sterowania dla filtra 'block_mosh_grid'.
-    - Pełny zestaw parametrów (size, p, max_shift, mode, swap_radius, rot_p, wrap,
-      channel_jitter, posterize_bits, mix, mask_key, use_amp, amp_influence, clamp).
-    - Szybkie presety.
-    - Każda zmiana wysyła ctx.on_change(params).
+
+    Najważniejsze:
+    - mask_key to teraz wspólny Combobox z biblioteką masek (Global) + przycisk Refresh.
+    - Lista masek pobierana z ctx.get_mask_keys() lub cache_ref["cfg/masks/keys"].
+    - Każda zmiana emituje ctx.on_change(params).
     """
     def __init__(self, master: tk.Misc, ctx: Optional[PanelContext] = None, **kw: Any) -> None:
         super().__init__(master, **kw)
-        self.ctx = ctx or PanelContext(filter_name="block_mosh_grid",
-                                       defaults={}, params={}, on_change=None, cache_ref={})
+        self.ctx = ctx or PanelContext(
+            filter_name="block_mosh_grid",
+            defaults={}, params={}, on_change=None, cache_ref={}
+        )
 
-        dflt: Dict[str, Any] = dict(self.ctx.defaults or {})
-        p0: Dict[str, Any] = dict(self.ctx.params or {})
+        dflt: Dict[str, Any] = dict(getattr(self.ctx, "defaults", {}) or {})
+        p0:   Dict[str, Any] = dict(getattr(self.ctx, "params", {}) or {})
 
         def V(key: str, fb: Any) -> Any: return p0.get(key, dflt.get(key, fb))
 
@@ -39,20 +46,24 @@ class BlockMoshGridPanel(ttk.Frame):
         self.var_channel_jit   = tk.DoubleVar(value=float(V("channel_jitter", 0.0)))
         self.var_poster_bits   = tk.IntVar(   value=int(V("posterize_bits", 0)))
         self.var_mix           = tk.DoubleVar(value=float(V("mix", 1.0)))
-        self.var_mask_key      = tk.StringVar(value=str(V("mask_key", "") or ""))
+        # maski – teraz combobox
+        self.var_mask_key      = tk.StringVar(value=str(V("mask_key", "") or PLACEHOLDER_NONE))
         self.var_use_amp       = tk.DoubleVar(value=float(V("use_amp", 1.0)))
         self.var_amp_infl      = tk.DoubleVar(value=float(V("amp_influence", 1.0)))
         self.var_clamp         = tk.BooleanVar(value=bool(V("clamp", True)))
 
+        self._mask_keys: List[str] = []  # lokalny cache listy masek
+
         self._build_ui()
         self._bind_all()
+        self._refresh_masks()
         self._emit()
 
     # ---------------- UI layout ----------------
     def _build_ui(self) -> None:
         title = ttk.Frame(self, padding=(8,8,8,4)); title.pack(fill="x")
         ttk.Label(title, text="Block Mosh (grid)", font=("", 10, "bold")).pack(side="left")
-        ttk.Label(title, text="  — losowe przestawianie bloków, shift/swap/rot/posterize",
+        ttk.Label(title, text="  — losowe przestawianie bloków: shift/swap/rot/posterize",
                   foreground="#888").pack(side="left")
 
         # GRID
@@ -104,19 +115,21 @@ class BlockMoshGridPanel(ttk.Frame):
             .grid(row=1, column=1, sticky="w", padx=6, pady=(6,0))
         cp.columnconfigure(1, weight=1)
 
-        # MASK & AMP
+        # MASK & AMP — wspólny Combobox masek
         ma = ttk.LabelFrame(self, text="Mask & Amplitude", padding=8); ma.pack(fill="x", padx=8, pady=(0,6))
         ttk.Label(ma, text="mask_key").grid(row=0, column=0, sticky="w")
-        ttk.Entry(ma, textvariable=self.var_mask_key, width=18).grid(row=0, column=1, sticky="w", padx=6)
-        btns = ttk.Frame(ma); btns.grid(row=0, column=2, sticky="w")
-        ttk.Button(btns, text="edge", command=lambda: self._set_mask("edge")).pack(side="left", padx=(0,4))
-        ttk.Button(btns, text="clear", command=lambda: self._set_mask("")).pack(side="left")
+        row = ttk.Frame(ma); row.grid(row=0, column=1, columnspan=2, sticky="ew", padx=6)
+        self.cmb_mask = ttk.Combobox(row, state="readonly", width=24, textvariable=self.var_mask_key)
+        self.cmb_mask.pack(side="left", fill="x", expand=True)
+        self.cmb_mask.bind("<Button-1>", lambda _e: self._refresh_masks())  # auto-refresh przy rozwinięciu
+        ttk.Button(row, text="Refresh", command=self._refresh_masks).pack(side="left", padx=(6,0))
+        ma.columnconfigure(1, weight=1)
+
         ttk.Label(ma, text="use_amp").grid(row=1, column=0, sticky="w", pady=(6,0))
         ttk.Scale(ma, from_=0.0, to=2.0, variable=self.var_use_amp)\
             .grid(row=1, column=1, sticky="ew", padx=6, pady=(6,0))
         ttk.Entry(ma, textvariable=self.var_use_amp, width=6)\
             .grid(row=1, column=2, sticky="w", pady=(6,0))
-        ma.columnconfigure(1, weight=1)
 
         # MIX & BOUNDARIES
         mb = ttk.LabelFrame(self, text="Mix & Boundaries", padding=8); mb.pack(fill="x", padx=8, pady=(0,6))
@@ -150,7 +163,33 @@ class BlockMoshGridPanel(ttk.Frame):
                        posterize_bits=0, mix=0.9, use_amp=1.0, amp_influence=1.0
                    )).pack(side="left", padx=2)
 
-    # ------------- helpers -------------
+    # ------------- maski -------------
+    def _mask_source_keys(self) -> List[str]:
+        """Pobierz listę masek z ctx.get_mask_keys() lub z cache_ref['cfg/masks/keys']."""
+        try:
+            f = getattr(self.ctx, "get_mask_keys", None)
+            if callable(f):
+                keys = list(f())
+                return [k for k in keys if isinstance(k, str)]
+        except Exception:
+            pass
+        try:
+            cache = getattr(self.ctx, "cache_ref", {}) or {}
+            keys = list(cache.get("cfg/masks/keys", []))
+            return [k for k in keys if isinstance(k, str)]
+        except Exception:
+            return []
+
+    def _refresh_masks(self) -> None:
+        keys = self._mask_source_keys()
+        values = [PLACEHOLDER_NONE] + sorted(keys)
+        current = self.var_mask_key.get() or PLACEHOLDER_NONE
+        if current not in values:
+            current = PLACEHOLDER_NONE
+        self.cmb_mask["values"] = values
+        self.var_mask_key.set(current)
+
+    # ------------- helpers/bindings -------------
     def _bind_all(self) -> None:
         vars_ = (
             self.var_size, self.var_p, self.var_max_shift, self.var_mode, self.var_swap_radius,
@@ -160,9 +199,9 @@ class BlockMoshGridPanel(ttk.Frame):
         for v in vars_:
             v.trace_add("write", lambda *_: self._emit())
 
-    def _set_mask(self, key: str) -> None:
-        self.var_mask_key.set(key)
-        self._emit()
+        # odśwież listę masek gdy panel pojawi się/otrzyma focus
+        self.bind("<Visibility>", lambda _e: self._refresh_masks())
+        self.cmb_mask.bind("<<ComboboxSelected>>", lambda _e: self._emit())
 
     def _apply_preset(self, **kw: Any) -> None:
         # bezpieczne ustawienia typów
@@ -180,8 +219,9 @@ class BlockMoshGridPanel(ttk.Frame):
         if "amp_influence" in kw:   self.var_amp_infl.set(float(kw["amp_influence"]))
         self._emit()
 
+    # ------------- emit -------------
     def _emit(self) -> None:
-        # ograniczenia i typy
+        mk = (self.var_mask_key.get().strip())
         params = {
             "size":          max(4, int(self.var_size.get())),
             "p":             float(min(max(self.var_p.get(), 0.0), 1.0)),
@@ -193,16 +233,16 @@ class BlockMoshGridPanel(ttk.Frame):
             "channel_jitter":float(max(0.0, self.var_channel_jit.get())),
             "posterize_bits":max(0, int(self.var_poster_bits.get())),
             "mix":           float(min(max(self.var_mix.get(), 0.0), 1.0)),
-            "mask_key":      (self.var_mask_key.get().strip() or None),
+            "mask_key":      (None if mk in ("", PLACEHOLDER_NONE) else mk),
             "use_amp":       float(max(0.0, self.var_use_amp.get())),
             "amp_influence": float(max(0.0, self.var_amp_infl.get())),
             "clamp":         bool(self.var_clamp.get()),
         }
-        if callable(getattr(self.ctx, "on_change", None)):
-            try:
-                self.ctx.on_change(params)
-            except Exception:
-                pass
+        cb = getattr(self.ctx, "on_change", None)
+        if callable(cb):
+            try: cb(params)
+            except Exception: pass
+
 
 # Loader hook for panel_loader
 Panel = BlockMoshGridPanel

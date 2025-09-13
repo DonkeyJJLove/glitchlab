@@ -1,192 +1,452 @@
-
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+import json
+from collections import deque
+from pathlib import Path
+from typing import Callable, Optional, Any
+
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from typing import Any, Dict, List
-import json, os
 
 try:
     import yaml  # type: ignore
+    _HAS_YAML = True
 except Exception:
-    yaml = None
+    _HAS_YAML = False
+
+
+def _ensure_v2(cfg: dict) -> dict:
+    """Minimalna normalizacja preset v2."""
+    cfg = dict(cfg or {})
+    cfg.setdefault("version", 2)
+    cfg.setdefault("seed", 7)
+    cfg.setdefault("amplitude", {"kind": "none", "strength": 1.0})
+    cfg.setdefault("edge_mask", {"thresh": 60, "dilate": 0, "ksize": 3})
+    cfg.setdefault("steps", [])
+    # prywatne pole z katalogiem presetów – *nie* zapisujemy do plików
+    cfg.setdefault("__preset_dir", str(Path.cwd() / "presets"))
+    return cfg
+
+
+def _dumps_yaml(d: dict) -> str:
+    if _HAS_YAML:
+        return yaml.safe_dump(d, sort_keys=False, allow_unicode=True)
+    # fallback: „yamlopodobny” przez JSON + komentarz OSTRZEGAWCZY
+    return "# (YAML unavailable; showing JSON)\n" + json.dumps(d, indent=2, ensure_ascii=False)
+
+
+def _loads_yaml(txt: str) -> dict:
+    if _HAS_YAML:
+        return yaml.safe_load(txt) or {}
+    # w trybie fallback akceptujemy JSON
+    return json.loads(txt)
+
 
 class PresetManager(ttk.Frame):
     """
-    Menedżer presetów 'in-memory' + pliki w folderze.
-    Pokazuje aktualny cfg jako YAML/JSON, pozwala: Add current step,
-    Remove, Move up/down, Load/Save, Apply steps.
-    Oczekuje callbacków z App:
-      - get_cfg() -> Dict
-      - set_cfg(cfg: Dict) -> None
+    Presets tab widget.
+
+    Wymagane callbacki:
+      - get_cfg() -> dict
+      - set_cfg(dict) -> None
       - apply_preset_steps() -> None
-      - get_available_filters() -> List[str]  (do walidacji)
-      - add_current_step() -> None (opcjonalnie; inaczej używa get_cfg/active)
+      - get_available_filters() -> list[str]
+
+    Opcjonalne:
+      - get_current_step() -> {"name": str, "params": dict}  # dla "Add current step"
     """
-    def __init__(self, master, get_cfg, set_cfg, apply_preset_steps, get_available_filters):
-        super().__init__(master)
+
+    def __init__(
+        self,
+        parent: tk.Widget,
+        get_cfg: Callable[[], dict],
+        set_cfg: Callable[[dict], None],
+        apply_preset_steps: Callable[[], None],
+        get_available_filters: Callable[[], list[str]],
+        get_current_step: Optional[Callable[[], dict]] = None,
+    ):
+        super().__init__(parent)
+
         self._get_cfg = get_cfg
         self._set_cfg = set_cfg
-        self._apply = apply_preset_steps
+        self._apply_cb = apply_preset_steps
         self._get_filters = get_available_filters
-        self._build()
-        self.refresh_preview()
+        self._get_current_step = get_current_step
 
-    def _build(self):
-        self.columnconfigure(0, weight=1)
-        # toolbar
-        tb = ttk.Frame(self); tb.grid(row=0, column=0, sticky="ew", pady=(2,4))
-        for (txt, cmd) in [
-            ("Refresh", self.refresh_preview),
-            ("Load", self.load_file),
-            ("Apply steps", self.apply_steps),
-            ("Save preset as…", self.save_file),
-        ]:
-            ttk.Button(tb, text=txt, command=cmd).pack(side="left", padx=(0,6))
+        self.history: deque[dict] = deque(maxlen=20)
 
-        # steps list
-        mid = ttk.Frame(self); mid.grid(row=1, column=0, sticky="nsew")
-        mid.columnconfigure(1, weight=1)
-        ttk.Label(mid, text="Steps:").grid(row=0, column=0, sticky="w")
-        self.lst = tk.Listbox(mid, height=7, exportselection=False)
-        self.lst.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(2,4))
-        btns = ttk.Frame(mid); btns.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0,4))
-        ttk.Button(btns, text="Add current step", command=self.add_current_step).pack(side="left")
-        ttk.Button(btns, text="Remove", command=self.remove_step).pack(side="left", padx=6)
-        ttk.Button(btns, text="Up", command=lambda: self.move_sel(-1)).pack(side="left")
-        ttk.Button(btns, text="Down", command=lambda: self.move_sel(+1)).pack(side="left", padx=(6,0))
+        # ---- UI: top bar ----
+        top = ttk.Frame(self)
+        top.pack(fill="x", pady=(6, 4))
 
-        # preview
-        ttk.Label(self, text="Current preset (live):").grid(row=2, column=0, sticky="w")
-        self.txt = tk.Text(self, height=14, wrap="none")
-        self.txt.grid(row=3, column=0, sticky="nsew")
-        self.rowconfigure(3, weight=1)
-        # scrollbars
-        sx = ttk.Scrollbar(self, orient="horizontal", command=self.txt.xview)
-        sy = ttk.Scrollbar(self, orient="vertical", command=self.txt.yview)
-        self.txt.configure(xscrollcommand=sx.set, yscrollcommand=sy.set)
-        sy.grid(row=3, column=1, sticky="ns")
-        sx.grid(row=4, column=0, sticky="ew")
+        ttk.Label(top, text="Preset folder:").pack(side="left", padx=(6, 4))
+        self.dir_var = tk.StringVar(value="")
+        self.dir_entry = ttk.Entry(top, textvariable=self.dir_var)
+        self.dir_entry.pack(side="left", fill="x", expand=True)
 
-    # utils
-    def _dump_cfg(self, cfg: Dict[str, Any]) -> str:
-        if yaml is not None:
-            try:
-                return yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True)
-            except Exception:
-                pass
-        return json.dumps(cfg, ensure_ascii=False, indent=2)
+        ttk.Button(top, text="…", width=3, command=self._choose_dir).pack(side="left", padx=4)
+        ttk.Button(top, text="Refresh", command=self._refresh_from_cfg).pack(side="left", padx=(4, 0))
+        ttk.Button(top, text="Load…", command=self._load_from_disk).pack(side="left", padx=(4, 0))
+        ttk.Button(top, text="Save as…", command=self._save_as).pack(side="left", padx=(4, 0))
 
-    def refresh_preview(self):
-        cfg = self._get_cfg()
-        # list steps
-        self.lst.delete(0, "end")
-        for s in (cfg.get("steps") or []):
-            nm = s.get("name", "?")
-            pr = s.get("params", {})
-            self.lst.insert("end", f"{nm}  {pr}")
-        # text
-        self.txt.delete("1.0", "end")
-        self.txt.insert("1.0", self._dump_cfg(cfg))
+        # ---- middle: editors + steps ----
+        mid = ttk.Panedwindow(self, orient="vertical")
+        mid.pack(fill="both", expand=True)
 
-    def _read_preview_text(self) -> Dict[str, Any]:
-        raw = self.txt.get("1.0", "end").strip()
-        if not raw:
-            return {}
+        # Editors
+        editors = ttk.Notebook(mid)
+        mid.add(editors, weight=3)
+
+        self.txt_yaml = tk.Text(editors, wrap="none", undo=True, height=12)
+        self.txt_json = tk.Text(editors, wrap="none", undo=True, height=12)
+
+        editors.add(self.txt_yaml, text="YAML")
+        editors.add(self.txt_json, text="JSON")
+
+        # Steps panel
+        steps_frame = ttk.Frame(mid)
+        mid.add(steps_frame, weight=2)
+
+        # left: list
+        left = ttk.Frame(steps_frame)
+        left.pack(side="left", fill="both", expand=True, padx=(6, 3), pady=(4, 6))
+
+        ttk.Label(left, text="Steps").pack(anchor="w")
+        self.lb_steps = tk.Listbox(left, height=8, exportselection=False)
+        yscroll = ttk.Scrollbar(left, orient="vertical", command=self.lb_steps.yview)
+        self.lb_steps.config(yscrollcommand=yscroll.set)
+        self.lb_steps.pack(side="left", fill="both", expand=True)
+        yscroll.pack(side="left", fill="y")
+
+        # right: controls
+        right = ttk.Frame(steps_frame)
+        right.pack(side="left", fill="y", padx=(3, 6), pady=(4, 6))
+
+        self.btn_add_current = ttk.Button(
+            right, text="Add current step", command=self._add_current_step, state="disabled"
+        )
+        if self._get_current_step is not None:
+            self.btn_add_current.config(state="normal")
+        self.btn_add_current.pack(fill="x", pady=(0, 6))
+
+        ttk.Button(right, text="Apply all", command=self._apply_all).pack(fill="x")
+        ttk.Button(right, text="Apply selected", command=self._apply_selected).pack(fill="x", pady=(6, 0))
+        ttk.Separator(right, orient="horizontal").pack(fill="x", pady=8)
+        ttk.Button(right, text="Up", command=lambda: self._move_step(-1)).pack(fill="x")
+        ttk.Button(right, text="Down", command=lambda: self._move_step(+1)).pack(fill="x", pady=(6, 0))
+        ttk.Button(right, text="Delete", command=self._del_step).pack(fill="x", pady=(6, 0))
+        ttk.Button(right, text="Clear", command=self._clear_steps).pack(fill="x", pady=(6, 0))
+        ttk.Button(right, text="Edit as JSON…", command=self._edit_selected_json).pack(fill="x", pady=(6, 0))
+
+        ttk.Separator(right, orient="horizontal").pack(fill="x", pady=8)
+        ttk.Label(right, text="Recent (last 20)").pack(anchor="w")
+        self.lb_hist = tk.Listbox(right, height=6)
+        self.lb_hist.pack(fill="both", expand=False)
+        ttk.Button(right, text="Add from history", command=self._add_from_history).pack(fill="x", pady=(6, 0))
+
+        # ---- initial fill ----
+        self._refresh_from_cfg()
+
+        # keep editors in sync on focus-out
+        self.txt_yaml.bind("<FocusOut>", lambda e: self._sync_from_yaml())
+        self.txt_json.bind("<FocusOut>", lambda e: self._sync_from_json())
+
+    # --------- external API ---------
+    def push_history(self, step: dict) -> None:
+        """Wywołuj z App po każdym uruchomieniu pojedynczego filtra."""
         try:
-            if yaml is not None:
-                return yaml.safe_load(raw)  # type: ignore
+            s = {"name": step.get("name"), "params": dict(step.get("params") or {})}
+            if s["name"]:
+                self.history.appendleft(s)
+                self._rebuild_history_listbox()
         except Exception:
             pass
-        try:
-            return json.loads(raw)
-        except Exception as e:
-            messagebox.showerror("Preset parse", f"Cannot parse: {e}")
-            return {}
 
-    def load_file(self):
-        path = filedialog.askopenfilename(title="Load preset (YAML/JSON)",
-                    filetypes=[("YAML","*.yaml;*.yml"), ("JSON","*.json"), ("All","*.*")])
-        if not path: return
+    # --------- UI actions ---------
+    def _choose_dir(self):
         try:
-            raw = open(path, "r", encoding="utf-8").read()
-            if path.lower().endswith((".yaml",".yml")) and yaml is not None:
-                cfg = yaml.safe_load(raw)  # type: ignore
+            start = self.dir_var.get().strip() or str(Path.cwd())
+            d = filedialog.askdirectory(title="Choose preset folder", initialdir=start)
+            if not d:
+                return
+            cfg = self._current_cfg_from_editors()
+            cfg["__preset_dir"] = d
+            self.dir_var.set(d)
+            self._set_cfg(cfg)  # propaguj do App
+        except Exception as e:
+            messagebox.showerror("Preset folder", str(e))
+
+    def _refresh_from_cfg(self):
+        """Wczytaj stan z App i uzupełnij edytory + listy."""
+        try:
+            cfg = _ensure_v2(self._get_cfg())
+            self.dir_var.set(str(cfg.get("__preset_dir", "")))
+            # do edytorów (bez pola __preset_dir)
+            clean = dict(cfg)
+            clean.pop("__preset_dir", None)
+            self._set_editors_from_cfg(clean)
+            self._rebuild_steps_listbox(clean.get("steps") or [])
+        except Exception as e:
+            messagebox.showerror("Refresh", str(e))
+
+    def _load_from_disk(self):
+        try:
+            base = Path(self.dir_var.get().strip() or ".")
+            f = filedialog.askopenfilename(
+                title="Load preset",
+                initialdir=str(base),
+                filetypes=[("YAML/JSON", "*.yml;*.yaml;*.json"), ("All files", "*.*")]
+            )
+            if not f:
+                return
+            txt = Path(f).read_text(encoding="utf-8")
+            if f.lower().endswith((".yml", ".yaml")):
+                data = _loads_yaml(txt)
             else:
-                cfg = json.loads(raw)
-            if not isinstance(cfg, dict):
-                raise ValueError("Invalid preset format")
-            self._set_cfg(cfg)
-            self.refresh_preview()
+                data = json.loads(txt)
+            data = _ensure_v2(data)
+            data["__preset_dir"] = str(base)  # nie nadpisujemy katalogu plikiem
+            self._set_cfg(data)
+            self._refresh_from_cfg()
         except Exception as e:
             messagebox.showerror("Load preset", str(e))
 
-    def save_file(self):
-        cfg = self._read_preview_text()
-        if not cfg:
-            cfg = self._get_cfg()
-        path = filedialog.asksaveasfilename(title="Save preset as…",
-                    defaultextension=".yaml",
-                    filetypes=[("YAML","*.yaml;*.yml"), ("JSON","*.json"), ("All","*.*")])
-        if not path: return
+    def _save_as(self):
         try:
-            if path.lower().endswith((".yaml",".yml")) and yaml is not None:
-                txt = yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True)  # type: ignore
+            cfg = self._current_cfg_from_editors()
+            base = Path(self.dir_var.get().strip() or ".")
+            base.mkdir(parents=True, exist_ok=True)
+            f = filedialog.asksaveasfilename(
+                title="Save preset as",
+                initialdir=str(base),
+                defaultextension=".yml",
+                filetypes=[("YAML", "*.yml;*.yaml"), ("JSON", "*.json"), ("All files", "*.*")]
+            )
+            if not f:
+                return
+            to_write = dict(cfg)
+            to_write.pop("__preset_dir", None)
+            if f.lower().endswith(".json"):
+                Path(f).write_text(json.dumps(to_write, indent=2, ensure_ascii=False), encoding="utf-8")
             else:
-                txt = json.dumps(cfg, ensure_ascii=False, indent=2)
-            open(path, "w", encoding="utf-8").write(txt)
-            messagebox.showinfo("Save preset", f"Saved: {os.path.basename(path)}")
+                Path(f).write_text(_dumps_yaml(to_write), encoding="utf-8")
         except Exception as e:
             messagebox.showerror("Save preset", str(e))
 
-    def apply_steps(self):
-        self._set_cfg(self._read_preview_text() or self._get_cfg())
-        self._apply()
+    def _apply_all(self):
+        """Zapisz zmiany do App i odpal cały preset."""
+        try:
+            cfg = self._current_cfg_from_editors()
+            self._set_cfg(cfg)
+            self._apply_cb()
+        except Exception as e:
+            messagebox.showerror("Apply steps", str(e))
 
-    def add_current_step(self):
-        cfg = self._get_cfg()
-        steps = list(cfg.get("steps") or [])
-        # heurystyka: wstaw aktywny filtr/parametry jeśli App je udostępnia
-        # (czyli oczekujemy, że set_cfg/get_cfg zarządza active_filter/params).
-        # W przeciwnym razie tylko wpisujemy pusty obiekt z nazwą (jeśli dostępna).
-        name = cfg.get("__active_name") or ""
-        params = cfg.get("__active_params") or {}
-        if not name:
-            # fallback: pierwszy dostępny filtr (jeśli jest)
-            av = list(self._get_filters() or [])
-            if av:
-                name = av[0]
-        if not name:
-            messagebox.showinfo("Add step", "Brak aktywnego filtra.")
+    def _apply_selected(self):
+        """Uruchom TYLKO zaznaczony krok (bez psucia bieżącego presetu)."""
+        try:
+            sel = self.lb_steps.curselection()
+            if not sel:
+                messagebox.showinfo("Apply selected", "Zaznacz krok na liście.")
+                return
+            idx = sel[0]
+            full_cfg = self._current_cfg_from_editors()
+            steps = list(full_cfg.get("steps") or [])
+            if idx < 0 or idx >= len(steps):
+                return
+            # tymczasowa podmiana w App
+            original = _ensure_v2(self._get_cfg())
+            temp = dict(original)
+            temp["steps"] = [steps[idx]]
+            self._set_cfg(temp)
+            self._apply_cb()
+            # przywróć
+            self._set_cfg(original)
+        except Exception as e:
+            messagebox.showerror("Apply selected", str(e))
+
+    def _add_current_step(self):
+        if self._get_current_step is None:
             return
-        steps.append({"name": name, "params": dict(params)})
-        cfg["steps"] = steps
-        self._set_cfg(cfg)
-        self.refresh_preview()
+        try:
+            step = self._get_current_step() or {}
+            if not step.get("name"):
+                messagebox.showinfo("Add current step", "Brak aktywnego filtra / krok niekompletny.")
+                return
+            cfg = self._current_cfg_from_editors()
+            steps = list(cfg.get("steps") or [])
+            steps.append({"name": step["name"], "params": dict(step.get("params") or {})})
+            cfg["steps"] = steps
+            self._set_editors_from_cfg(cfg)
+            self._rebuild_steps_listbox(steps)
+        except Exception as e:
+            messagebox.showerror("Add current step", str(e))
 
-    def remove_step(self):
-        sel = self.lst.curselection()
+    def _add_from_history(self):
+        try:
+            sel = self.lb_hist.curselection()
+            if not sel:
+                return
+            idx = sel[0]
+            if idx < 0 or idx >= len(self.history):
+                return
+            step = self.history[idx]
+            cfg = self._current_cfg_from_editors()
+            steps = list(cfg.get("steps") or [])
+            steps.append(dict(step))
+            cfg["steps"] = steps
+            self._set_editors_from_cfg(cfg)
+            self._rebuild_steps_listbox(steps)
+        except Exception as e:
+            messagebox.showerror("History", str(e))
+
+    def _move_step(self, delta: int):
+        try:
+            sel = self.lb_steps.curselection()
+            if not sel:
+                return
+            idx = sel[0]
+            cfg = self._current_cfg_from_editors()
+            steps = list(cfg.get("steps") or [])
+            j = idx + delta
+            if j < 0 or j >= len(steps):
+                return
+            steps[idx], steps[j] = steps[j], steps[idx]
+            cfg["steps"] = steps
+            self._set_editors_from_cfg(cfg)
+            self._rebuild_steps_listbox(steps)
+            self.lb_steps.selection_clear(0, "end")
+            self.lb_steps.selection_set(j)
+            self.lb_steps.see(j)
+        except Exception as e:
+            messagebox.showerror("Reorder", str(e))
+
+    def _del_step(self):
+        try:
+            sel = self.lb_steps.curselection()
+            if not sel:
+                return
+            idx = sel[0]
+            cfg = self._current_cfg_from_editors()
+            steps = list(cfg.get("steps") or [])
+            if 0 <= idx < len(steps):
+                steps.pop(idx)
+                cfg["steps"] = steps
+                self._set_editors_from_cfg(cfg)
+                self._rebuild_steps_listbox(steps)
+        except Exception as e:
+            messagebox.showerror("Delete step", str(e))
+
+    def _clear_steps(self):
+        try:
+            if messagebox.askyesno("Clear steps", "Usunąć wszystkie kroki z bieżącego presetu?"):
+                cfg = self._current_cfg_from_editors()
+                cfg["steps"] = []
+                self._set_editors_from_cfg(cfg)
+                self._rebuild_steps_listbox([])
+        except Exception as e:
+            messagebox.showerror("Clear steps", str(e))
+
+    def _edit_selected_json(self):
+        sel = self.lb_steps.curselection()
         if not sel:
             return
         idx = sel[0]
-        cfg = self._get_cfg()
+        cfg = self._current_cfg_from_editors()
         steps = list(cfg.get("steps") or [])
-        if 0 <= idx < len(steps):
-            steps.pop(idx)
-            cfg["steps"] = steps
-            self._set_cfg(cfg)
-            self.refresh_preview()
+        if not (0 <= idx < len(steps)):
+            return
+        step = dict(steps[idx])
 
-    def move_sel(self, delta: int):
-        sel = self.lst.curselection()
-        if not sel: return
-        idx = sel[0]
-        cfg = self._get_cfg()
-        steps = list(cfg.get("steps") or [])
-        j = idx + delta
-        if 0 <= idx < len(steps) and 0 <= j < len(steps):
-            steps[idx], steps[j] = steps[j], steps[idx]
-            cfg["steps"] = steps
-            self._set_cfg(cfg)
-            self.refresh_preview()
-            self.lst.selection_set(j)
+        # proste okno edycji JSON
+        win = tk.Toplevel(self)
+        win.title(f"Edit step #{idx}")
+        win.transient(self.winfo_toplevel())
+        win.grab_set()
+
+        txt = tk.Text(win, width=60, height=18)
+        txt.pack(fill="both", expand=True, padx=6, pady=6)
+        txt.insert("1.0", json.dumps(step, indent=2, ensure_ascii=False))
+
+        def ok():
+            try:
+                data = json.loads(txt.get("1.0", "end"))
+                if not isinstance(data, dict) or "name" not in data:
+                    raise ValueError("Step musi być dict z polem 'name'.")
+                steps[idx] = data
+                cfg["steps"] = steps
+                self._set_editors_from_cfg(cfg)
+                self._rebuild_steps_listbox(steps)
+                win.destroy()
+            except Exception as e:
+                messagebox.showerror("Edit step", str(e))
+
+        ttk.Button(win, text="OK", command=ok).pack(side="right", padx=6, pady=(0, 6))
+        ttk.Button(win, text="Cancel", command=win.destroy).pack(side="right", pady=(0, 6))
+
+    # --------- helpers ---------
+    def _set_editors_from_cfg(self, cfg_no_dir: dict):
+        """Ustaw edytory na podstawie cfg *bez* klucza __preset_dir."""
+        try:
+            # YAML
+            self.txt_yaml.delete("1.0", "end")
+            self.txt_yaml.insert("1.0", _dumps_yaml(cfg_no_dir))
+            # JSON
+            self.txt_json.delete("1.0", "end")
+            self.txt_json.insert("1.0", json.dumps(cfg_no_dir, indent=2, ensure_ascii=False))
+        except Exception as e:
+            messagebox.showerror("Editors", str(e))
+
+    def _current_cfg_from_editors(self) -> dict:
+        """Zbierz config z aktywnego edytora + dir z pola na górze."""
+        try:
+            # preferuj YAML (pierwszy tab), ale spróbuj zsyncować oba
+            # – najpierw spróbuj sparsować YAML; jeśli błąd, spróbuj JSON.
+            txt_y = self.txt_yaml.get("1.0", "end").strip()
+            txt_j = self.txt_json.get("1.0", "end").strip()
+            data: dict
+            try:
+                data = _loads_yaml(txt_y)
+            except Exception:
+                data = json.loads(txt_j)
+            data = _ensure_v2(data)
+            data["__preset_dir"] = self.dir_var.get().strip() or data.get("__preset_dir") or ""
+            return data
+        except Exception as e:
+            messagebox.showerror("Preset parse", str(e))
+            return _ensure_v2(self._get_cfg())
+
+    def _sync_from_yaml(self):
+        """Kiedy użytkownik edytuje YAML – przepisz JSON (bez __preset_dir)."""
+        try:
+            d = _loads_yaml(self.txt_yaml.get("1.0", "end"))
+            d = _ensure_v2(d)
+            d.pop("__preset_dir", None)
+            self.txt_json.delete("1.0", "end")
+            self.txt_json.insert("1.0", json.dumps(d, indent=2, ensure_ascii=False))
+            self._rebuild_steps_listbox(d.get("steps") or [])
+        except Exception:
+            pass  # pisze w trakcie – nie przeszkadzamy
+
+    def _sync_from_json(self):
+        """Kiedy użytkownik edytuje JSON – przepisz YAML (bez __preset_dir)."""
+        try:
+            d = json.loads(self.txt_json.get("1.0", "end"))
+            d = _ensure_v2(d)
+            d.pop("__preset_dir", None)
+            self.txt_yaml.delete("1.0", "end")
+            self.txt_yaml.insert("1.0", _dumps_yaml(d))
+            self._rebuild_steps_listbox(d.get("steps") or [])
+        except Exception:
+            pass
+
+    def _rebuild_steps_listbox(self, steps: list[dict]):
+        self.lb_steps.delete(0, "end")
+        for i, st in enumerate(steps):
+            nm = st.get("name", "<unnamed>")
+            self.lb_steps.insert("end", f"{i:02d}: {nm}")
+
+    def _rebuild_history_listbox(self):
+        self.lb_hist.delete(0, "end")
+        for st in self.history:
+            self.lb_hist.insert("end", st.get("name", "<unnamed>"))

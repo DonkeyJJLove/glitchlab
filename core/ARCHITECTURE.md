@@ -1,6 +1,6 @@
 # glitchlab — controlled glitch for analysis
 
-![Interfejs](backup/screen.png)
+![Interfejs](screen.png)
 
 GlitchLab to narzędzie do **kontrolowanej generacji artefaktów** w obrazach (2D), projektowane pod **analizę** i **wnioskowanie**. Błąd traktujemy jako **sygnał diagnostyczny**: poprzez maski (ROI), pola amplitudy (siła lokalna) i deterministyczne filtry można **wywołać** i **ukształtować** artefakty tak, by ujawniały informacje o strukturze danych i relacjach między transformacjami.
 

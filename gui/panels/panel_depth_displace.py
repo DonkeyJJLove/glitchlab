@@ -1,14 +1,18 @@
+# glitchlab/gui/panels/panel_depth_displace.py
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 try:
     from glitchlab.gui.panel_base import PanelContext  # type: ignore
 except Exception:  # pragma: no cover
     class PanelContext:
         def __init__(self, **kw): self.__dict__.update(kw)
+
+PLACEHOLDER_NONE = "<none>"
+
 
 class DepthDisplacePanel(ttk.Frame):
     """
@@ -23,7 +27,7 @@ class DepthDisplacePanel(ttk.Frame):
         super().__init__(master, **kw)
         self.ctx = ctx or PanelContext(filter_name="depth_displace", defaults={}, params={}, on_change=None, cache_ref={})
         dflt: Dict[str, Any] = dict(self.ctx.defaults or {})
-        p0: Dict[str, Any] = dict(self.ctx.params or {})
+        p0:   Dict[str, Any] = dict(self.ctx.params or {})
 
         def V(k: str, fb: Any) -> Any: return p0.get(k, dflt.get(k, fb))
 
@@ -36,14 +40,20 @@ class DepthDisplacePanel(ttk.Frame):
         self.var_stereo_px  = tk.IntVar(   value=int(  V("stereo_px", 2)))
         self.var_shading    = tk.BooleanVar(value=bool(V("shading", True)))
         self.var_shade_gain = tk.DoubleVar(value=float(V("shade_gain", 0.25)))
-        self.var_mask_key   = tk.StringVar(value=str(V("mask_key", "") or ""))
+        # mask_key: wspólny combobox z Global
+        self.var_mask_key   = tk.StringVar(value=str(V("mask_key", "") or PLACEHOLDER_NONE))
         self.var_use_amp    = tk.DoubleVar(value=float(V("use_amp", 1.0)))
         self.var_clamp      = tk.BooleanVar(value=bool(V("clamp", True)))
 
+        self._mask_keys: List[str] = []
+
         self._build_ui()
         self._bind_all()
+        # start: wypełnij listę masek i wyemituj stan
+        self._refresh_masks()
         self._emit()
 
+    # ---------------- UI ----------------
     def _build_ui(self) -> None:
         title = ttk.Frame(self, padding=(8,8,8,4)); title.pack(fill="x")
         ttk.Label(title, text="Depth Displace", font=("", 10, "bold")).pack(side="left")
@@ -81,11 +91,15 @@ class DepthDisplacePanel(ttk.Frame):
         g3.columnconfigure(2, weight=1)
 
         g4 = ttk.LabelFrame(self, text="Mask & Amplitude", padding=8); g4.pack(fill="x", padx=8, pady=(0,6))
+        # mask_key -> combobox zsynchronizowany z Global
         ttk.Label(g4, text="mask_key").grid(row=0, column=0, sticky="w")
-        ttk.Entry(g4, textvariable=self.var_mask_key, width=16).grid(row=0, column=1, sticky="w", padx=6)
-        btns = ttk.Frame(g4); btns.grid(row=0, column=2, sticky="w")
-        ttk.Button(btns, text="edge", command=lambda: self._set_mask("edge")).pack(side="left", padx=(0,4))
-        ttk.Button(btns, text="clear", command=lambda: self._set_mask("")).pack(side="left")
+        row = ttk.Frame(g4); row.grid(row=0, column=1, columnspan=2, sticky="ew", padx=6)
+        self.cmb_mask = ttk.Combobox(row, state="readonly", width=24, textvariable=self.var_mask_key)
+        self.cmb_mask.pack(side="left", fill="x", expand=True)
+        self.cmb_mask.bind("<Button-1>", lambda _e: self._refresh_masks())  # auto-refresh na rozwinięciu
+        ttk.Button(row, text="edge",  command=lambda: self._set_mask("edge")).pack(side="left", padx=(6, 2))
+        ttk.Button(row, text="clear", command=lambda: self._set_mask("")).pack(side="left")
+
         ttk.Label(g4, text="use_amp").grid(row=1, column=0, sticky="w", pady=(6,0))
         ttk.Scale(g4, from_=0.0, to=2.0, variable=self.var_use_amp).grid(row=1, column=1, sticky="ew", padx=6, pady=(6,0))
         ttk.Entry(g4, textvariable=self.var_use_amp, width=6).grid(row=1, column=2, sticky="w", pady=(6,0))
@@ -113,6 +127,7 @@ class DepthDisplacePanel(ttk.Frame):
                                                       vertical=0.15, stereo=True, stereo_px=1, shading=False, shade_gain=0.0, use_amp=1.0))\
             .pack(side="left", padx=2)
 
+    # ------------- binding / masks -------------
     def _bind_all(self) -> None:
         vars_ = (
             self.var_depth_map, self.var_scale, self.var_freq, self.var_octaves,
@@ -122,9 +137,50 @@ class DepthDisplacePanel(ttk.Frame):
         )
         for v in vars_:
             v.trace_add("write", lambda *_: self._emit())
+        # odśwież listę przy wejściu panelu i po wyborze
+        self.bind("<Visibility>", lambda _e: self._refresh_masks())
+        # emit przy ręcznej zmianie wyboru
+        # (trace i tak złapie, ale ten bind gwarantuje natychmiast po wyborze z listy)
+        # no-op jeśli self.cmb_mask nie istnieje (gdyby build_ui się nie powiódł)
+        def _emit_sel(_e=None): self._emit()
+        try:
+            self.cmb_mask.bind("<<ComboboxSelected>>", _emit_sel)
+        except Exception:
+            pass
 
+    def _mask_source_keys(self) -> List[str]:
+        """Lista masek z Global: ctx.get_mask_keys() lub cache_ref['cfg/masks/keys']."""
+        try:
+            f = getattr(self.ctx, "get_mask_keys", None)
+            if callable(f):
+                keys = list(f())
+                return [k for k in keys if isinstance(k, str)]
+        except Exception:
+            pass
+        try:
+            cache = getattr(self.ctx, "cache_ref", {}) or {}
+            keys = list(cache.get("cfg/masks/keys", []))
+            return [k for k in keys if isinstance(k, str)]
+        except Exception:
+            return []
+
+    def _refresh_masks(self) -> None:
+        keys = self._mask_source_keys()
+        values = [PLACEHOLDER_NONE] + sorted(keys)
+        cur = self.var_mask_key.get() or PLACEHOLDER_NONE
+        if cur not in values:
+            cur = PLACEHOLDER_NONE
+        # ustaw listę i aktualną pozycję
+        try:
+            self.cmb_mask["values"] = values
+        except Exception:
+            pass
+        self.var_mask_key.set(cur)
+
+    # ------------- helpers -------------
     def _set_mask(self, key: str) -> None:
-        self.var_mask_key.set(key); self._emit()
+        self.var_mask_key.set(key if key else PLACEHOLDER_NONE)
+        self._emit()
 
     def _apply_preset(self, **kw: Any) -> None:
         for k, v in kw.items():
@@ -132,13 +188,16 @@ class DepthDisplacePanel(ttk.Frame):
                 getattr(self, f"var_{k}").set(int(v))
             elif k in ("stereo","shading","clamp"):
                 getattr(self, f"var_{k}").set(bool(v))
-            elif k in ("depth_map","mask_key"):
+            elif k in ("depth_map",):
                 getattr(self, f"var_{k}").set(str(v))
+            elif k == "mask_key":
+                self._set_mask(str(v))
             else:
                 getattr(self, f"var_{k}").set(float(v))
         self._emit()
 
     def _emit(self) -> None:
+        mk = (self.var_mask_key.get() or "").strip()
         params = {
             "depth_map":  self.var_depth_map.get().strip() or "noise_fractal",
             "scale":      float(self.var_scale.get()),
@@ -149,13 +208,15 @@ class DepthDisplacePanel(ttk.Frame):
             "stereo_px":  int(max(0, int(self.var_stereo_px.get()))),
             "shading":    bool(self.var_shading.get()),
             "shade_gain": float(max(0.0, min(1.0, self.var_shade_gain.get()))),
-            "mask_key":   (self.var_mask_key.get().strip() or None),
+            "mask_key":   (None if mk in ("", PLACEHOLDER_NONE) else mk),
             "use_amp":    float(max(0.0, self.var_use_amp.get())),
             "clamp":      bool(self.var_clamp.get()),
         }
-        if callable(getattr(self.ctx, "on_change", None)):
-            try: self.ctx.on_change(params)
+        cb = getattr(self.ctx, "on_change", None)
+        if callable(cb):
+            try: cb(params)
             except Exception: pass
+
 
 # Loader hook
 Panel = DepthDisplacePanel

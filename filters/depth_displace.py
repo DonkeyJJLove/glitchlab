@@ -1,124 +1,244 @@
+# glitchlab/filters/depth_displace.py
 # -*- coding: utf-8 -*-
-"""
-depth_displace — pseudo-3D przesunięcie paralaksy sterowane mapą "głębi".
-"""
-
 from __future__ import annotations
-import numpy as np
-
-from glitchlab.core.registry import register  # standaryzujemy
-from glitchlab.core.utils import make_amplitude
+import tkinter as tk
+from tkinter import ttk
+from typing import Any, Dict, Optional, List
 
 try:
-    import noise as _noise
-except Exception:
-    _noise = None
+    from glitchlab.gui.panel_base import PanelContext  # type: ignore
+except Exception:  # pragma: no cover
+    class PanelContext:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+PLACEHOLDER_NONE = "<none>"
 
 
-def _depth_field(h: int, w: int, kind: str, freq: float, octaves: int, seed: int) -> np.ndarray:
-    kind = (kind or "noise_fractal").lower()
-    yy, xx = np.meshgrid(np.arange(h, dtype=np.float32), np.arange(w, dtype=np.float32), indexing="ij")
+class DepthDisplacePanel(ttk.Frame):
+    """
+    Panel sterowania dla filtra 'depth_displace'.
 
-    if kind in ("noise_fractal", "perlin") and _noise is not None:
-        scale = max(8.0, float(freq))
-        z = np.zeros((h, w), dtype=np.float32)
-        fx = fy = 1.0 / scale
-        for j in range(h):
-            yv = j * fy
-            for i in range(w):
-                xv = i * fx
-                z[j, i] = _noise.pnoise2(
-                    xv, yv,
-                    octaves=int(octaves),
-                    persistence=0.5, lacunarity=2.0,
-                    repeatx=1024, repeaty=1024, base=int(seed),
-                )
-        z = (z - z.min()) / (z.max() - z.min() + 1e-8)
-        return z.astype(np.float32)
+    Parametry: depth_map, scale, freq, octaves, vertical,
+               stereo, stereo_px, shading, shade_gain,
+               mask_key, use_amp, clamp.
 
-    f = 2.0 * np.pi / max(16.0, float(freq) or 16.0)
-    z = 0.5 * (np.sin(xx * f) + np.cos(yy * f))
-    z = (z - z.min()) / (z.max() - z.min() + 1e-8)
-    return z.astype(np.float32)
+    Integracja z biblioteką masek:
+      - wspólny Combobox (lista z ctx.get_mask_keys() / ctx.cache_ref['cfg/masks/keys'])
+      - przyciski Refresh oraz auto-refresh przy wejściu/rozwinięciu
+    """
+    MAPS = ("noise_fractal", "perlin", "sine")
+
+    def __init__(self, master: tk.Misc, ctx: Optional[PanelContext] = None, **kw: Any) -> None:
+        super().__init__(master, **kw)
+        self.ctx = ctx or PanelContext(filter_name="depth_displace", defaults={}, params={}, on_change=None, cache_ref={})
+        dflt: Dict[str, Any] = dict(getattr(self.ctx, "defaults", {}) or {})
+        p0:   Dict[str, Any] = dict(getattr(self.ctx, "params", {}) or {})
+
+        def V(k: str, fb: Any) -> Any: return p0.get(k, dflt.get(k, fb))
+
+        self.var_depth_map  = tk.StringVar(value=str(V("depth_map", "noise_fractal")))
+        self.var_scale      = tk.DoubleVar(value=float(V("scale", 56.0)))
+        self.var_freq       = tk.DoubleVar(value=float(V("freq", 110.0)))
+        self.var_octaves    = tk.IntVar(   value=int(  V("octaves", 5)))
+        self.var_vertical   = tk.DoubleVar(value=float(V("vertical", 0.15)))
+        self.var_stereo     = tk.BooleanVar(value=bool(V("stereo", True)))
+        self.var_stereo_px  = tk.IntVar(   value=int(  V("stereo_px", 2)))
+        self.var_shading    = tk.BooleanVar(value=bool(V("shading", True)))
+        self.var_shade_gain = tk.DoubleVar(value=float(V("shade_gain", 0.25)))
+
+        # mask_key – zintegrowany z biblioteką masek (Combobox)
+        mk = str(V("mask_key", "") or "")
+        self.var_mask_key   = tk.StringVar(value=(mk if mk else PLACEHOLDER_NONE))
+
+        self.var_use_amp    = tk.DoubleVar(value=float(V("use_amp", 1.0)))
+        self.var_clamp      = tk.BooleanVar(value=bool(V("clamp", True)))
+
+        self._mask_keys: List[str] = []   # cache nazw masek do comboboxa
+
+        self._build_ui()
+        self._bind_all()
+
+        # start: wypełnij listę masek i wyemituj parametry
+        self._refresh_masks()
+        self._emit()
+
+    # ---------- UI ----------
+    def _build_ui(self) -> None:
+        title = ttk.Frame(self, padding=(8, 8, 8, 4)); title.pack(fill="x")
+        ttk.Label(title, text="Depth Displace", font=("", 10, "bold")).pack(side="left")
+        ttk.Label(title, text=" — parallax z mapy głębi, stereo i cieniowaniem", foreground="#888").pack(side="left")
+
+        # Depth field
+        g1 = ttk.LabelFrame(self, text="Depth Field", padding=8); g1.pack(fill="x", padx=8, pady=(0, 6))
+        ttk.Label(g1, text="depth_map").grid(row=0, column=0, sticky="w")
+        ttk.Combobox(g1, values=list(self.MAPS), state="readonly",
+                     textvariable=self.var_depth_map, width=16)\
+            .grid(row=0, column=1, sticky="w", padx=6)
+        ttk.Label(g1, text="freq").grid(row=0, column=2, sticky="w")
+        ttk.Scale(g1, from_=8.0, to=512.0, variable=self.var_freq)\
+            .grid(row=0, column=3, sticky="ew", padx=6)
+        ttk.Entry(g1, textvariable=self.var_freq, width=7).grid(row=0, column=4, sticky="w")
+        ttk.Label(g1, text="octaves").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ttk.Spinbox(g1, from_=1, to=8, textvariable=self.var_octaves, width=6)\
+            .grid(row=1, column=1, sticky="w", padx=6, pady=(6, 0))
+        g1.columnconfigure(3, weight=1)
+
+        # Parallax
+        g2 = ttk.LabelFrame(self, text="Parallax", padding=8); g2.pack(fill="x", padx=8, pady=(0, 6))
+        ttk.Label(g2, text="scale (px)").grid(row=0, column=0, sticky="w")
+        ttk.Scale(g2, from_=0.0, to=256.0, variable=self.var_scale)\
+            .grid(row=0, column=1, sticky="ew", padx=6)
+        ttk.Entry(g2, textvariable=self.var_scale, width=7).grid(row=0, column=2, sticky="w")
+        ttk.Label(g2, text="vertical").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ttk.Scale(g2, from_=0.0, to=1.0, variable=self.var_vertical)\
+            .grid(row=1, column=1, sticky="ew", padx=6, pady=(6, 0))
+        ttk.Entry(g2, textvariable=self.var_vertical, width=7)\
+            .grid(row=1, column=2, sticky="w", pady=(6, 0))
+        g2.columnconfigure(1, weight=1)
+
+        # Stereo & Shading
+        g3 = ttk.LabelFrame(self, text="Stereo & Shading", padding=8); g3.pack(fill="x", padx=8, pady=(0, 6))
+        ttk.Checkbutton(g3, text="stereo (anaglyph R/B)", variable=self.var_stereo)\
+            .grid(row=0, column=0, sticky="w")
+        ttk.Label(g3, text="stereo_px").grid(row=0, column=1, sticky="w")
+        ttk.Spinbox(g3, from_=0, to=32, textvariable=self.var_stereo_px, width=6)\
+            .grid(row=0, column=2, sticky="w", padx=6)
+        ttk.Checkbutton(g3, text="shading", variable=self.var_shading)\
+            .grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ttk.Label(g3, text="shade_gain").grid(row=1, column=1, sticky="w", pady=(6, 0))
+        ttk.Scale(g3, from_=0.0, to=1.0, variable=self.var_shade_gain)\
+            .grid(row=1, column=2, sticky="ew", padx=6, pady=(6, 0))
+        ttk.Entry(g3, textvariable=self.var_shade_gain, width=6)\
+            .grid(row=1, column=3, sticky="w", pady=(6, 0))
+        g3.columnconfigure(2, weight=1)
+
+        # Mask & Amplitude (zintegrowany wybór maski)
+        g4 = ttk.LabelFrame(self, text="Mask & Amplitude", padding=8); g4.pack(fill="x", padx=8, pady=(0, 6))
+        ttk.Label(g4, text="mask_key").grid(row=0, column=0, sticky="w")
+
+        mask_row = ttk.Frame(g4); mask_row.grid(row=0, column=1, columnspan=2, sticky="ew", padx=6)
+        self.cmb_mask = ttk.Combobox(mask_row, state="readonly", width=20, textvariable=self.var_mask_key)
+        self.cmb_mask.pack(side="left", fill="x", expand=True)
+        # auto-refresh listy masek przy kliknięciu i wejściu
+        self.cmb_mask.bind("<Button-1>", lambda _e: self._refresh_masks())
+        ttk.Button(mask_row, text="Refresh", command=self._refresh_masks).pack(side="left", padx=(6, 0))
+
+        ttk.Label(g4, text="use_amp").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ttk.Scale(g4, from_=0.0, to=2.0, variable=self.var_use_amp)\
+            .grid(row=1, column=1, sticky="ew", padx=6, pady=(6, 0))
+        ttk.Entry(g4, textvariable=self.var_use_amp, width=6)\
+            .grid(row=1, column=2, sticky="w", pady=(6, 0))
+        g4.columnconfigure(1, weight=1)
+
+        # Output
+        g5 = ttk.LabelFrame(self, text="Output", padding=8); g5.pack(fill="x", padx=8, pady=(0, 6))
+        ttk.Checkbutton(g5, text="clamp (final clip to u8)", variable=self.var_clamp)\
+            .grid(row=0, column=0, sticky="w")
+
+        # Presets
+        pr = ttk.Frame(self, padding=(8, 4, 8, 8)); pr.pack(fill="x")
+        ttk.Label(pr, text="Presets:").pack(side="left")
+        ttk.Button(
+            pr, text="Stereo Pop",
+            command=lambda: self._apply_preset(depth_map="noise_fractal", scale=56, freq=110, octaves=5,
+                                               vertical=0.1, stereo=True, stereo_px=2,
+                                               shading=True, shade_gain=0.25, use_amp=1.0)
+        ).pack(side="left", padx=2)
+        ttk.Button(
+            pr, text="Vertical Parallax",
+            command=lambda: self._apply_preset(depth_map="sine", scale=42, freq=64, octaves=1,
+                                               vertical=0.4, stereo=False,
+                                               shading=True, shade_gain=0.35, use_amp=0.8)
+        ).pack(side="left", padx=2)
+        ttk.Button(
+            pr, text="Soft Depth",
+            command=lambda: self._apply_preset(depth_map="perlin", scale=28, freq=160, octaves=4,
+                                               vertical=0.0, stereo=False,
+                                               shading=True, shade_gain=0.15, use_amp=0.6)
+        ).pack(side="left", padx=2)
+        ttk.Button(
+            pr, text="Flat (no shade)",
+            command=lambda: self._apply_preset(depth_map="sine", scale=40, freq=96, octaves=1,
+                                               vertical=0.15, stereo=True, stereo_px=1,
+                                               shading=False, shade_gain=0.0, use_amp=1.0)
+        ).pack(side="left", padx=2)
+
+    # ---------- masks & bindings ----------
+    def _bind_all(self) -> None:
+        vars_ = (
+            self.var_depth_map, self.var_scale, self.var_freq, self.var_octaves,
+            self.var_vertical, self.var_stereo, self.var_stereo_px,
+            self.var_shading, self.var_shade_gain,
+            self.var_mask_key, self.var_use_amp, self.var_clamp
+        )
+        for v in vars_:
+            v.trace_add("write", lambda *_: self._emit())
+
+        # odśwież listę masek, gdy panel staje się widoczny
+        self.bind("<Visibility>", lambda _e: self._refresh_masks())
+        self.cmb_mask.bind("<<ComboboxSelected>>", lambda _e: self._emit())
+
+    def _mask_source_keys(self) -> List[str]:
+        """Zbiera nazwy masek z Global: ctx.get_mask_keys() albo cache_ref['cfg/masks/keys']."""
+        try:
+            f = getattr(self.ctx, "get_mask_keys", None)
+            if callable(f):
+                keys = list(f())
+                return [k for k in keys if isinstance(k, str)]
+        except Exception:
+            pass
+        try:
+            cache = getattr(self.ctx, "cache_ref", {}) or {}
+            keys = list(cache.get("cfg/masks/keys", []))
+            return [k for k in keys if isinstance(k, str)]
+        except Exception:
+            return []
+
+    def _refresh_masks(self) -> None:
+        keys = self._mask_source_keys()
+        values = [PLACEHOLDER_NONE] + sorted(keys)
+        cur = self.var_mask_key.get() or PLACEHOLDER_NONE
+        if cur not in values:
+            cur = PLACEHOLDER_NONE
+        self.cmb_mask["values"] = values
+        self.var_mask_key.set(cur)
+
+    # ---------- helpers ----------
+    def _apply_preset(self, **kw: Any) -> None:
+        for k, v in kw.items():
+            if k in ("octaves", "stereo_px"):
+                getattr(self, f"var_{k}").set(int(v))
+            elif k in ("stereo", "shading", "clamp"):
+                getattr(self, f"var_{k}").set(bool(v))
+            elif k in ("depth_map",):
+                getattr(self, f"var_{k}").set(str(v))
+            else:
+                getattr(self, f"var_{k}").set(float(v))
+        self._emit()
+
+    def _emit(self) -> None:
+        mk = (self.var_mask_key.get().strip() or PLACEHOLDER_NONE)
+        params = {
+            "depth_map":  self.var_depth_map.get().strip() or "noise_fractal",
+            "scale":      float(self.var_scale.get()),
+            "freq":       float(self.var_freq.get()),
+            "octaves":    int(max(1, int(self.var_octaves.get()))),
+            "vertical":   float(max(0.0, self.var_vertical.get())),
+            "stereo":     bool(self.var_stereo.get()),
+            "stereo_px":  int(max(0, int(self.var_stereo_px.get()))),
+            "shading":    bool(self.var_shading.get()),
+            "shade_gain": float(max(0.0, min(1.0, self.var_shade_gain.get()))),
+            "mask_key":   (None if mk in ("", PLACEHOLDER_NONE) else mk),
+            "use_amp":    float(max(0.0, self.var_use_amp.get())),
+            "clamp":      bool(self.var_clamp.get()),
+        }
+        cb = getattr(self.ctx, "on_change", None)
+        if callable(cb):
+            try:
+                cb(params)
+            except Exception:
+                pass
 
 
-def _apply_mask(base: np.ndarray, mask: np.ndarray | None) -> np.ndarray:
-    if mask is None:
-        return base
-    m = np.clip(mask, 0.0, 1.0).astype(np.float32)
-    return base * m
-
-
-@register("depth_displace")
-def depth_displace(
-    img: np.ndarray,
-    ctx,
-    depth_map: str = "noise_fractal",
-    scale: float = 56.0,
-    freq: float = 110.0,
-    octaves: int = 5,
-    vertical: float = 0.15,
-    stereo: bool = True,
-    stereo_px: int = 2,
-    shading: bool = True,
-    shade_gain: float = 0.25,
-    mask_key: str | None = None,
-):
-    a = img.astype(np.uint8, copy=False)
-    h, w, c = a.shape
-    if c != 3:
-        raise ValueError("depth_displace: oczekiwano (H,W,3)")
-
-    depth = _depth_field(h, w, depth_map, freq=freq, octaves=int(octaves), seed=getattr(ctx, "seed", 7))
-
-    if getattr(ctx, "amplitude", None) is None:
-        ctx.amplitude = make_amplitude((h, w), kind="none", strength=1.0, ctx=ctx)
-    amp = ctx.amplitude.astype(np.float32)
-    if (amp.max() - amp.min()) > 1e-8:
-        amp = (amp - amp.min()) / (amp.max() - amp.min() + 1e-8)
-
-    m = None
-    if isinstance(mask_key, str) and hasattr(ctx, "masks") and mask_key in ctx.masks:
-        mk = ctx.masks[mask_key].astype(np.float32)
-        if mk.shape != (h, w):
-            from glitchlab.core.utils import resize_mask_to
-            mk = resize_mask_to(mk, (h, w))
-        m = np.clip(mk, 0.0, 1.0)
-
-    s = float(scale)
-    dx = (depth - 0.5) * 2.0 * s * amp
-    dy = (depth - 0.5) * 2.0 * (s * float(vertical)) * amp if vertical > 0 else np.zeros_like(dx)
-
-    if m is not None:
-        dx = _apply_mask(dx, m)
-        dy = _apply_mask(dy, m)
-
-    yy, xx = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
-    xs = np.clip((xx + np.rint(dx)).astype(np.int32), 0, w - 1)
-    ys = np.clip((yy + np.rint(dy)).astype(np.int32), 0, h - 1)
-
-    out = np.empty_like(a)
-    out[..., 1] = a[ys, xs, 1]
-
-    if stereo:
-        xs_r = np.clip(xs + int(abs(stereo_px)), 0, w - 1)
-        xs_b = np.clip(xs - int(abs(stereo_px)), 0, w - 1)
-        out[..., 0] = a[ys, xs_r, 0]
-        out[..., 2] = a[ys, xs_b, 2]
-    else:
-        out[..., 0] = a[ys, xs, 0]
-        out[..., 2] = a[ys, xs, 2]
-
-    if shading:
-        gx = np.zeros_like(depth, dtype=np.float32)
-        gy = np.zeros_like(depth, dtype=np.float32)
-        gx[:, 1:] = np.abs(depth[:, 1:] - depth[:, :-1])
-        gy[1:, :] = np.abs(depth[1:, :] - depth[:-1, :])
-        grad = np.clip(gx + gy, 0.0, None)
-        if (grad.max() - grad.min()) > 1e-8:
-            grad = (grad - grad.min()) / (grad.max() - grad.min() + 1e-8)
-        k = max(0.0, min(1.0, float(shade_gain)))
-        shade = (1.0 - k * grad)[..., None]
-        out = np.clip(out.astype(np.float32) * shade, 0, 255).astype(np.uint8)
-
-    return out
+# Loader hook
+Panel = DepthDisplacePanel

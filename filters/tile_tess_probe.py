@@ -2,30 +2,30 @@
 # -*- coding: utf-8 -*-
 """
 tile_tess_probe — diagnostyka parkietażu/kafelkowania (tesselacji).
-Wykrywa okres w pikselach osobno w X i Y (autokorelacja 1D agregowana),
-a następnie wykonuje jedną z akcji:
- - 'overlay_grid'  : półprzezroczysta siatka na oryginale (wizualizacja okresu),
- - 'phase_paint'   : kolorowanie fazy (R=x%Px, G=y%Py), uwidacznia mozaikę,
- - 'avg_tile'      : estymata kafla (średnia po wszystkich kaflach) i rekonstrukcja,
- - 'quilt'         : delikatne przetasowanie kafli (dla uwypuklenia granic).
-Dodatkowo zapisuje diagnostyki do ctx.cache:
+Wykrywa okres w pikselach X/Y (autokorelacja 1D agregowana) i wykonuje akcje:
+ - 'overlay_grid'  : półprzezroczysta siatka na oryginale,
+ - 'phase_paint'   : kolorowanie fazy (R=x%Px, G=y%Py),
+ - 'avg_tile'      : estymata kafla i rekonstrukcja,
+ - 'quilt'         : delikatne przetasowanie kafli.
+Diag do ctx.cache:
    diag/tess/fft_mag  : log|F| (downsample 256),
-   diag/tess/acf_x    : linia ACF_x jako obraz 256x64,
-   diag/tess/acf_y    : linia ACF_y jako obraz 256x64,
-   diag/tess/template : kafel-średnia (avg_tile).
-Bez zależności zewnętrznych, czysty NumPy.
+   diag/tess/acf_x    : linia ACF_x (256x64),
+   diag/tess/acf_y    : linia ACF_y (256x64),
+   diag/tess/template : kafel-średnia (avg_tile),
+   diag/tess/period_xy: [py, px].
+Obsługa mask_key: miks ROI w przestrzeni obrazu po wyliczeniu efektu.
 """
 
 from __future__ import annotations
 import numpy as np
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Optional
 
 try:
     from glitchlab.core.registry import register
 except Exception:  # pragma: no cover
     from core.registry import register  # type: ignore
 
-DOC = "Tessellation probe: wykrywa okres (X/Y) i wizualizuje mozaikę siatką, fazą lub rekonstrukcją kafla."
+DOC = "Tessellation probe: wykrywa okres (X/Y) i wizualizuje mozaikę siatką/fazą/rekonstrukcją; wspiera ROI mask."
 DEFAULTS: Dict[str, Any] = {
     "mode": "overlay_grid",     # overlay_grid | phase_paint | avg_tile | quilt
     "min_period": 4,
@@ -35,7 +35,7 @@ DEFAULTS: Dict[str, Any] = {
     "grid_thickness": 1,        # px
     "quilt_jitter": 2,          # px (max odchył w quilt)
     "use_amp": 1.0,             # wpływ ctx.amplitude (skalowanie alpha/miksu)
-    "mask_key": None,
+    "mask_key": None,           # ROI (miks po policzeniu efektu)
     "clamp": True,
 }
 
@@ -54,27 +54,29 @@ def _downsample_2d(x: np.ndarray, tgt: int = 256) -> np.ndarray:
 def _fft2c(x: np.ndarray) -> np.ndarray:
     return np.fft.fftshift(np.fft.fft2(x))
 
+def _fit_hw(m: np.ndarray, H: int, W: int) -> np.ndarray:
+    """Nearest-neighbor bez depsów — dopasuj maskę do (H,W)."""
+    m = np.asarray(m, dtype=np.float32)
+    mh, mw = m.shape[:2]
+    if (mh, mw) == (H, W):
+        return np.clip(m, 0.0, 1.0)
+    ys = (np.linspace(0, mh - 1, H)).astype(np.int32)
+    xs = (np.linspace(0, mw - 1, W)).astype(np.int32)
+    return np.clip(m[ys][:, xs], 0.0, 1.0)
+
 def _acorr_1d_line(line: np.ndarray) -> np.ndarray:
-    # ACF z definicji przez FFT (Wiener–Khinchin)
     f = np.fft.rfft(line - line.mean())
     acf = np.fft.irfft((f * np.conj(f))).real
     return acf
 
 def _detect_period_1d(img: np.ndarray, axis: int, min_p: int, max_p: int, method: str) -> int:
-    # uśrednij po drugim wymiarze
-    if axis == 1:   # X
-        prof = img.mean(axis=0)
-    else:           # Y
-        prof = img.mean(axis=1)
+    prof = img.mean(axis=0) if axis == 1 else img.mean(axis=1)
     prof = prof.astype(np.float32)
-
     N = prof.shape[0]
     lo = int(np.clip(min_p, 2, N-1))
     hi = int(np.clip(max_p, lo+1, N-1))
-
     if method == "fft":
-        # wybór częstotliwości o największej energii (z wyłączeniem DC)
-        F = np.abs(np.fft.rfft(prof))  # [0..N/2]
+        F = np.abs(np.fft.rfft(prof))
         F[0] = 0.0
         idx = np.argmax(F[1:]) + 1
         period = int(round(N / max(1, idx)))
@@ -83,9 +85,7 @@ def _detect_period_1d(img: np.ndarray, axis: int, min_p: int, max_p: int, method
         seg = acf[lo:hi].astype(np.float32)
         off = int(np.argmax(seg))
         period = lo + off
-
-    period = int(np.clip(period, lo, hi))
-    return period
+    return int(np.clip(period, lo, hi))
 
 def _grid_overlay(x: np.ndarray, px: int, py: int, alpha: float, thick: int) -> np.ndarray:
     H, W, _ = x.shape
@@ -93,13 +93,11 @@ def _grid_overlay(x: np.ndarray, px: int, py: int, alpha: float, thick: int) -> 
     if px > 0:
         g[:, ::max(1, px)] = 1.0
         for t in range(1, int(thick)):
-            if (t < px):
-                g[:, t::px] = 1.0
+            if t < px: g[:, t::px] = 1.0
     if py > 0:
         g[::max(1, py), :] = 1.0
         for t in range(1, int(thick)):
-            if (t < py):
-                g[t::py, :] = 1.0
+            if t < py: g[t::py, :] = 1.0
     g3 = np.stack([g, g, g], axis=-1)
     return np.clip(x * (1.0 - alpha) + g3 * alpha, 0.0, 1.0)
 
@@ -175,15 +173,16 @@ def tile_tess_probe(img: np.ndarray, ctx, **p) -> np.ndarray:
     H, W, _ = a.shape
     rng = getattr(ctx, "rng", np.random.default_rng(7))
 
-    mode = str(p.get("mode", DEFAULTS["mode"])).lower()
-    min_p = int(p.get("min_period", DEFAULTS["min_period"]))
-    max_p = int(p.get("max_period", DEFAULTS["max_period"]))
+    mode   = str(p.get("mode", DEFAULTS["mode"])).lower()
+    min_p  = int(p.get("min_period", DEFAULTS["min_period"]))
+    max_p  = int(p.get("max_period", DEFAULTS["max_period"]))
     method = str(p.get("method", DEFAULTS["method"])).lower()
-    alpha = float(np.clip(p.get("alpha", DEFAULTS["alpha"]), 0.0, 1.0))
-    thick = int(max(1, p.get("grid_thickness", DEFAULTS["grid_thickness"])))
+    alpha  = float(np.clip(p.get("alpha", DEFAULTS["alpha"]), 0.0, 1.0))
+    thick  = int(max(1, p.get("grid_thickness", DEFAULTS["grid_thickness"])))
     jitter = int(max(0, p.get("quilt_jitter", DEFAULTS["quilt_jitter"])))
-    use_amp = p.get("use_amp", DEFAULTS["use_amp"])
-    clamp = bool(p.get("clamp", DEFAULTS["clamp"]))
+    use_amp= p.get("use_amp", DEFAULTS["use_amp"])
+    clamp  = bool(p.get("clamp", DEFAULTS["clamp"]))
+    mkey   = p.get("mask_key", DEFAULTS["mask_key"])
 
     x = _to_f32(a)
     gray = (0.299*x[...,0] + 0.587*x[...,1] + 0.114*x[...,2]).astype(np.float32)
@@ -206,16 +205,15 @@ def tile_tess_probe(img: np.ndarray, ctx, **p) -> np.ndarray:
 
     alpha_eff = np.clip(alpha * amp_scale, 0.0, 1.0)
 
+    # efekt bazowy (full-frame)
     if mode == "overlay_grid":
         eff = _grid_overlay(x, px, py, alpha_eff, thick)
     elif mode == "phase_paint":
         eff = _phase_paint(x, px, py, alpha_eff)
     elif mode == "avg_tile":
         recon, templ = _avg_tile_recon(x, px, py)
-        try:
-            ctx.cache["diag/tess/template"] = _to_u8(np.clip(templ,0,1))
-        except Exception:
-            pass
+        try: ctx.cache["diag/tess/template"] = _to_u8(np.clip(templ,0,1))
+        except Exception: pass
         eff = x*(1.0 - alpha_eff) + recon*alpha_eff
     elif mode == "quilt":
         out = _quilt_shuffle(_to_u8(x), px, py, jitter, rng)
@@ -223,7 +221,16 @@ def tile_tess_probe(img: np.ndarray, ctx, **p) -> np.ndarray:
     else:
         eff = x
 
+    # miks maską ROI (jeśli podano mask_key)
+    if isinstance(mkey, str) and getattr(ctx, "masks", None) and (mkey in ctx.masks):
+        m = ctx.masks[mkey]
+        if m.shape[:2] != (H, W):
+            m = _fit_hw(m, H, W)
+        m = np.clip(m, 0.0, 1.0).astype(np.float32)[..., None]
+        eff = eff * m + x * (1.0 - m)
+
     out = _to_u8(eff) if clamp else (np.clip(eff,0,1)*255.0).astype(np.uint8)
+
     try:
         ctx.cache["diag/tess/period_xy"] = np.array([py, px], dtype=np.int32)
     except Exception:
