@@ -1,4 +1,4 @@
-# GlitchLab GUI v2 — ARCHITEKTURA (stan bieżący)
+# GlitchLab GUI v2 — ARCHITEKTURA
 
 > Ten plik opisuje wyłącznie **aktualny stan** warstwy GUI (to, co jest w paczce `gui/`). Refaktoryzacje i propozycje zmian opiszemy osobno.
 

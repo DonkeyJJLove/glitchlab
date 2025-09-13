@@ -448,7 +448,7 @@ Rejestr (**core/registry.py**) trzyma kanony i aliasy. Przykłady mapowania:
 ## Uruchomienie
 
 ```bash
-python -m glitchlab.gui.main
+python -m glitchlab.gui.app
 ```
 
 Szczegóły integracji: [ARCHITECTURE.md](ARCHITECTURE.md) i [../core/ARCHITECTURE.md](../core/ARCHITECTURE.md).
