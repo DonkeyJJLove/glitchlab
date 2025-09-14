@@ -1,3 +1,4 @@
+# glitchlab.gui.panels.panel_anisotropic_contour_warp.py
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import tkinter as tk

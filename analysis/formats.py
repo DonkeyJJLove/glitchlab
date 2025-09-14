@@ -143,4 +143,3 @@ def analyze_png(arr: np.ndarray) -> Dict[str, object]:
         notes.append("Wysokie lokalne gradienty — banding mało prawdopodobny (obraz teksturowany).")
 
     return {"lossless": True, "notes": notes}
-narazio

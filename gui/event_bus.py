@@ -29,59 +29,74 @@ events published on any topic that starts with ``"run."``.  Callbacks
 must accept a single ``dict`` payload.
 """
 
+# glitchlab/gui/event_bus.py
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import threading
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Any, Optional
+from typing import Any, Callable, DefaultDict, Dict, List, Tuple
 
-import tkinter as tk
+Subscriber = Tuple[Callable[[str, Dict[str, Any]], None], bool]  # (fn, on_ui)
 
-Callback = Callable[[Dict[str, Any]], None]
-
-
-@dataclass
 class EventBus:
-    """A simple pub/sub event bus for UI messages.
-
-    Subscribers can register callbacks for specific topics (exact match
-    or prefix ``"topic.*"``).  Publishers send a payload dict on a
-    topic.  All callbacks are scheduled on the Tkinter event loop via
-    ``master.after`` if a master widget was provided on construction.
+    """
+    Lekki event bus dla GUI.
+    - subscribe(topic, fn, on_ui=False): rejestracja subskrypcji
+    - publish(topic, payload): publikacja zdarzenia
+    Jeśli on_ui=True i podano master w konstruktorze, wywołanie fn trafia przez Tk.after(0).
     """
 
-    master: Optional[tk.Misc] = None
-    _subscribers: Dict[str, List[Callback]] = field(default_factory=lambda: defaultdict(list))
+    def __init__(self, master: Any | None = None) -> None:
+        self._master = master  # Tk root lub Frame; może być None (tryb headless)
+        self._subs: DefaultDict[str, List[Subscriber]] = defaultdict(list)
+        self._lock = threading.RLock()
 
-    def subscribe(self, topic: str, callback: Callback) -> None:
-        """Subscribe a callback to a topic.
+    # --- API ---
 
-        If the topic ends with ``".*"`` the callback will be invoked
-        for any event whose topic shares the prefix before the ``".*"``.
-        """
-        self._subscribers[topic].append(callback)
+    def subscribe(self, topic: str,
+                  fn: Callable[[str, Dict[str, Any]], None],
+                  on_ui: bool = False) -> None:
+        """Zapisz callback dla topic. Jeśli on_ui=True, dispatch przez Tk.after."""
+        if not callable(fn):
+            return
+        with self._lock:
+            self._subs[topic].append((fn, bool(on_ui)))
 
-    def publish(self, topic: str, payload: Dict[str, Any]) -> None:
-        """Publish an event with a payload.
+    def unsubscribe(self, topic: str,
+                    fn: Callable[[str, Dict[str, Any]], None]) -> None:
+        with self._lock:
+            self._subs[topic] = [(f, ui) for (f, ui) in self._subs.get(topic, []) if f is not fn]
+            if not self._subs[topic]:
+                self._subs.pop(topic, None)
 
-        All matching subscribers receive a copy of the payload.  If
-        ``master`` was provided the calls will be scheduled on the
-        Tkinter thread via ``after``; otherwise callbacks fire
-        synchronously.
-        """
-        # Collect callbacks by matching exact topic and prefix subscriptions
-        callbacks: List[Callback] = []
-        for t, subs in self._subscribers.items():
-            if t.endswith(".*"):
-                prefix = t[:-2]
-                if topic.startswith(prefix):
-                    callbacks.extend(subs)
-            elif t == topic:
-                callbacks.extend(subs)
-        # Execute or schedule callbacks
-        for cb in callbacks:
-            if self.master is not None:
-                # schedule on the Tkinter event loop
-                self.master.after(0, cb, payload.copy())
-            else:
-                cb(payload.copy())
+    def publish(self, topic: str, payload: Dict[str, Any] | None = None) -> None:
+        """Publikuj zdarzenie do wszystkich subskrybentów danego topicu."""
+        data = dict(payload or {})
+        with self._lock:
+            subs = list(self._subs.get(topic, []))
+        for fn, on_ui in subs:
+            self._dispatch(fn, topic, data, on_ui)
+
+    # --- wewnętrzne ---
+
+    def _dispatch(self, fn: Callable[[str, Dict[str, Any]], None],
+                  topic: str, data: Dict[str, Any], on_ui: bool) -> None:
+        if on_ui and self._master is not None:
+            try:
+                # bezpieczny powrót na wątek Tk
+                self._master.after(0, lambda: self._safe_call(fn, topic, data))
+                return
+            except Exception:
+                # w razie braku .after – fallback do synchronicznego
+                pass
+        self._safe_call(fn, topic, data)
+
+    @staticmethod
+    def _safe_call(fn: Callable[[str, Dict[str, Any]], None],
+                   topic: str, data: Dict[str, Any]) -> None:
+        try:
+            fn(topic, data)
+        except Exception:
+            # celowo „połykamy” wyjątki GUI, żeby nie wysypać całej aplikacji
+            pass

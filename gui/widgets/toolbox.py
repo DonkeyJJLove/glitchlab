@@ -1,20 +1,5 @@
 # glitchlab/gui/widgets/toolbox.py
-"""
-Backwards-compatible Toolbox widget for GlitchLab's GUI.
-
-Zgodność wstecz:
-- Obsługuje stare nazwy argumentów z app.py: `on_mode_change`, `on_toggle`.
-- Wywołuje `on_toggle("cross", bool)` / `on_toggle("rulers", bool)` przy zmianach
-  checkboxów (z bezpiecznym fallbackiem do 1-argumentowej sygnatury).
-- Udostępnia metody: set_rulers(bool), set_cross(bool), set_crosshair(bool),
-  set_mode(str), set_tool(str), current_tool (property).
-
-Nowe API (opcjonalne):
-- on_tool_changed(tool: str)
-- on_toggle_crosshair(enabled: bool)
-- on_toggle_rulers(enabled: bool)
-"""
-
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import tkinter as tk
@@ -22,35 +7,16 @@ from tkinter import ttk
 from typing import Callable, Optional
 
 
-def _safe_toggle_call(cb: Callable, name: str, enabled: bool) -> None:
-    """Wywołaj cb(name, enabled); jeśli nie przyjmuje 2 arg., spróbuj cb(enabled)."""
-    try:
-        cb(name, enabled)
-    except TypeError:
-        cb(enabled)
-
-
 class Toolbox(ttk.Frame):
     """
-    Parameters
-    ----------
-    parent : tk.Misc
-        Kontener-rodzic.
-    on_tool_changed : Callable[[str], None], optional
-        Callback przy zmianie narzędzia.
-    on_toggle_crosshair : Callable[[bool], None], optional
-        Callback przy zmianie przełącznika 'crosshair'.
-    on_toggle_rulers : Callable[[bool], None], optional
-        Callback przy zmianie przełącznika 'rulers'.
+    Poziomy toolbox do sterowania interakcją widoku i overlayami.
+    Bezpieczny pod względem re-entrancy (set_* nie emituje callbacków).
 
-    Zgodność wstecz (legacy app.py):
-    on_mode_change : Callable[[str], None], optional
-        Alias dla `on_tool_changed`.
-    on_toggle : Callable[..., None], optional
-        Wspólny callback dla przełączników; wywoływany jako (name, enabled)
-        z bezpiecznym fallbackiem do sygnatury 1-argumentowej.
-    **kwargs : dowolne
-        Ignorowane — żeby starsze wywołania nie rzucały TypeError.
+    API (nowe i legacy):
+      - on_tool_changed(tool: str)
+      - on_toggle_crosshair(state: bool)
+      - on_toggle_rulers(state: bool)
+      - legacy: on_mode_change ≡ on_tool_changed
     """
 
     def __init__(
@@ -60,76 +26,105 @@ class Toolbox(ttk.Frame):
         on_tool_changed: Optional[Callable[[str], None]] = None,
         on_toggle_crosshair: Optional[Callable[[bool], None]] = None,
         on_toggle_rulers: Optional[Callable[[bool], None]] = None,
-        # legacy aliases
+        # legacy alias
         on_mode_change: Optional[Callable[[str], None]] = None,
-        on_toggle: Optional[Callable[..., None]] = None,
-        **kwargs,
+        **_,
     ) -> None:
         super().__init__(parent)
+        # normalizacja aliasów
+        if on_tool_changed is None and on_mode_change is not None:
+            on_tool_changed = on_mode_change
 
-        # Normalizacja aliasów
-        self._on_rulers_toggle = None
-        self.on_tool_changed = on_tool_changed or on_mode_change
+        self.on_tool_changed = on_tool_changed
         self.on_toggle_crosshair = on_toggle_crosshair
         self.on_toggle_rulers = on_toggle_rulers
-        self.on_toggle = on_toggle
 
-        # Stan
+        # stan
+        self._suspend_emit = False
         self.tool_var = tk.StringVar(value="hand")
-        self.crosshair_var = tk.BooleanVar(value=False)
+        self.cross_var = tk.BooleanVar(value=True)
         self.rulers_var = tk.BooleanVar(value=True)
 
-        # UI
         self._build_ui()
 
-    # ---------------- UI ----------------
-
+    # ---- UI ----
     def _build_ui(self) -> None:
-        tools_box = ttk.LabelFrame(self, text="Tools")
-        tools_box.pack(fill="x", padx=4, pady=(4, 2))
+        bar = ttk.Frame(self)
+        bar.pack(fill="x")
 
-        tools = [
-            ("hand", "Pan"),
-            ("zoom", "Zoom"),
-            ("pick", "Pick"),
-            ("measure", "Measure"),
-        ]
-        for value, label in tools:
-            ttk.Radiobutton(
-                tools_box,
-                text=label,
-                value=value,
-                variable=self.tool_var,
-                command=self._on_tool_change,
-            ).pack(anchor="w", padx=4, pady=1)
+        # Ikony: używamy krótkich etykiet; styl Toolbutton, poziomo
+        def rb(value: str, text: str, tip: str) -> ttk.Radiobutton:
+            b = ttk.Radiobutton(bar, value=value, text=text, variable=self.tool_var, style="Toolbutton",
+                                command=self._on_tool_change)
+            b.pack(side="left", padx=2)
+            return b
 
-        ov_box = ttk.LabelFrame(self, text="Overlays")
-        ov_box.pack(fill="x", padx=4, pady=(2, 4))
+        def chk(var: tk.BooleanVar, text: str, cmd) -> ttk.Checkbutton:
+            b = ttk.Checkbutton(bar, text=text, variable=var, style="Toolbutton", command=cmd)
+            b.pack(side="left", padx=2)
+            return b
 
-        self._ch_box = ttk.Checkbutton(
-            ov_box,
-            text="Crosshair",
-            variable=self.crosshair_var,
-            command=self._on_crosshair_toggle,
-        )
-        self._ch_box.pack(anchor="w", padx=4, pady=1)
+        self._rb_hand = rb("hand", "🖐", "Pan/drag")
+        self._rb_zoom = rb("zoom", "🔍", "Zoom")
+        self._rb_pick = rb("pick", "🎯", "Pick")
+        self._rb_meas = rb("measure", "📏", "Measure")
 
-        self._ruler_box = ttk.Checkbutton(
-            ov_box,
-            text="Rulers",
-            variable=self.rulers_var,
-            command=self._on_rulers_toggle,
-        )
-        self._ruler_box.pack(anchor="w", padx=4, pady=1)
+        ttk.Separator(bar, orient="vertical").pack(side="left", fill="y", padx=4)
+        self._cb_cross = chk(self.cross_var, "Crosshair", self._on_cross_toggle)
+        self._cb_rulers = chk(self.rulers_var, "Rulers", self._on_rulers_toggle)
 
-    # ------------- Handlers -------------
-
+    # ---- Handlers ----
     def _on_tool_change(self) -> None:
-        if self.on_tool_changed:
-            self.on_tool_changed(self.tool_var.get())
+        if self._suspend_emit:
+            return
+        cb = self.on_tool_changed
+        if callable(cb):
+            try:
+                cb(self.tool_var.get())
+            except Exception:
+                pass
 
-    def _on_crosshair_toggle(self) -> None:
-        val = bool(self.crosshair_var.get())
-        if self.on_toggle_crosshair:
-            self.on_toggle_crosshair(val)
+    def _on_cross_toggle(self) -> None:
+        if self._suspend_emit:
+            return
+        cb = self.on_toggle_crosshair
+        if callable(cb):
+            try:
+                cb(bool(self.cross_var.get()))
+            except Exception:
+                pass
 
+    def _on_rulers_toggle(self) -> None:
+        if self._suspend_emit:
+            return
+        cb = self.on_toggle_rulers
+        if callable(cb):
+            try:
+                cb(bool(self.rulers_var.get()))
+            except Exception:
+                pass
+
+    # ---- Programmatic sync (bez emisji) ----
+    def set_tool(self, tool: str) -> None:
+        with self._mute():
+            if tool in {"hand", "zoom", "pick", "measure"}:
+                self.tool_var.set(tool)
+
+    def set_cross(self, state: bool) -> None:
+        with self._mute():
+            self.cross_var.set(bool(state))
+
+    def set_rulers(self, state: bool) -> None:
+        with self._mute():
+            self.rulers_var.set(bool(state))
+
+    # ---- context manager ----
+    from contextlib import contextmanager
+    @contextmanager
+    def _mute(self):
+        prev = self._suspend_emit
+        self._suspend_emit = True
+        try:
+            yield
+        finally:
+            self._suspend_emit = prev
