@@ -154,7 +154,7 @@ def _conv2(img: np.ndarray, k: np.ndarray) -> np.ndarray:
     ph, pw = kh // 2, kw // 2
     pad = np.pad(img, ((ph, ph), (pw, pw)), mode="reflect")
     out = np.empty_like(img, dtype=np.float32)
-    # prosta konwolucja (czytelna); w razie potrzeby można później przyspieszyć
+    # prosta koewolucja (czytelna); w razie potrzeby można później przyspieszyć
     for i in range(out.shape[0]):
         row = pad[i:i + kh, :]
         for j in range(out.shape[1]):

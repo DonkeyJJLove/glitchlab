@@ -1,44 +1,4 @@
-"""
----
-version: 4
-kind: module
-id: "view-bottom-panel"
-name: "glitchlab.gui.views.bottom_panel"
-author: "GlitchLab v4"
-role: "Dolny panel: status/progress/logi + przyciski run/cancel"
-description: >
-  Kontener znajdujący się na dole głównego okna. Pokazuje status pracy,
-  pasek postępu, ostatnie komunikaty oraz podstawowe akcje uruchomieniowe.
-inputs:
-  master: {type: "tk.Misc"}
-  bus: {type: "EventBus-like", desc: "publish(topic, payload)"}
-  runner: {type: "PipelineRunner", optional: true}
-  state: {type: "UiState-like", optional: true}
-outputs:
-  events:
-    - "ui.run.apply"     # {}
-    - "ui.run.cancel"    # {}
-    - "ui.log.show"      # {level,msg}
-    - "ui.status.set"    # {text}
-    - "ui.progress.set"  # {value:0..1}
-interfaces:
-  exports:
-    - "BottomPanel(master, bus, runner=None, state=None)"
-    - "BottomPanel.set_status(text: str) -> None"
-    - "BottomPanel.set_progress(value: float) -> None"
-    - "BottomPanel.append_log(level: str, msg: str) -> None"
-depends_on: ["tkinter", "tkinter.ttk", "typing"]
-used_by: ["glitchlab.gui.app"]
-policy:
-  deterministic: true
-  ui_thread_only: true
-constraints:
-  - "Żadnej logiki pipeline – tylko delegacja przez Bus/Runner"
-license: "Proprietary"
----
-"""
 # glitchlab/gui/views/bottom_panel.py
-
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import tkinter as tk
@@ -46,7 +6,7 @@ from tkinter import ttk
 from typing import Any, Optional
 
 try:
-    from glitchlab.gui.widgets.hud import Hud
+    from glitchlab.gui.views.hud import HUDView as Hud
 except Exception:
     Hud = None  # type: ignore
 
@@ -60,27 +20,33 @@ try:
 except Exception:
     MosaicMini = None  # type: ignore
 
+try:
+    from glitchlab.gui.widgets.diag_console import DiagConsole
+except Exception:
+    DiagConsole = None  # type: ignore
+
 
 class BottomPanel(ttk.Frame):
     """
-    Jeden, zintegrowany panel na dole okna.
-    Zawiera przełączane widoki: HUD | Graph | Mosaic | Tech (log).
-    Nie używa zakładek – przełączanie odbywa się przez przyciski segmentowe.
-    Publiczne API (wycinek):
-      - select(view_name) -> None                 # "hud"|"graph"|"mosaic"|"tech"
-      - set_ctx(ctx) -> None                      # odśwież HUD/Mosaic z cache
-      - log(msg: str) -> None                     # dopisz do logu
-      - set_visible(flag: bool) -> None
+    Zintegrowany dolny panel (zakładki HUD/Graph/Mosaic/Diagnostics).
+    • Stała wysokość (scrollable content).
+    • Sterowany radiobuttonami segmentowymi.
+    API:
+      - select(view_name)
+      - set_ctx(ctx_or_cache)
+      - log(msg)
+      - set_visible(flag)
     """
 
-    VIEWS = ("hud", "graph", "mosaic", "tech")
+    VIEWS = ("hud", "graph", "mosaic", "diag")
+    PANEL_HEIGHT = 260  # stała wysokość panelu (px)
 
     def __init__(self, master: tk.Misc, *, bus: Optional[Any] = None, default: str = "hud"):
         super().__init__(master)
         self.bus = bus
         self._current = tk.StringVar(value=(default if default in self.VIEWS else "hud"))
 
-        # ---- Pasek przycisków (segmenty) ----
+        # Pasek przycisków
         bar = ttk.Frame(self)
         bar.pack(side="top", fill="x", padx=6, pady=(6, 4))
 
@@ -95,19 +61,34 @@ class BottomPanel(ttk.Frame):
         self._btn_hud = seg("HUD", "hud")
         self._btn_graph = seg("Graph", "graph")
         self._btn_mosaic = seg("Mosaic", "mosaic")
-        self._btn_tech = seg("Tech", "tech")
+        self._btn_diag = seg("Diagnostics", "diag")
 
         ttk.Separator(self).pack(fill="x")
 
-        # ---- Obszar treści ----
-        self.content = ttk.Frame(self)
-        self.content.pack(fill="both", expand=True)
+        # Obszar treści – kontener z przewijaniem
+        self._scroll_canvas = tk.Canvas(self, height=self.PANEL_HEIGHT, highlightthickness=0, bg="#1a1a1a")
+        self._scroll_canvas.pack(fill="x", expand=False, side="top")
 
-        self._views = {
-            "hud": self._make_hud(self.content),
-            "graph": self._make_graph(self.content),
-            "mosaic": self._make_mosaic(self.content),
-            "tech": self._make_tech(self.content),
+        self._scroll_frame = ttk.Frame(self._scroll_canvas)
+        self._scroll_win = self._scroll_canvas.create_window(0, 0, window=self._scroll_frame, anchor="nw")
+
+        sb = ttk.Scrollbar(self, orient="vertical", command=self._scroll_canvas.yview)
+        self._scroll_canvas.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+
+        self._scroll_frame.bind(
+            "<Configure>",
+            lambda e: self._scroll_canvas.configure(
+                scrollregion=self._scroll_canvas.bbox("all")
+            )
+        )
+
+        # widoki wewnętrzne
+        self._views: dict[str, tk.Widget] = {
+            "hud": self._make_hud(self._scroll_frame),
+            "graph": self._make_graph(self._scroll_frame),
+            "mosaic": self._make_mosaic(self._scroll_frame),
+            "diag": self._make_diag(self._scroll_frame),
         }
 
         self._show_only(self._current.get())
@@ -144,12 +125,18 @@ class BottomPanel(ttk.Frame):
         f.pack_forget()
         return f
 
-    def _make_tech(self, parent):
+    def _make_diag(self, parent):
+        if DiagConsole is not None:
+            w = DiagConsole(parent)
+            if self.bus is not None:
+                try:
+                    w.attach_bus(self.bus)
+                except Exception:
+                    pass
+            w.pack_forget()
+            return w
         f = ttk.Frame(parent)
-        self._log_text = tk.Text(
-            f, height=8, bg="#141414", fg="#e6e6e6", insertbackground="#e6e6e6"
-        )
-        self._log_text.pack(fill="both", expand=True)
+        ttk.Label(f, text="(Diagnostics unavailable)").pack(padx=8, pady=8, anchor="w")
         f.pack_forget()
         return f
 
@@ -161,32 +148,41 @@ class BottomPanel(ttk.Frame):
             self._show_only(view_name)
             self._publish("ui.bottom.select", {"view": view_name})
 
-    def set_ctx(self, ctx: Any) -> None:
-        """Podaj kontekst run (z .cache), żeby odświeżyć HUD/Mosaic."""
+    def set_ctx(self, ctx_or_cache: Any) -> None:
+        """Przekaż ctx lub cache, aby odświeżyć HUD i Mosaic."""
+        cache = None
+        if isinstance(ctx_or_cache, dict):
+            cache = ctx_or_cache
+        else:
+            cache = getattr(ctx_or_cache, "cache", None)
+
+        if not isinstance(cache, dict):
+            return
+
         try:
             hv = self._views.get("hud")
             if hv and hasattr(hv, "render_from_cache"):
-                hv.render_from_cache(ctx)
+                hv.render_from_cache(cache)
         except Exception:
             pass
         try:
             mv = self._views.get("mosaic")
             if mv and hasattr(mv, "render_from_cache"):
-                mv.render_from_cache(ctx)
+                mv.render_from_cache(cache)
         except Exception:
             pass
 
     def log(self, msg: str) -> None:
         try:
-            t = self._log_text
-            t.insert("end", str(msg) + "\n")
-            t.see("end")
+            diag = self._views.get("diag")
+            if diag and hasattr(diag, "log"):
+                diag.log("DEBUG", msg)
         except Exception:
             pass
 
     def set_visible(self, flag: bool) -> None:
         if flag:
-            self.pack(fill="both", expand=False, side="bottom")
+            self.pack(fill="x", expand=False, side="bottom")
         else:
             self.pack_forget()
 
