@@ -1,274 +1,507 @@
-# glitchlab — controlled glitch for analysis
+# GlitchLab v4.5 – Aplikacja do Kontrolowanej Generacji „Glitchy” w Obrazach
 
-![Interfejs](screen.png)
+_Interfejs aplikacji_ _GlitchLab v4.5_ _– stabilny, podzielony układ: po lewej obszar podglądu obrazu (canvas), po prawej zakładki paneli filtrów, na dole panel telemetrii HUD. Taki stały layout ułatwia orientację użytkownika_[_\[1\]_](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,i%20spe%C5%82nia%20za%C5%82o%C5%BCenie%20stabilnego%20interfejsu)_._
 
-GlitchLab to narzędzie do **kontrolowanej generacji artefaktów** w obrazach (2D), projektowane pod **analizę** i **wnioskowanie**. Błąd traktujemy jako **sygnał diagnostyczny**: poprzez maski (ROI), pola amplitudy (siła lokalna) i deterministyczne filtry można **wywołać** i **ukształtować** artefakty tak, by ujawniały informacje o strukturze danych i relacjach między transformacjami.
+**```GlitchLab```** to narzędzie do **kontrolowanej generacji artefaktów (glitchy)** w obrazach 2D, zaprojektowane z myślą o analizie i wnioskowaniu. Błędy i zakłócenia traktowane są jako **sygnały diagnostyczne** – użytkownik może sterować _gdzie_ i _jak_ powstaje artefakt (poprzez maski ROI, parametry „amplitude” itp.), a następnie obserwować ich wpływ na obraz i dane pomiarowe. Aplikacja kładzie nacisk na **stabilny interfejs** (stały podział na podgląd, panele i HUD)[\[1\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,i%20spe%C5%82nia%20za%C5%82o%C5%BCenie%20stabilnego%20interfejsu), **odporność na błędy** (mechanizmy _fallback_ zapewniają, że błąd panelu/filtra nie wyłącza aplikacji[\[2\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,mog%C5%82a%20dalej%20dzia%C5%82a%C4%87%20pomimo%20b%C5%82%C4%99d%C3%B3w)), **diagnostykę** (wszelkie dane pośrednie i metryki z rdzenia są prezentowane w HUD[\[3\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,dost%C4%99pne%2C%20co%20minimalizuje%20trudno%C5%9B%C4%87%20analizowania)) oraz **rozszerzalność** (łatwe dodawanie nowych filtrów i paneli bez ingerencji w istniejący kod[\[4\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,minimalnym%20naruszeniem%20ju%C5%BC%20dzia%C5%82aj%C4%85cych%20komponent%C3%B3w)). Poniżej przedstawiono inwentaryzację projektu, analizę architektury Core i GUI, wyniki audytu kodu, a także plan refaktoryzacji i rozwoju GlitchLab. Na końcu znajduje się kompletne **README** z instrukcjami uruchomienia, opisem presetów oraz wskazówkami dla deweloperów.
 
----
+## Struktura Katalogów i Rola Plików (Inwentaryzacja)
 
-## Co nowego w v2
+Projekt ma strukturę modułową z rozdzieleniem na warstwę przetwarzania **Core** (silnik filtrów, pipeline), interfejs **GUI**, definicje **filtrów** i **presetów**, itp. Poniżej przedstawiono mapę katalogów i kluczowych plików GlitchLab v4.5 wraz z opisem ich roli:
 
-* **Spójne API filtrów:** `fn(img_u8, ctx, **params) -> np.ndarray` + wspólne parametry `mask_key | use_amp | clamp`.
-* **Jedno schema presetów (v2):** `version/name/amplitude/edge_mask/steps` + walidator i dry-run.
-* **Pipeline z metrykami:** metryki wejścia/wyjścia, diff, czasy, telemetria do `ctx.cache` (HUD).
-* **DAG procesu:** lekki graf (nodes/edges/delta) eksportowany jako JSON dla GUI.
-* **Mozaika/AST:** wspólna „soczewka” wizualizacji metryk blokowych i struktury kodu (AST→mosaic).
-* **GUI/HUD v2:** stały layout, panele parametrów nie „znikają”, powiększany podgląd, pływające panele.
+- ```glitchlab/core/``` – Rdzeń aplikacji (Core v20): implementuje model filtra, pipeline przetwarzania i zbieranie wyników:
+  - ```registry.py``` – Rejestr filtrów (dekorator @register, wyszukiwanie, aliasy) – **jedno źródło prawdy** o dostępnych filtrach.
+  - ```pipeline.py``` – Główna logika wykonawcza: normalizuje załadowany preset (format YAML v2), buduje kontekst Ctx, sekwencyjnie stosuje kolejne **kroki filtra** na obraz, mierzy metryki, oblicza różnicę (_diff_) i loguje przebieg; wyniki (obrazy pośrednie, metryki itp.) zapisuje do **cache** kontekstu.
+  - ```graph.py``` – Generuje graf (DAG) procesu dla zastosowanych filtrów: węzły reprezentujące kolejne kroki z ich metrykami (przyrosty); umożliwia eksport grafu do JSON (np. klucz ast/json w cache) dla wizualizacji w HUD.
+  - ```mosaic.py``` – Tworzenie mozaiki (siatki) z wyników: generuje siatkę (kwadratową lub heksagonalną) i odwzorowuje **metryki blokowe** obrazu na nakładkę RGB (np. heatmap) – używane do diagnozy działania filtra.
+  - ```astmap.py``` – Analiza kodu filtra na poziomie AST Pythona: buduje graf wywołań funkcji/klas w kodzie filtra oraz potrafi nałożyć go na mozaikę (np. kolory komórek odpowiadają złożoności funkcji); eksportuje JSON z grafem AST (klucz ast/json) do HUD.
+  - ```metrics/``` – Zestaw metryk obrazu:
+      - ```basic.py```, ```compare.py``` – implementacje podstawowych metryk (np. entropia, gęstość krawędzi, kontrast RMS) oraz porównawczych (PSNR, SSIM).
+  - ```roi.py```, ```utils.py```, ```symbols.py``` – Narzędzia pomocnicze: obsługa masek (ROI), operacje na typach danych, zbiory symboli itp..
+  - ```ARCHITECTURE.md```, ```README.md``` – Dokumentacja warstwy Core (cele, architektura, API).
+- **glitchlab/gui/** – Warstwa interfejsu użytkownika (GUI v4.5) zbudowana w oparciu o tkinter. Główne moduły:
+  - ```app.py``` – Główna klasa aplikacji **App** (ramka głównego okna). Odpowiada za inicjalizację okna i wszystkich komponentów GUI, zbudowanie układu UI, powiązanie z mechanizmem zdarzeń oraz uruchomienie pętli zdarzeń Tk[\[5\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,bazowe%20i%20interfejs%20dla%20paneli). Zawiera również implementację uproszczonego **EventBus** (publikacja/subskrypcja zdarzeń GUI) oraz menedżera dokowania DockManager (umożliwia odpinanie paneli jako osobne okna).
+  - ```docking.py``` – Moduł **DockManager**: obsługuje mechanizm _dock/undock_ dla paneli UI. Umożliwia np. „odczepienie” panelu parametrów lub HUD do osobnego okna i ponowne przyłączenie – docelowo pozycje paneli mogą być zapisywane i odtwarzane między sesjami[\[6\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Mechanizm%20Dokowania%20).
+  - panel_loader.py – **Fabryka paneli** filtrów. Zawiera logikę wyszukania i załadowania odpowiedniej klasy panelu na podstawie nazwy filtra. Jeśli istnieje dedykowany moduł panelu dla danego filtra, ładuje go dynamicznie; w przeciwnym razie stosuje mechanizm _fallback_ (formularz parametrów)[\[7\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,kontekstu%2C%20emisja%20zdarze%C5%84%20zmiany%20parametr%C3%B3w)[\[8\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=%60on_change%60.%20,ParamForm).
+  - panel_base.py – Definiuje klasy bazowe i interfejsy dla paneli filtrów. Klasa PanelBase ustala wspólne zachowania paneli, a PanelContext przekazuje panelom kontekst (referencję do AppState, funkcję on_change itp.)[\[7\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,kontekstu%2C%20emisja%20zdarze%C5%84%20zmiany%20parametr%C3%B3w).
 
----
+### Podpakiet _views/_ – Ogólne widoki interfejsu (sekcje aplikacji):  
+- views/tab_filters.py – Zakładka **Filters** (lista dostępnych filtrów, wybór filtra). Umożliwia przeładowanie listy filtrów (_Rescan_), wybór filtra (wysyła zdarzenie ui.filter.select), wyświetlenie panelu parametrów i uruchomienie filtra (_Apply_ – emituje ui.run.apply_filter). Zawiera też narzędzia diagnostyczne: _Probe_ (test panelu) i _Reload_ (hot-reload panelu)[\[9\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,zapisywanie%2F%C5%82adowanie%20ustawie%C5%84%2C%20historia%20wykonanych%20krok%C3%B3w)[\[10\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=1.%20,Reload).  
+  - views/tab_general.py – Zakładka **General** z ustawieniami globalnymi niezależnymi od konkretnego filtra (np. wybór maski ROI, globalna _amplitude_, parametry detekcji krawędzi itp.)[\[11\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,zapisywanie%2F%C5%82adowanie%20ustawie%C5%84%2C%20historia%20wykonanych%20krok%C3%B3w).  
+  - views/tab_preset.py – Zakładka **Presets** do zapisywania/ładowania presetów (stanu ustawień filtrów) oraz podglądu historii zastosowanych kroków[\[11\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,zapisywanie%2F%C5%82adowanie%20ustawie%C5%84%2C%20historia%20wykonanych%20krok%C3%B3w).  
+  - views/bottom_area.py, views/bottom_panel.py – Dolne panele interfejsu, w tym kontener HUD i ewentualne inne informacje (np. historia obrazów).  
+  - views/hud.py – Główny widok **HUD** (Heads-Up Display) z trzema **slotami** na dane diagnostyczne. Odbiera zawartość AppState.cache po wykonaniu filtra i wyświetla ją w formie miniatur obrazów, wykresów lub tekstowych metryk[\[12\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,topic%20%60diag.log).  
+  - views/viewport.py – Główny widok obszaru podglądu obrazu. Zawiera w sobie widget Canvas (płótno z obrazem) wraz z mechanizmami skalowania i przewijania. Integruje **CanvasContainer** (opis poniżej) jako komponent odpowiedzialny za wyświetlanie obrazu.  
+  - views/menu.py, views/statusbar.py, views/notebook.py – Inne elementy UI: pasek menu (MenuBar), pasek statusu aplikacji i pojemnik na zakładki (Notebook) – organizują globalne elementy interfejsu (menu plików, status operacji itp.).
 
-## Instalacja
+_Podpakiet panels/_ – Dedykowane **panele filtrów** (prawa kolumna UI). Każdy bardziej złożony filtr ma własny panel z kontrolkami specyficznymi dla jego parametrów:  
+- **panels/\__init_\_.py** – Mechanizm automatycznego importu wszystkich modułów paneli spełniających konwencję nazewnictwa (nazwa pliku zaczyna się od panel_lub kończy \_panel)[\[13\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,starsze%20panele). Dzięki temu dodanie nowego panelu nie wymaga zmian w kodzie loadera – zostanie on wykryty i zarejestrowany automatycznie.  
+  - panels/base.py – Klasy pomocnicze dla paneli (m.in. aliasy dla wstecznej kompatybilności).  
+  - panels/panel_&lt;nazwa_filtra&gt;.py – Pliki z definicjami konkretnych paneli filtrów (np. panel_block_mosh.py, panel_depth_displace.py itp.). Każdy zawiera klasę Panel dziedziczącą z ttk.Frame lub PanelBase, która buduje kontrolki UI dla parametrów danego filtra. Jeśli brak dedykowanego panelu, zostanie użyty formularz ogólny (ParamForm).
 
-Wymagania: Python 3.9+, NumPy, Pillow, Tkinter (systemowe).
+_Podpakiet widgets/_ – Niskopoziomowe komponenty UI używane w widokach i panelach:  
+- widgets/image_canvas.py – Widżet **ImageCanvas** (pochodna ttk.Frame) obsługujący wyświetlanie obrazu z możliwością płynnego zoomu, przewijania oraz nakładek takich jak linijki czy siatka pomocnicza[\[14\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,Opcjonalna%20konsola%20diagnostyczna%2C%20nas%C5%82uchuj%C4%85ca%20zdarze%C5%84). Udostępnia API: set_image (podmiana obrazu), zoom_in/out/to, fit (dopasowanie do okna), center (wycentrowanie) oraz set_crosshair (pokazanie/ukrycie celownika).  
+  - widgets/canvas_container.py – Kontener na canvas obrazu (ImageCanvas) wraz z dodatkowymi narzędziami. Zapewnia poprawne osadzenie obszaru obrazka w głównym **viewport** (obsługuje automatyczne centrowanie i skalowanie). Integruje funkcje **toolbox** – np. obsługę wyboru narzędzia (panorama, wybór punktu itp.) poprzez zmienną tool_var w App. Ponadto obsługuje wyświetlanie **linijek** (skalujących się ze zmianą zoomu) oraz celownika. Jest to komponent realizujący założenia stabilnego _viewportu_ z narzędziami pomocniczymi opisane w dokumentacji GUI.  
+  - widgets/hud.py – Niższy poziom implementacji HUD (pojedynczy slot HUD jako widżet) – obsługuje formatowanie danych w slotach (np. konwersja obrazu numpy/PIL do miniatury, wyświetlanie tekstu metryki). (Uwaga: część logiki HUD jest też w views/hud.py).  
+  - widgets/param_form.py – Klasa ParamForm generująca **formularz parametrów** danego filtra dynamicznie na podstawie definicji parametryzacji. Stosowana jako awaryjny panel gdy brak dedykowanego panelu – gwarantuje ciągłość działania aplikacji mimo brakującego modułu panelu[\[8\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=%60on_change%60.%20,ParamForm).  
+  - widgets/preset_folder.py, widgets/preset_manager.py – Widżety do obsługi presetów (np. wybór folderu z presetami, lista dostępnych presetów, przyciski zapisu/odczytu itp.).  
+  - widgets/diag_console.py – _Diagnostic Console_ – prosty widżet konsoli diagnostycznej nasłuchujący na zdarzenia logowania (event bus topic diag.log) i wypisujący logi. Jest to opcjonalny panel ułatwiający debugowanie aplikacji[\[15\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,topic%20%60diag.log).
 
-```bash
-git clone https://github.com/you/glitchlab
-cd glitchlab
-pip install -r requirements.txt
+- **glitchlab/filters/** – Moduły implementujące poszczególne **filtry obrazu** (logika przetwarzania). Każdy plik definiuje funkcję filtra o sygnaturze filter_fn(img_u8, ctx, \*\*params) -> np.ndarray (zgodnie z kontraktem API v2 Core), i jest dekorowany przez @register aby włączyć go do rejestru filtrów. Przykładowe filtry:
+- filters/default_identity.py – Domyślny filtr „przepuszczający” (bez modyfikacji obrazu, służy jako test działania pipeline).
+- filters/block_mosh.py, filters/depth_displace.py, filters/spectral_shaper.py itd. – Filtry realizujące różne efekty „glitch” (przesunięcia bloków, zaburzenia głębi, manipulacje widmem obrazu itp.). Wykorzystują dane z kontekstu (np. maski, amplitude) oraz mogą zapisywać własne dane diagnostyczne do ctx.cache (pod kluczami diag/&lt;filter&gt;/... w cache).
+- **Uwaga:** Plik filters/\__init_\_.py ładuje automatycznie wszystkie moduły filtrów przy starcie aplikacji, zapewniając ich rejestrację (iteruje po plikach w katalogu i importuje je). Dzięki temu lista dostępnych filtrów (core.registry.available()) budowana jest dynamicznie.
+- **glitchlab/presets/** – Predefiniowane **presety** (ustawienia) filtrów w formacie YAML (wersja 2). Każdy plik reprezentuje zapis konfiguracji sekwencji filtrów, którą można wczytać w GUI (zakładka Presets). Przykładowe pliki: 00_identity_diag.yaml, 41_depth_parallax_stereo.yaml, 71_cinematic_glitch.yaml itp. Zawierają m.in.:
+- version: 2 – wersja formatu presetu (v2),
+- name – nazwa/numer presetu,
+- globalne ustawienia: seed (ziarno RNG), amplitude (globalne sterowanie siłą efektu), edge_mask (parametry maski krawędzi), …
+- steps – lista kroków filtra, gdzie każdy krok ma name (identyfikator filtra z registry) oraz params (słownik ustawień dla tego filtra).  
+    Przykład uproszczonej struktury YAML v2:  
+
+- version: 2  
+    name: example_preset  
+    seed: 42  
+    amplitude: { kind: linear_x, strength: 0.8 }  
+    edge_mask: { thresh: 50, dilate: 2, ksize: 5 }  
+    steps:  
+    \- name: default_identity  
+    params: { mode: edges, strength: 1.0, use_amp: true }  
+    \- name: block_mosh  
+    params: { blocks: 10, severity: 0.5 }
+- **README_HOTFIX.txt** w tym katalogu zawiera informacje o ewentualnych poprawkach lub zmianach w presetach (np. dostosowanie starych presetów do formatu v2).
+- **glitchlab/analysis/** – Warstwa analizy wspomagającej (moduły niezbędne do obliczeń diagnostycznych poza głównym pipeline). Wersja **Analysis v2** zawiera m.in.:
+- analysis/diff.py – Obliczanie różnicy między obrazami (np. metryki różnic, mapa różnic piksel po pikselu).
+- analysis/metrics.py – Dodatkowe metryki lub interfejsy do metryk (rozszerzenie względem core/metrics).
+- analysis/spectral.py – Operacje w domenie częstotliwości (FFT) dla analiz widmowych obrazów.
+- analysis/exporters.py, analysis/formats.py – Eksport wyników i obsługa formatów danych (np. generowanie raportów z analizy).
+- analysis/ARCHITECTURE.md, analysis/README.md – Dokumentacja warstwy analysis (cele, opis implementacji).
+- **Uwaga:** Warstwa analysis integruje się z Core i GUI poprzez wspólną przestrzeń ctx.cache. Np. pipeline Core może odkładać do cache wyniki obliczone za pomocą funkcji z analysis (jak dodatkowe metryki czy dane do wizualizacji), które następnie HUD prezentuje. Dzięki takiej architekturze, GUI pozostaje _czytnikiem_ danych diagnostycznych wygenerowanych przez core/analysis.
+- **glitchlab/resources/** – Zasoby statyczne aplikacji:
+- resources/ikons/ – Ikony UI (pliki .png) używane w menu/toolbarach, np. symbole **pan** (przesuwanie widoku), **zoom**, **ruler** (linijka), **probe** (sonda diagnostyczna), **fft** (widmo), **histogram**, **heatmap**, **edge** (maski krawędzi) itp.
+- resources/mask/testchart_v1.png – Plik obrazu testowego (plansza testowa) używany do diagnozowania filtrów[\[16\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,Manualne%20testowanie%20interfejsu).
+- **glitchlab/tests/** – Testy i skrypty pomocnicze:
+- tests/panels_smoke.py – Prosty _smoke test_ dla paneli GUI (uruchamia każdy panel w trybie headless, sprawdzając czy się poprawnie inicjalizuje – pomocne przy testowaniu stabilności interfejsu)[\[17\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,Manualne%20testowanie%20interfejsu).
+- tests/test_import.py – Test poprawności importu wszystkich modułów (np. czy auto-import paneli i filtrów nie powoduje wyjątku).
+- tests/pycharm_raport_praser.py – Skrypt do parsowania raportu inspekcji statycznej (SARIF) z PyCharm. Służy do kategoryzacji ostrzeżeń statycznych (np. nieużywane zmienne, błędne argumenty) i generowania zbiorczego raportu (wykorzystany przy audycie kodu).
+
+**Podsumowanie:** Struktura katalogów odzwierciedla podział na warstwy: **Core** (logika filtrów i pipeline), **GUI** (interfejs i interakcja), **Filters** (implementacje efektów), **Presets** (dane konfiguracyjne) oraz **Analysis** (narzędzia diagnostyczne). Taka organizacja sprzyja czytelności i ułatwia rozwój – logika biznesowa filtrów jest odseparowana od kodu interfejsu, co było jednym z głównych celów projektu[\[18\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=_Decyzje%20projektowe_%3A%20Taka%20struktura%20pozwala,aplikacji%20a%20specyficznymi%20panelami%20filtr%C3%B3w).
+
+## Architektura Systemu – Core i GUI
+
+GlitchLab składa się z dwóch głównych warstw: **Core v20** (odpowiedzialnej za wykonanie filtrów i zarządzanie danymi) oraz **GUI v4.5** (interfejs użytkownika do konfiguracji i wizualizacji wyników). Warstwy te komunikują się poprzez wyraźnie zdefiniowany kontrakt (typy danych, zdarzenia) i współdzielony stan aplikacji.
+
+### Architektura Core (v20) – Pipeline i Kontekst
+
+Warstwa Core pełni rolę **silnika** wykonującego sekwencję filtrów na obrazie zgodnie z wczytanym presetem. Głównym elementem jest tu **pipeline** zaimplementowany w core/pipeline.py. Pipeline korzysta z następujących mechanizmów i struktur:
+
+- **Rejestr filtrów:** Wszystkie filtry są zarejestrowane w core/registry.py (poprzez dekorator @register). Rejestr przechowuje informacje o dostępnych filtrach, ich nazwach i aliasach, umożliwiając ich instancjowanie po nazwie. Dzięki temu GUI może np. pobrać listę nazw filtrów do wyświetlenia w zakładce Filters.
+- **Normalize preset:** Po załadowaniu ustawień (preset YAML) pipeline dokonuje _normalizacji_ konfiguracji – uzupełnia domyślne wartości, sprawdza wersję formatu itp. (funkcja normalize_preset).
+- **Kontekst Ctx:** Dla przetwarzania tworzony jest kontekst (build_ctx(img, seed, cfg)), który zawiera m.in. wejściowy obraz (jako numpy.ndarray typu uint8), parametry globalne (np. amplitude, maski) oraz obiekt losowy RNG z zadanego ziarna[\[19\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,AppState.cache). Kontekst pełni też rolę schowka na dane pośrednie – posiada pole ctx.cache (słownik), do którego filtry mogą zapisywać dowolne artefakty diagnostyczne.
+- **Wykonanie filtrów:** Pipeline iteruje przez kroki zdefiniowane w preset (cfg\["steps"\]). Dla każdego kroku pobiera z rejestru odpowiednią funkcję filtra, wywołuje ją: output_img = filter_fn(input_img, ctx, \*\*params). Każda funkcja filtra przyjmuje obraz (jako numpy array), kontekst oraz swoje parametry i zwraca przetworzony obraz (numpy array, uint8 RGB). Filtry mogą korzystać ze wspólnych konwencji parametrów (np. mask_key – wybór maski, use_amp – użycie globalnej amplitude, clamp – ograniczenie zakresu pikseli). Wszystkie operacje wewnątrz filtrów odbywają się na kopii obrazu w formacie float32 \[0,1\], natomiast wejście i wyjście pipeline jest zawsze uint8 RGB (Core dba o konwersję typów danych).
+- **Zbieranie wyników i metryk:** Core po zastosowaniu każdego filtra gromadzi w ctx.cache rozmaite dane: wejście i wyjście kroku, różnicę (różnicę obrazu względem poprzedniego kroku), czas trwania, a także wyniki obliczenia metryk na wejściu i wyjściu filtra. Klucze w cache są standaryzowane, np.:
+- stage/0/in / stage/0/out – obraz wejściowy i wyjściowy etapu 0,
+- stage/0/diff – obraz różnicy (abs) między wejściem a wyjściem etapu 0,
+- stage/0/metrics_in / metrics_out – słowniki z wartościami metryk dla obrazu przed i po filtrze,
+- stage/0/t_ms – czas wykonania kroku (ms),
+- stage/0/diff_stats – statystyki różnicy (np. % zmienionych pikseli),
+- stage/0/fft_mag / hist – widmo amplitud oraz histogram obrazu (opcjonalne),
+- stage/0/mosaic – obraz mozaiki z nałożonymi metrykami blokowymi (jeśli dotyczy),
+- globalne klucze: ast/json – JSON z grafem AST filtrów (jeśli wygenerowano), format/jpg_grid – sklejka obrazów (wejście/wyjście) w formacie JPEG, run/id – ID wykonania, cfg/\* – zapisany fragment konfiguracji itp.
+
+_Przykład:_ Domyślna konfiguracja HUD zakłada trzy sloty prezentujące najważniejsze dane z cache (zgodnie z listą preferencji kluczy):[\[20\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Trzy%20sloty%20HUD%20wy%C5%9Bwietlaj%C4%85%20kluczowe,zgodnie%20z%20preferowan%C4%85%20list%C4%85%20kluczy)  
+
+hud:  
+slot1: \["stage/0/in", "stage/0/metrics_in", "format/jpg_grid"\]  
+slot2: \["stage/0/out", "stage/0/metrics_out", "stage/0/fft_mag"\]  
+slot3: \["stage/0/diff", "stage/0/diff_stats", "ast/json"\]
+
+Oznacza to, że np. slot1 HUD najpierw próbuje wyświetlić stage/0/in (miniatura obrazu wejściowego), a jeśli brak – to stage/0/metrics_in (tekst z metrykami wejścia), dalej format/jpg_grid itd. Sloty automatycznie dopasowują się do rodzaju danych (obraz vs tekst).
+
+- **AST, Graf i Mozaika:** Po wykonaniu całego pipeline, core może opcjonalnie wygenerować **graf AST** (analiza struktury kodu filtrów) i **mozaikę** z metrykami: moduł core.astmap potrafi przeanalizować kod źródłowy filtrów i zbudować graf zależności, który następnie core.mosaic odwzorowuje na kolorową mapę. Dane te trafiają do cache (ast/json, mosaic/\*) i mogą być pokazane w HUD jako specjalne widoki (**GraphView**, **MosaicView**)[\[21\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Specjalne%20widoki%3A%20,dla%20mozaik%20i%20graf%C3%B3w%20AST).
+- **Zakończenie przetwarzania:** Po przetworzeniu ostatniego kroku filtra, pipeline zwraca wynikowy obraz i wypełniony cache. Te dane trafiają z powrotem do GUI (poprzez obiekt stanu AppState) – GUI wykorzystuje je do aktualizacji podglądu i HUD. Core nie posiada bezpośredniej referencji do interfejsu – komunikacja jest **jednokierunkowa**: GUI wywołuje funkcje core, a core zwraca dane (lub zapisuje w przekazanym kontekście).
+
+Podsumowując, architektura Core v20 zapewnia **deterministyczne** i spójne wykonanie filtrów (ustalone ziarno RNG, brak zależności od zewn. bibliotek jak OpenCV), a także bogate **telemetrie** – wszystkie istotne pośrednie wyniki są odkładane do ctx.cache, tak aby GUI mogło je zaprezentować. Taki podział ról sprawia, że GUI może być cienkim klientem, który **tylko odczytuje** przygotowane dane (obrazy, metryki, wykresy) i nie musi ich samodzielnie obliczać, co zwiększa niezawodność i ułatwia utrzymanie systemu.
+
+### Architektura GUI (v4.5) – Interfejs, EventBus i HUD
+
+Warstwa GUI odpowiada za interakcję z użytkownikiem: wybór filtra, ustawienie parametrów, wyświetlenie wyników i diagnostyki. Została zaprojektowana zgodnie z założeniami _luźnej integracji_ z core – komunikacja odbywa się przez zdarzenia i wspólny stan, co zapewnia elastyczność i odporność na błędy.
+
+Kluczowym elementem jest centralny **stan aplikacji** (AppState), zdefiniowany w glitchlab/gui/app.py. Obiekt ten przechowuje globalne informacje o bieżącej sesji:  
+```
+class AppState:  
+image: PIL.Image | None # aktualnie załadowany obraz źródłowy  
+preset: dict | None # obecny preset (słownik z YAML)  
+cache: dict # ostatni cache wyników z core (telemetria)  
+masks: dict\[str, np.ndarray\] # dostępne maski (np. zdefiniowane ROI)
 ```
 
----
+_Źródło: definicja AppState w kodzie GUI_[\[22\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,maski%20obszar%C3%B3w%20dla%20filtra). Wszystkie komponenty GUI posiadają referencję do jednego obiektu AppState (przekazywaną jako ctx_ref), co zapewnia **centralizację stanu**[\[23\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,nie%20oblicza%20ich%20samodzielnie). Zmiany stanu (np. nowy obraz lub nowe wyniki w cache) propagują się przez ten obiekt.
 
-## Uruchomienie (GUI)
+**Mechanizm zdarzeń (EventBus):** Wewnętrzna komunikacja GUI jest zrealizowana w oparciu o prosty **EventBus** (patrz app.py i event_bus.py). Składa się on z metody publish(topic, payload) oraz subscribe(topic, callback). Różne części interfejsu subskrybują interesujące je tematy i reagują na zdarzenia – dzięki temu unika się bezpośrednich wywołań metod między komponentami (luźne powiązanie). Ważniejsze kanały zdarzeń to m.in.:  
+- ui.filter.select – wybór filtra (np. z listy filtrów w TabFilters)[\[24\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,%E2%80%93%20logi%20diagnostyczne). Parametrem jest nazwa filtra; event bus odbierany jest przez mechanizm loadera paneli, który na jego podstawie tworzy odpowiedni panel parametrów.  
+  - ui.filter.params_changed – zmiana wartości parametru na panelu filtra[\[25\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,%E2%80%93%20logi%20diagnostyczne). Zwykle obsługiwany przez obiekt panelu – typowo wywołuje callback ctx.on_change rejestrujący zmianę (np. do historii undo) lub po prostu loguje. Może być też wykorzystany do podglądu na żywo.  
+  - ui.run.apply_filter – żądanie wykonania filtra[\[24\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,%E2%80%93%20logi%20diagnostyczne). Emitowane np. wciśnięciem przycisku _Apply_. Obsługiwane przez _pipeline runner_ (w gui/services/pipeline_runner.py), który pobiera bieżące ustawienia (AppState.image + preset) i wywołuje core.pipeline.apply_pipeline. Po otrzymaniu wyniku, aktualizuje AppState.cache i publikuje event ui.run.finished.  
+  - ui.presets.save_request – zapisanie aktualnego zestawu ustawień jako preset (obsługiwane przez gui/services/presets.py)[\[26\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,%E2%80%93%20logi%20diagnostyczne). Powoduje wygenerowanie pliku YAML z bieżącej konfiguracji.  
+  - diag.log – komunikaty diagnostyczne (logi) przekazywane np. przez core/filters. Konsola diagnostyczna subskrybuje to zdarzenie i wyświetla je w widżecie DiagConsole[\[15\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,topic%20%60diag.log).
 
-```bash
-python -m glitchlab.gui.main
-```
+Taka architektura zdarzeniowa sprawia, że komponenty GUI są **luźno połączone** – np. panel filtra nie wywołuje bezpośrednio funkcji pipeline, tylko emituje ui.run.apply_filter i czeka na wyniki w stanie. Zmniejsza to wzajemne zależności i zwiększa odporność na błędy (jeśli dany komponent nie działa, zdarzenie po prostu nie zostanie obsłużone, ale aplikacja nadal działa)[\[18\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=_Decyzje%20projektowe_%3A%20Taka%20struktura%20pozwala,aplikacji%20a%20specyficznymi%20panelami%20filtr%C3%B3w).
 
-**Workflow (skrót):**
+**Przepływ danych GUI ↔ Core:** Typowy scenariusz użycia wygląda następująco:  
+1. **Start aplikacji:** Uruchamiany jest glitchlab/gui/app.py (funkcja main() inicjuje tk.Tk(), tworzy instancję App i uruchamia mainloop). Przy starcie App buduje interfejs – tworzy menubar, panel podglądu, zakładki itp. oraz wczytuje listę filtrów z rejestru core (wywołując core.registry.available()) celem zapełnienia listy w TabFilters.  
+2. **Wybór filtra:** Gdy użytkownik wybierze filtr z listy (lub zmieni preset), zakładka Filters publikuje zdarzenie ui.filter.select z nazwą filtra[\[10\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=1.%20,Reload). _Panel loader_ odbiera je i próbuje załadować moduł glitchlab/gui/panels/panel_&lt;nazwa&gt;.py. Jeśli istnieje, tworzy obiekt Panel i umieszcza go w prawej kolumnie UI; jeśli nie – tworzy obiekt ParamForm (formularz generowany automatycznie)[\[8\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=%60on_change%60.%20,ParamForm). Dzięki blokowi try/except błąd przy inicjalizacji panelu nie zatrzyma aplikacji – w razie wyjątku w kodzie panelu, zamiast crashu zostanie podstawiony ParamForm jako awaryjny interfejs[\[27\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Obs%C5%82uga%20B%C5%82%C4%99d%C3%B3w%20i%20Wyj%C4%85tk%C3%B3w).  
+3. **Ustawienie parametrów:** Użytkownik dostosowuje parametry filtra w panelu. Pola formularza są powiązane ze zdarzeniem ui.filter.params_changed – każda zmiana wartości może publikować to zdarzenie (ewentualnie z mechanizmem _debounce_ aby nie spamować przy ciągłych zmianach suwaka). W większości przypadków zmiana tylko zapisuje nowe wartości w strukturze AppState.preset i czeka na ręczne wciśnięcie _Apply_.  
+4. **Uruchomienie filtra:** Po wciśnięciu **Apply**, panel (lub TabFilters) publikuje zdarzenie ui.run.apply_filter[\[28\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=3.%20,Reload). Uruchamia to sekwencję: PipelineRunner (wątek lub zadanie asynchroniczne) pobiera bieżący obraz (AppState.image) oraz preset (AppState.preset), następnie wywołuje core.pipeline.build_ctx(img, seed, cfg) i core.pipeline.apply_pipeline(img, ctx, steps)[\[19\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,AppState.cache). Jeżeli pipeline rzuci wyjątek, jest on wyłapywany – GUI pokaże komunikat błędu (np. okno dialogowe z traceback) zamiast wysypać się całkowicie[\[27\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Obs%C5%82uga%20B%C5%82%C4%99d%C3%B3w%20i%20Wyj%C4%85tk%C3%B3w).  
+5. **Aktualizacja wyniku:** Po zakończeniu przetwarzania, PipelineRunner zapisuje otrzymany cache wyników do AppState.cache i publikuje zdarzenie ui.run.finished. Komponenty GUI (np. HUD, podgląd obrazu) nasłuchujące tego zdarzenia wtedy odczytują zaktualizowany AppState.cache i **renderują nowe dane**. Np. komponent podglądu obrazu wyświetli zaktualizowany obraz wyjściowy, a HUD zapełni sloty nowymi miniaturami i wartościami metryk. Co ważne, GUI nigdy nie przelicza samo np. metryk – **korzysta tylko z tego, co dostało z core** (AppState.cache)[\[29\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,nie%20oblicza%20ich%20samodzielnie). Jeśli jakieś dane diagnostyczne są kluczowe, core/filters muszą je umieścić w cache.
 
-1. **Open image…** (PNG/JPG/WEBP)
-2. Ustaw **Amplitude & Edge** (prawy panel)
-3. (Opcjonalnie) **Load mask…** (ROI) — maska od razu w HUD
-4. Wybierz **Preset** lub **Filter** → **Apply**
-5. Odczytaj mapy w **Filter Diagnostics** i iteruj parametry
-6. **Save result…**
 
----
+1. **HUD i analiza wyniku:** Użytkownik może teraz przeanalizować efekty filtra korzystając z **HUD**. Trzy sloty HUD automatycznie pokazują np. obraz oryginalny, wynikowy, różnicę oraz powiązane liczby (metryki, statystyki) według zdefiniowanej kolejności preferencji (jak pokazano wyżej). Dodatkowo dostępne są narzędzia: przycisk **View…** pozwala powiększyć dany slot (np. otworzyć obraz w osobnym oknie), a **Copy key** kopiuje nazwę klucza do schowka (ułatwia odwołanie się do tego artefaktu np. w kodzie). Jeśli w cache obecne są specjalne klucze jak ast/json czy stage/0/mosaic, HUD może zaoferować przełączenie widoku slotu na **GraphView** (wizualizacja grafu AST) lub **MosaicView** (kolorowa mozaika z metrykami)[\[21\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Specjalne%20widoki%3A%20,dla%20mozaik%20i%20graf%C3%B3w%20AST). To wszystko wspiera założenie **“diagnostyka pierwszej klasy”** – użytkownik bezpośrednio w GUI widzi, co dzieje się wewnątrz filtrów (wnętrza obrazów, wykresy) bez potrzeby oddzielnych narzędzi[\[30\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,minimalizuje%20trudno%C5%9B%C4%87%20analizowania%20dzia%C5%82ania%20filtr%C3%B3w).
+2. **Narzędzia deweloperskie (Probe/Reload):** Dla wygody testowania, TabFilters udostępnia przyciski **Probe** i **Reload**. _Probe_ tworzy tymczasowo instancję panelu filtra i wykonuje jego metodę diagnostyczną (jeśli zaimplementowana) – można tym sprawdzić np. czy panel poprawnie reaguje na pewne parametry, nie uruchamiając całego pipeline. _Reload_ zaś przeładowuje moduł panelu z dysku i tworzy go ponownie (hot-reload)[\[10\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=1.%20,Reload). Jest to przydatne podczas programowania nowych paneli – pozwala szybko zobaczyć zmiany w UI bez ponownego uruchamiania całej aplikacji.
+3. **Zapisywanie/ładowanie presetów:** Użytkownik może w zakładce Presets zapisać bieżący stan konfiguracji filtrów do pliku YAML (**Save Preset** – wywołuje event ui.presets.save_request obsługiwany w gui/services/presets.py) lub wczytać wcześniej zapisany preset (**Load** – otwiera plik YAML, aktualizuje AppState.preset i emituje ui.filter.select dla pierwszego filtra z preset). Implementacja presetów dba o zgodność wersji – format v2 jest normalizowany przez core normalize_preset i jeśli trzeba, dostosowywany (jest nawet plik README_HOTFIX.txt z informacjami o poprawkach formatów).
 
-## Po co to (analitycznie)?
+W powyższym schemacie wyraźnie widać rozdział odpowiedzialności: **GUI** zajmuje się interakcją i prezentacją, delegując wszystkie obliczenia do **Core**. Komunikacja odbywa się przez **AppState** (współdzielone dane) i **EventBus** (asynchroniczne zdarzenia). Taka architektura znacząco zwiększa odporność systemu na błędy – np. jeśli panel filtra będzie źle zaimplementowany i rzuci wyjątek przy tworzeniu, panel_loader przechwyci błąd i zastosuje panel awaryjny (formularz)[\[27\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Obs%C5%82uga%20B%C5%82%C4%99d%C3%B3w%20i%20Wyj%C4%85tk%C3%B3w), dzięki czemu użytkownik wciąż może korzystać z aplikacji. Również błędy w trakcie przetwarzania filtra (np. wyjątek w kodzie filtra) są łapane, a aplikacja informuje o nich komunikatem zamiast przerywać działanie[\[31\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,dla%20deweloper%C3%B3w).
 
-Artefakty są wytwarzane **intencjonalnie** i **lokalnie**. Dzięki temu możesz:
+**CanvasContainer a dokumentacja GUI:** Warto zauważyć zgodność implementacji komponentu podglądu obrazu z założeniami architektonicznymi. Dokumentacja przewidywała osobny widżet ImageCanvas do wyświetlania obrazu z obsługą powiększania, przewijania i nakładek (np. siatki, linijek)[\[14\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,Opcjonalna%20konsola%20diagnostyczna%2C%20nas%C5%82uchuj%C4%85ca%20zdarze%C5%84). W kodzie funkcję tę pełni klasa **ImageCanvas** (gui/widgets/image_canvas.py), natomiast klasa **CanvasContainer** stanowi „kontener” rozszerzający jej możliwości – integruje dodatkowe funkcje (rulers, crosshair, narzędzia) oraz dba o otoczenie canvas w głównym oknie. CanvasContainer przechowuje oryginalny obraz i zarządza jego przeskalowaną kopią wyświetlaną na ekranie, zapewnia prawidłowe centrowanie obrazu w oknie (przy różnych rozdzielczościach i zoomie) oraz współpracuje z mechanizmem _toolbox_ (np. zmienna tool_var synchronizowana z paskiem narzędzi/menubar w aplikacji) – wszystko to zgodnie z wymaganiami stabilnego viewportu opisanymi w dokumentacji. Innymi słowy, **CanvasContainer** odpowiada za to, by okno podglądu obrazu zachowywało się intuicyjnie i oferowało pomocnicze funkcje (np. linijki) bez rozbijania głównej logiki ImageCanvas. Implementacja tego komponentu pokrywa się z planem przedstawionym w architekturze GUI, co świadczy o konsekwencji między projektem a kodem.
 
-* **weryfikować hipotezy** o strukturze (anizotropia, kontury),
-* **wykrywać rezonanse** (siatka bloków, ślady kompresji/skalowania),
-* **badać relacje filtrów** (test komutacji A/B, czułość kolejności).
+**Podsumowanie:** Architektura GlitchLab GUI v4.5 została zaprojektowana i zaimplementowana zgodnie z celami projektu: interfejs jest **przewidywalny** i modularny, komunikacja wewnętrzna odbywa się przez lekki mechanizm zdarzeń, a kluczowe mechanizmy _fallback_ zabezpieczają przed awariami całego programu w razie błędów lokalnych. Integracja z Core jest czytelna i oparta na prostym kontrakcie (obrazy jako numpy.uint8 RGB, funkcje build_ctx i apply_pipeline, wymiana przez AppState.cache[\[19\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,AppState.cache)). Dzięki temu całość cechuje się **niską kruchością** i **wysoką rozszerzalnością**, spełniając wszystkie początkowe założenia projektowe[\[18\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=_Decyzje%20projektowe_%3A%20Taka%20struktura%20pozwala,aplikacji%20a%20specyficznymi%20panelami%20filtr%C3%B3w).
 
-Więcej w **ANALYSIS.md** (protokół A/B, sweepy, SSIM/PSNR/entropia).
+## Audyt Kodu (PyCharm) – Błędy i Ostrzeżenia
 
----
+Przeprowadzono audyt statyczny kodu GlitchLab v4.5 (m.in. przy użyciu inspekcji PyCharm), który ujawnił szereg ostrzeżeń. Zostały one podzielone na dwie kategorie: **ostrzeżenia** (bardziej istotne, potencjalnie wskazujące błędy) oraz **słabe ostrzeżenia** (dotyczące stylu i jakości kodu, mniej krytyczne dla działania). Poniżej omówiono główne typy problemów, ich wpływ na system oraz propozycje priorytetów naprawy.
 
-## Struktura projektu
+### Ostrzeżenia (Warnings)
 
-```
-glitchlab/
-  core/        # registry, pipeline, graph, mosaic, astmap, metrics, utils, roi, symbols
-  analysis/    # metrics, diff, spectral, formats, exporters (warstwa badawcza)
-  filters/     # filtry rejestrowane dekoratorem (API v2)
-  presets/     # YAML v2 (schemat poniżej)
-  gui/         # aplikacja i panele (HUD, graf, mozaika, parametry)
-```
+**1\. Niezgodne wywołania funkcji / argumenty:** Kilka ostrzeżeń dotyczy sytuacji, gdzie wywołanie funkcji lub metody przekazuje argumenty, których sygnatura nie przewiduje (np. nieoczekiwane nazwy parametrów). Przykładowo, raport PyCharm wskazywał błąd „Incorrect call arguments (PyArgumentList)” dla wywołania konstruktora pewnego komponentu UI z argumentem menu=menubar (który nie jest zdefiniowany w sygnaturze) – co sugeruje, że kod próbuje ustawić menu okna w sposób, który PyCharm uznaje za nieprawidłowy. W praktyce może to działać (np. jeśli klasa dziedziczy z tkinter i dopuszcza takie argumenty), ale wymaga weryfikacji. Takie ostrzeżenia są istotne, bo mogą wskazywać **ukryte bugi** lub przynajmniej nieczytelny kod. Wpływ na stabilność bywa różny – czasem to fałszywe alarmy analizy statycznej, ale jeśli faktycznie argument jest ignorowany, funkcjonalność (np. przypięcie menubara) może nie działać zgodnie z intencją. **Zalecenie:** przejrzeć każde ostrzeżenie tego typu i potwierdzić poprawność wywołań – ewentualnie dostosować sygnatury lub sposób wywołania, by usunąć niezgodność. Priorytet: **wysoki**, jeśli istnieje ryzyko błędu wykonania; w przeciwnym razie średni (poprawa czytelności).
 
----
+**2\. Ostrzeżenia typów (type hints):** Kod GlitchLab częściowo wykorzystuje **wskazówki typów** (type hints), jednak wiele miejsc zawiera dyrektywy # type: ignore – co oznacza, że statyczna kontrola typów została świadomie wyłączona dla tych fragmentów (jest ich kilkadziesiąt w całym projekcie, m.in. w modułach core/pipeline, gui/hud, gui/presets itp.). Takie dyrektywy maskują potencjalne problemy, np. przypisanie niepoprawnego typu do zmiennej lub wywołanie metody na obiekcie, który według adnotacji może być None. W większości przypadków ich obecność sugeruje: **(a)** użycie bibliotek, których typy PyCharm/mypy nie potrafią poprawnie rozpoznać (np. elementy tkinter), **(b)** dynamiczną naturę pewnych konstrukcji (np. nasz mechanizm pluginów/importu paneli) albo **(c)** techniczne obejścia (fallbacki, gdzie typ może być różny zależnie od sytuacji). Wpływ na stabilność jest pośredni – samo ignorowanie typu nie powoduje błędu w działaniu, ale **zmniejsza bezpieczeństwo**: łatwiej o błąd, który nie zostanie wykryty na etapie testów statycznych. **Zalecenie:** stopniowo eliminować # type: ignore poprzez poprawne typowanie kodu lub refaktoryzację. Np. uściślić typy AppState.cache (może być dict\[str, Any\] zamiast gołego dict), albo dodać adnotacje do funkcji filtrów. Priorytet: **średni** – nie wpływa bezpośrednio na użytkownika, ale ważne dla przyszłej rozwojowości kodu.
 
-## Architektura (skrót)
+**3\. Potencjalne błędy logiczne:** Inspekcja mogła wykryć także miejsca, gdzie logika wygląda podejrzanie – np. zmienna zadeklarowana, ale nigdy nie użyta, czy warunek, który zawsze jest True/False. Takie ostrzeżenia nie były wyszczególnione w treści zadania, ale warto o nich wspomnieć. W projekcie tej skali zdarzają się np. nieużywane importy, zmienne stworzone na przyszłość (być może zostawione na etapie prototypowania). Ich wpływ na stabilność jest znikomy (często to tylko _martwy kod_), ale zaśmiecają bazę kodu. **Zalecenie:** oczyścić kod z ewidentnie nieużywanych elementów, co ułatwi czytanie i zmniejszy szum dla narzędzi analitycznych. Priorytet: **niski** (estetyka, ale warto zrobić przy okazji większych poprawek).
 
-* **Core**: rejestr filtrów, pipeline z metrykami/diff i DAG, mozaika/AST, narzędzia.
-* **Analysis**: metryki globalne/kafelkowe, FFT/histogram, forensyka formatu, bundling DTO.
-* **GUI**: stały układ (viewer + parameters + 3 sloty diagnostyk), panele per filtr, pływające/dokowane okna, mini-graf.
+### Słabe ostrzeżenia (Weak Warnings)
 
----
+**1\. Tworzenie atrybutów poza \__init_\_:** Bardzo liczne _słabe ostrzeżenia_ dotyczą faktu, że obiekty klasy mają przypisywane nowe pola poza konstruktorem. Przykład: w klasie App metoda \_build_ui() tworzy wiele kontrolek UI i przypisuje je do pól self (np. self.menubar, self.viewer, self.status), zamiast deklarować je w \__init_\_. Z punktu widzenia PyCharm, może to oznaczać ryzyko – ponieważ inne metody klasy mogłyby oczekiwać, że atrybut istnieje zawsze, a tak nie jest, dopóki \_build_ui() nie zostanie wywołane. W praktyce, kolejność wywołań w App gwarantuje inicjalizację tych pól zaraz po utworzeniu obiektu (metoda \_build_ui() jest wołana w konstruktorze). Mimo to, z perspektywy **czystości kodu**, zaleca się deklarację kluczowych atrybutów w \__init__ (choćby z wartością None), by ułatwić zrozumienie klasy. Ten problem pojawia się też w panelach filtrów – wiele paneli tworzy kontrolki (np. self.cmb_mask – combobox wyboru maski) w metodzie \_build_ui() albo podczas reakcji na zdarzenia, a nie w konstruktorze. Wpływ na działanie: zwykle niewielki, bo logika wywołań jest przemyślana, ale może powodować trudne do wykrycia błędy, jeśli np. jakaś metoda wywoła inna zanim atrybut zostanie utworzony. Wpływ na **utrzymanie**: znaczący – nowy deweloper może mieć trudność z odnalezieniem definicji atrybutu i zrozumieniem, kiedy jest tworzony. **Zalecenie:** gdzie to możliwe, zainicjalizować atrybuty w \__init__(choćby self.cmb_mask: Optional\[Combobox\] = None), a ich budowę przenieść do metod inicjalizacyjnych. Priorytet: **średni** (kod działa, ale warto poprawić dla czytelności i unikania bugów przy rozbudowie).
 
-## Standardy API
+**2\. Metody, które mogą być statyczne/klasowe:** W raporcie wyodrębniono kilkadziesiąt metod oznaczonych jako kandydujące na @staticmethod lub @classmethod – tzn. takie, które nie korzystają z żadnej właściwości instancji (self) ani klasy (cls). Przykładowo, w niektórych panelach filtrów zdefiniowano pomocnicze metody do przeliczeń (np. skalowanie wartości) jako zwykłe metody instancji, choć nie używają one stanu obiektu. Podobnie w klasach EventBus czy DockManager, definicje metod w fallbackowej implementacji (app.py) są puste („...”), więc formalnie nie używają self. PyCharm sygnalizuje to, sugerując dekorowanie jako @staticmethod. Wpływ na działanie: żaden (to kwestia stylu), ewentualnie minimalnie większe zużycie pamięci (każda instancja ma referencję do metody, choć mogłaby być wspólna). Wpływ na **czytelność**: umiarkowany – statyczne metody jasno sygnalizują, że nie potrzebują obiektu, co może uprościć zrozumienie. **Zalecenie:** Rozważyć dodanie dekoratorów tam, gdzie faktycznie metoda jest narzędziowa i nie korzysta ze stanu. Zwłaszcza dotyczy to klas pomocniczych lub utilsy w panelach/filtrach. Priorytet: **niski** (kosmetyka kodu), do wykonania przy okazji innych zmian.
 
-### Filtr (v2)
+**3\. Konwencje nazewnicze i porządek kodu:** Słabe ostrzeżenia mogą też wskazywać naruszenie konwencji PEP8 lub praktyk – np. nazwy zmiennych, które kolidują z wbudowanymi (np. użycie l jako nazwy listy – mylące z literą l), czy definiowanie zmiennych modułowych w dziwnych miejscach. W kontekście GlitchLab, jedna z uwag może dotyczyć np. definiowania zmiennych klasowych dynamicznie (co nie jest typowe). Ogólnie, tego typu kwestie nie wpływają na działanie, ale **porządek i spójność** kodu są ważne dla długoterminowego utrzymania. **Zalecenie:** Ujednolicić styl kodu (być może wprowadzić narzędzia linterskie jak flake8/black). Priorytet: niski (głównie estetyka i zgodność ze standardami).
 
-```python
-def my_filter(img: np.ndarray, ctx: Ctx, **params) -> np.ndarray
-# Wejście: uint8 RGB (H,W,3); praca: float32 [0,1]; zwrot: uint8
-# Wspólne parametry: mask_key: str|None, use_amp: float|bool, clamp: bool=True
-# RNG: wyłącznie ctx.rng; diagnostyki → ctx.cache[f"diag/<name>/..."]
-```
+**4\. Ostrzeżenia dotyczące biblioteki tkinter:** Wreszcie, warto wspomnieć, że inspekcje PyCharm czasem dają ostrzeżenia przy użyciu tkinter, np. nieprawidłowe typy argumentów do widgetów, brak adnotacji typów w metodach tkinter (co wymusza użycie # type: ignore). Te ostrzeżenia są w dużej mierze spowodowane ograniczeniami samej biblioteki (tkinter nie ma pełnych stubów typów). GlitchLab radzi sobie z tym przez ignorowanie typów i try/except przy imporcie niektórych modułów. W audycie traktujemy te ostrzeżenia jako mniej istotne – nie wskazują one błędów naszej logiki, a raczej niedoskonałość narzędzia analitycznego. **Zalecenie:** Można je pozostawić, ewentualnie otagować komentarzem wyjaśniającym, żeby przyszli deweloperzy wiedzieli, że są świadomie zignorowane.
 
-### Rejestr
+### Priorytety i Wpływ na Rozwijalność
 
-```python
-@register(name: str, defaults: dict|None = None, doc: str|None = None)
-get(name) -> callable
-available() -> list[str]
-canonical(name) -> str
-alias(src, dst) -> bool
-meta(name) -> {"name","defaults","doc","aliases"}
-```
+Podsumowując, **najwyższy priorytet** powinny mieć te ostrzeżenia, które mogą oznaczać rzeczywiste błędy podczas wykonania programu (np. błędne wywołanie funkcji, nieobsłużony przypadek typu). Na szczęście, dzięki mechanizmom _fallback_ i defensywnego programowania, większość takich potencjalnych błędów nie „wywraca” aplikacji – jednak w miarę dalszego rozwoju warto je usunąć, by kod był bardziej przewidywalny. **Średni priorytet** mają kwestie związane z poprawnością typów i czystością struktury klas (atrybuty w \__init_\_). Ich ulepszenie zwiększy **czytelność** kodu i ułatwi dołączanie nowych osób do projektu, a także zmniejszy ryzyko subtelnych bugów w przyszłości. **Niższy priorytet** mają poprawki czysto stylowe (statyczne metody, drobne konwencje) – choć nie wpływają na działanie, warto je sukcesywnie wprowadzać, by utrzymać jednolity styl i profesjonalizm kodu.
 
-### Kontekst (`Ctx`) i HUD-channels
+Ogólnie kod GlitchLab v4.5 działa stabilnie i zgodnie z założeniami (brak krytycznych błędów w trakcie typowych scenariuszy), co jest zasługą rozbudowanych mechanizmów obsługi błędów (try/excepty, fallbacki)[\[27\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Obs%C5%82uga%20B%C5%82%C4%99d%C3%B3w%20i%20Wyj%C4%85tk%C3%B3w). Audyt wykazał jednak miejsca do refaktoryzacji, które – jeśli zignorowane – mogą utrudnić przyszły rozwój. Dlatego rekomenduje się zaplanowanie prac porządkujących kod przed wprowadzaniem większych nowych funkcjonalności.
 
-```python
-@dataclass
-class Ctx:
-    rng: np.random.Generator                # deterministyczny seed
-    amplitude: np.ndarray                   # (H,W) f32 [0..1]
-    masks: Dict[str, np.ndarray]            # maski (H,W) f32 [0..1]
-    cache: Dict[str, Any]                   # telemetria dla HUD
-    meta: Dict[str, Any]                    # {source, versions, ...}
-```
+## Plan Refaktoryzacji i Rozwoju
 
-**Kanały min.:**
-`stage/{i}/in|out|diff|t_ms`,
-`stage/{i}/metrics_in|metrics_out|diff_stats`,
-`stage/{i}/fft_mag|hist|mosaic|mosaic_meta`,
-`diag/<filter>/...`, `ast/json`, `format/jpg_grid`, `format/notes`, `cfg/*`, `run/id`, `run/snapshot`.
+GlitchLab ma solidne podstawy architektoniczne, spełniające zakładane cele (stabilność, rozszerzalność, diagnostyka). Aby projekt mógł być łatwo rozwijany o nowe funkcje, a jednocześnie utrzymać wysoką jakość, proponujemy **wieloetapowy plan refaktoryzacji i rozbudowy**. Obejmuje on zarówno **naprawę obecnych niedociągnięć**, jak i dodawanie **nowych funkcjonalności** zgodnie z wizją projektu. Plan kładzie nacisk na zgodność z obecną architekturą, utrzymanie mechanizmów diagnostycznych (ctx.cache, HUD) oraz poprawę ergonomii interfejsu.
 
----
+### Etap 1: Porządki i Poprawki Błędów (Refaktoryzacja wewnętrzna)
 
-## Presety (YAML v2)
+1. **Usunięcie ostrzeżeń krytycznych:** Rozpocząć od przeglądu ostrzeżeń PyCharm wskazujących potencjalne błędy. Dostosować wywołania funkcji do ich sygnatur (np. upewnić się, że przekazywane argumenty zgadzają się z definicjami). Jeśli gdzieś używamy niestandardowych parametrów (jak wspomniane menu=menubar), rozważyć refaktor: albo dodać obsługę tych parametrów w klasie docelowej, albo zastosować inny mechanizm (np. przypięcie menubara poprzez root.config(menu=...) zamiast parametru konstruktora). **Cel:** wyeliminować ostrzeżenia typu _Unexpected argument_ i podobne, co zapewni, że kod jest zgodny ze swoim przeznaczeniem.
+2. **Uspójnienie typów i kontraktów:** Przejrzeć definicje funkcji publicznych (API core, metody Paneli) i uzupełnić/ poprawić **adnotacje typów**. Zredukować użycie # type: ignore – tam gdzie to możliwe zastąpić je doprecyzowaniem typu lub zmianą kodu. Np. jeśli AppState.image może przechowywać zarówno PIL.Image jak i np.ndarray, warto to uwzględnić w typie (lub lepiej: zawsze trzymać oryginalny obraz jako PIL, a skonwertowany numpy tylko tymczasowo do przekazania do pipeline). Zbadać, czy pola ctx.cache i AppState.cache nie powinny mieć specyficzniejszych typów (np. słownik z ustaloną strukturą kluczy), aby ułatwić korzystanie z nich. **Cel:** uczynić interfejsy między modułami jeszcze bardziej jednoznacznymi – to ułatwi korzystanie z core przez GUI i zmniejszy ryzyko błędów integracji. (Kontrakt Core↔GUI już teraz jest dość jasno określony – np. format obrazu to uint8 RGB[\[19\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,AppState.cache) – ale doprecyzowanie typów w kodzie to odzwierciedli).
+3. **Refaktoryzacja inicjalizacji obiektów:** Wprowadzić konsekwencję w tworzeniu atrybutów obiektów. W klasach wysokiego poziomu (App, PanelBase, konkretne Panle) zadeklarować wszystkie istotne pola w \__init_\_. Przenieść tam inicjalizację najważniejszych składników lub przynajmniej ustawić je na None i opatrzyć komentarzem. Dzięki temu znikną słabe ostrzeżenia, a kod stanie się bardziej klarowny. Przy tej okazji można również zredukować nadmiernie rozbudowane metody \_build_ui() dzieląc je na mniejsze funkcje (np. build_menu(), build_viewer(), build_panels()) – to ułatwi nawigację po kodzie UI. **Cel:** poprawa _czystości kodu_ (clean-code) – struktura klas będzie przejrzysta, co ułatwi dalsze modyfikacje.
+4. **Oddzielenie klas pomocniczych do osobnych plików:** Aktualnie moduł gui/app.py zawiera definicje kilku klas (App, EventBus, DockManager, fallbacki PipelineRunner/PresetService). Dla czytelności i modularności warto wyodrębnić je do osobnych modułów, jeśli to możliwe (zwłaszcza EventBus i DockManager mają na tyle niezależną funkcjonalność, że mogą być w gui/event_bus.py i gui/docking.py – notabene plik docking.py już istnieje, więc pewnie część jest tam zaimplementowana, a część w app.py). Należy sprawdzić, czy fallbackowe definicje (te z ...) są faktycznie używane – być może są pozostałością po warunkowym imporcie. Jeśli projekt zakłada, że np. PipelineRunner zawsze będzie dostępny (bo mamy go w gui/services/), to można wyrzucić te tymczasowe definicje. Mniej kodu w app.py = łatwiejsze utrzymanie. **Cel:** lepsza separacja komponentów GUI.
+5. **Testy i walidacja po refaktoryzacji:** Po wprowadzeniu powyższych zmian, uruchomić ponownie testy (smoke test paneli, import test) oraz manualnie przeklikać aplikację, by upewnić się, że nic nie zostało zepsute. Szczególną uwagę zwrócić na mechanizmy auto-importu (czy panele nadal ładują się automatycznie)[\[13\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,starsze%20panele), fallbacków (czy błędny panel rzeczywiście nie crashuje apki) i HUD (czy poprawnie pokazuje dane z cache). Warto też włączyć tryb _fail_fast_ (jeśli jest przewidziany dla deweloperów[\[32\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,dla%20deweloper%C3%B3w)) – to pozwoli wykryć ewentualne nowe błędy wcześniej, bo aplikacja zamiast ignorować je, zgłosi wyjątek.
 
-```yaml
-version: 2
-name: "example"
-seed: 7
-amplitude:
-  kind: perlin        # none|linear_x|linear_y|radial|perlin|mask
-  strength: 1.0
-  scale: 96
-  octaves: 4
-  persistence: 0.5
-  lacunarity: 2.0
-edge_mask:
-  thresh: 60
-  dilate: 0
-  ksize: 3
-steps:
-  - name: anisotropic_contour_warp
-    params: { strength: 1.2, iters: 2, edge_bias: 0.5, use_amp: 1.0, clamp: true }
-  - name: block_mosh_grid
-    params: { size: 24, p: 0.45, max_shift: 32, mix: 0.9 }
-```
+### Etap 2: Udoskonalenie Architektury i Organizacji Kodu
 
-**Alias → kanon (skrót):**
-`conture_flow|anisotropic_contour_flow → anisotropic_contour_warp`
-`block_mosh → block_mosh_grid`
-`spectral_shaper_lab|spectral_ring → spectral_shaper`
-`perlin_grid|nosh_perlin_grid → noise_perlin_grid`
+Po uporządkowaniu istniejącej bazy kodu, kolejnym krokiem jest **dalsze udoskonalenie architektury**, tak aby przygotować grunt pod nowe funkcje. Proponowane działania:
 
----
+1. **Wyraźny podział na komponenty logiczne:** Choć struktura katalogów już teraz odzwierciedla warstwy, można rozważyć wyodrębnienie pewnych części jako osobne moduły/”pakiety” wewnątrz projektu. Np. wyróżnić komponent **Services** dla logiki pośredniej GUI (pipeline_runner, preset_service, masks, history – czyli wszystko co w gui/services/), komponent **Widgets** (już jest jako podpakiet) dla kontrolek UI, komponent **Core** (osobny pakiet, który mógłby być potencjalnie używany niezależnie od GUI, np. w trybie headless). Można nawet rozpatrzyć wydzielenie glitchlab.core jako niezależnej biblioteki (pip installable) – tak aby GUI importowało core jako paczkę. To pozwoliłoby innym programom korzystać z core (np. do batch processingu glitchy) bez całej otoczki UI. Na razie to opcjonalne, ale warto mieć na horyzoncie. **Cel:** warstwy systemu mają jasno zdefiniowane API między sobą i mogą być rozwijane niezależnie.
+2. **Komponent** Filters\*\*\*\*: Upewnić się, że dodawanie nowego filtra faktycznie nie wymaga zmian poza katalogiem glitchlab/filters. Obecnie mechanizm @register i auto-import powinien to zapewniać. Można wzmocnić to, tworząc np. prosty interfejs CLI, który generuje szablon nowego filtra (funkcja z docstringiem, parametrami maski, etc.) – nie jest to krytyczne, ale ułatwi pracę nad nowymi filtrami i zapewni spójność (wszystkie filtry będą miały np. przykład użycia ctx.cache w docstringu).
+3. **Komponent** Presets**_\*: Rozważyć przeniesienie logiki zarządzania presetami całkowicie do warstwy core (np. do modułu core/preset.py). Aktualnie sporo dzieje się w gui/services/presets.py – łączenie z interfejsem plików, zapisywanie YAML. Jeśli jednak core miałby być używany niezależnie, przydatne byłoby mieć możliwość załadowania/zapisania presetu także z poziomu core. Można zatem wydzielić część funkcji (serializacja/deserializacja YAML v2) do core, a GUI pozostawić tylko wywołanie dialogu plikowego i prezentację w UI._ \*Cel:** lepsza separacja logiki od interfejsu, zgodnie z zasadą, że core zawiera całą „inteligencję” dot. filtrów i presetów, a GUI tylko ją wywołuje.
+4. **Zachowanie kompatybilności wstecznej:** Przy refaktoryzacjach, upewnić się, że stare presety (np. wersja 1, jeśli jakieś istnieją) nadal mogą być wczytane lub zostaną automatycznie zaktualizowane – dokument README_HOTFIX.txt sugeruje, że już były jakieś migracje. Warto zaimplementować spójny mechanizm wersjonowania presetów (np. jeśli pojawi się v3, core normalize_preset powinien rozpoznać i przekonwertować). Podobnie dla paneli – mechanizm aliasów w panels/base.py obsługuje starsze panele; planując ewentualne zmiany w API paneli, zadbać o analogiczne aliasy/adaptery.
+5. **Optymalizacje wydajnościowe:** Choć nie było to sygnalizowane jako problem, zawsze można przeanalizować, gdzie aplikacja zużywa najwięcej czasu. Np. generowanie miniatur w HUD może być czasochłonne – w dokumencie jest wspomniane cache’owanie przeskalowanych obrazów[\[33\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Wydajno%C5%9B%C4%87%20i%20Ergonomia). Można sprawdzić, czy obecna implementacja ImageCanvas i HUD już to robi (np. trzyma kopię zmniejszonego obrazu by nie skalować go za każdym razem). Jeśli nie w pełni, to dodać. Inny aspekt: **debounce** zmian parametrów – dokument wspomina, że jest zaimplementowany[\[34\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,1%2F2%2F3), co zapobiega przeciążeniu pipeline gdy użytkownik np. szybko zmienia suwak. Warto utrzymać i ewentualnie poprawić ten mechanizm (np. regulując czas opóźnienia).
+6. **Persistencja ustawień UI:** Wspomniano, że DockManager docelowo mógłby zapisywać układ okien do pliku (np. ~/.glitchlab/ui.json)[\[35\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,dla%20zachowania%20uk%C5%82adu%20mi%C4%99dzy%20sesjami). To dobra funkcjonalność dla ergonomii – użytkownik może dostosować układ (odpiąć HUD itp.) i nie tracić tego po restarcie. Można to zaimplementować na tym etapie. W praktyce: metoda DockManager powinna potrafić zebrać aktualne pozycje/rozmiary okien dokowanych, a przy starcie aplikacji – jeśli znajdzie plik konfig – odtworzyć ten układ. Trzeba uważać na przypadek, gdy panel/preset nie istnieje już w nowej wersji – wtedy pominąć jego ustawienia.
 
-## Filtry referencyjne (skrót merytoryczny)
+### Etap 3: Nowe Funkcjonalności i Rozszerzenia GUI
 
-### `anisotropic_contour_warp`
+Po uporządkowaniu i usprawnieniu istniejącego kodu, można przystąpić do implementacji **nowych funkcji**, które wzbogacą GlitchLab. Kilka proponowanych kierunków rozwoju:
 
-* **Cel:** przemieszcza piksele **wzdłuż konturów** (tangent do ∇I).
-* **Użycie:** test **anizotropii** (stabilność semantyki na tangencie).
-* **Parametry:** `strength`, `iters`, `ksize`, `smooth`, `edge_bias`, `mask_key`, `use_amp`.
-* **Diag:** `acw_mag` (|∇I|), `acw_tx/ty` (tangenty).
+1. **Toolbox / Toolbar dla viewportu:** Obecnie mechanizm narzędzi (pan, pick, zoom, ruler etc.) jest częściowo zaimplementowany poprzez tool_var i menubar. Można to rozwinąć, dodając dedykowany **pasek narzędzi graficzny** w oknie podglądu. W katalogu resources/ikons/ już znajdują się ikonki sugerujące takie narzędzia – warto je wykorzystać. Np. dodać niewielki panel nakładkowy w rogu canvas (CanvasContainer) z przyciskami: **Pan** (przesuwanie obrazu – domyślne), **Zoom** (powiększenie zaznaczeniem), **Pick** (pipeta/wybór punktu – np. do odczytu wartości pikseli lub zaznaczania ROI), **Ruler** (pomiar odległości w pikselach między dwoma punktami), ewentualnie **Mask** (tryb zaznaczania obszaru maski). Taki toolbox poprawi ergonomię dla użytkowników analizujących obraz – nie będą musieli wybierać narzędzi z menu, tylko klikną ikonę. Od strony implementacji: CanvasContainer może obsłużyć zdarzenia myszki różnie w zależności od aktywnego trybu (np. w trybie Ruler – rysuje linię i liczy odległość). Mechanizm tool_var już jest, więc głównie dodanie UI i logiki obsługi zdarzeń. **Diagnoza wpływu:** Należy zapewnić, by nowe narzędzia też wpisywały się w architekturę diagnostyczną – np. wynik pomiaru linijką mógłby pojawiać się na statusbarze albo jako dodatkowy element HUD (ale raczej to prosty odczyt, więc pewnie statusbar).
+2. **Obsługa warstw obrazu (Layers):** Bardziej zaawansowane rozszerzenie to wprowadzenie koncepcji **warstw** obrazów lub filtrów. Obecnie pipeline stosuje filtry sekwencyjnie na jednym obrazie. Warstwy mogłyby umożliwić równoczesne operowanie na kilku obrazach (np. efekt nakładający dwa obrazy) lub stosowanie filtrów na osobnych poziomach (np. tło i obiekty osobno). Implementacja warstw wymaga zmian w core: np. modyfikacji formatu presetów (drzewiasta struktura zamiast linearnej listy kroków, lub steps z odgałęzieniami). Być może prościej zacząć od wsparcia **nakładania dwóch obrazów**: dodać do AppState możliwość załadowania drugiego obrazu (np. AppState.image2), a do filtrów przekazywać je (ew. parametryzować filtry by brały drugi obraz). Można zacząć od kilku filtrów typu „Blend” czy „Composite” łączących dwa obrazy. W GUI wymaga to umożliwienia wczytania dodatkowego obrazu (np. przycisk „Add Layer” w menu File, który ładuje drugi obraz i w panelu filtra pokazuje opcje łączenia). To spore przedsięwzięcie, dlatego planowane raczej jako eksperymentalna funkcja. **Alternatywnie**: warstwy mogą też oznaczać stosowanie kilku filtrów na różnych etapach a potem ich wyników równocześnie – to jednak już by wchodziło w zakres _node-based_ edytora (co jest poza obszarem tradycyjnego GlitchLab, ale ciekawa droga rozwoju).
+3. **Nowe filtry i efekty:** Oczywiście, ciągłe wzbogacanie biblioteki filtrów to sedno rozwoju GlitchLab. Po stronie core, dodanie filtra jest stosunkowo proste (wystarczy @register). Warto jednak planować także rozwój interfejsu dla nich. Np. filtry związane z kolorem mogłyby mieć panele z wykresem (histogramem) czy z selektorem koloru. Filtry przestrzenne mogłyby korzystać z interaktywnego zaznaczania ROI na obrazie (to łączy się z wspomnianym narzędziem Mask – np. user zaznacza obszar, a panel filtra otrzymuje maskę). Dobrze udokumentować każdy nowy filtr (może w przyszłości dodać podgląd działania filtra w opisie – np. miniatury przed/po w help). Zgodnie z zasadą **rozszerzalności**, nowe filtry nie powinny wymagać zmian w istniejącym kodzie – i obecna architektura to umożliwia. Warto kontynuować tę politykę, dodając ewentualnie bardziej **dynamiczny system pluginów** (np. możliwość dołączenia modułu filtra spoza standardowej paczki, przez wskazanie ścieżki – choć to już jest jeśli ktoś dopisze do registry manualnie).
+4. **Usprawnienia HUD i diagnostyki:** HUD w obecnej formie jest już rozbudowany, ale zawsze można go ulepszyć. Np. dodać możliwość **konfiguracji**, które klucze cache wyświetlać w slotach (obecnie jest lista preferencji na sztywno w kodzie/dokumentacji[\[20\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Trzy%20sloty%20HUD%20wy%C5%9Bwietlaj%C4%85%20kluczowe,zgodnie%20z%20preferowan%C4%85%20list%C4%85%20kluczy)). Można to zrobić poprzez plik konfiguracyjny użytkownika lub interfejs (np. dropdown przy slocie „Choose data…”). Kolejna rzecz: jeśli filtry dodadzą nowe typy danych (np. wykres 1D, czy dźwięk – gdyby kiedyś glitch audio), HUD mógłby zyskać nowe sposoby prezentacji (np. wykres liniowy). Na razie jednak skupmy się na obrazach i tekstach – być może warto dodać opcję porównywania dwóch slotów (np. różnica między slot1 a slot2, chociaż slot3 już zwykle pokazuje diff).
+5. **Lepsza integracja z systemem plików i historią:** Możliwość wczytania wielu obrazów już omawiana w kontekście warstw. Poza tym, można wprowadzić **historię operacji** (undo/redo) – jeśli jest zapotrzebowanie. Co prawda glitch art bywa eksperymentalny, ale cofnąć ostatni filtr byłoby użyteczne. Ponieważ AppState przechowuje _preset_ i _image_, można zachować stos poprzednich stanów (w ImageHistory już coś takiego istnieje, z max_len=50 obrazów, więc wystarczyłoby eksponować to w UI). Zakładka Presets ma historię kroków – może ona posłużyć do implementacji undo (po prostu powrót do poprzedniej pozycji w historii). W planie rozwoju warto uwzględnić dopracowanie tego elementu.
+6. **Dokumentacja i pomoc kontekstowa:** W miarę jak system rośnie, dobrze jest zapewnić użytkownikom pomoce. Można dodać np. w menu Help odnośnik do dokumentacji (README) albo wbudowaną instrukcję. Panel Presets mógłby mieć opis formatu YAML v2. Alternatywnie, implementacja czegoś w rodzaju _tip of the day_ czy krótkich podpowiedzi przy pierwszym uruchomieniu (to już kwestia drugorzędna, ale wpływa na UX).
 
-### `block_mosh_grid`
+### Etap 4: Podział projektu na pakiety (opcjonalnie)
 
-* **Cel:** przestawianie/rotacja bloków (siatka).
-* **Użycie:** **skala i blokowość** (rezonans rozmiaru bloku).
-* **Parametry:** `size`, `p`, `max_shift`, `mode`, `wrap`, `mask_key`, `amp_influence`, `channel_jitter`, `posterize_bits`, `mix`.
-* **Diag:** `bmg_select`, `bmg_dx/dy`.
+Jeśli projekt będzie intensywnie rozwijany przez wiele osób lub integracje z innymi narzędziami, warto rozważyć w dłuższej perspektywie formalny podział na oddzielne pakiety/distribucje:  
+\- **glitchlab-core** – zawierający wszystko z glitchlab/core + glitchlab/filters + glitchlab/analysis. Byłby to niezależny moduł Pythonowy, który można zainstalować i używać np. w skryptach do masowej edycji obrazów. Mógłby udostępniać API wysokiego poziomu: np. glitchlab_core.apply_preset(image_path, preset_path) -> output_image.  
+\- **glitchlab-gui** – zawierający glitchlab/gui i związane z nim rzeczy (widgets, resources, etc.). Ten pakiet zależałby od glitchlab-core. To pozwoliłoby na rozwijanie interfejsu niezależnie od silnika. Przykład korzyści: można by stworzyć alternatywny interfejs (np. webowy) korzystając z glitchlab-core, nie dotykając kodu GUI desktopowego.
 
----
+Na razie, w ramach jednego repozytorium, można po prostu pilnować rozdziału warstw i odpowiedzialności – co już jest robione poprawnie. Ten krok jest więc opcjonalny, do decyzji jeśli zajdzie potrzeba.
 
-## Szybki smoke-test (offline)
+### Zgodność z założeniami i dalsze cele
 
-```python
-import numpy as np
-from glitchlab.core.pipeline import normalize_preset, build_ctx, apply_pipeline
-from glitchlab.core.registry import available
+Przy proponowanych zmianach i rozszerzeniach należy **zachować kluczowe założenia architektury**, które dobrze się sprawdziły:  
+\- Każda nowa funkcjonalność powinna być implementowana tak, by **błędy nie destabilizowały** całej aplikacji (czyli dodając nowy panel czy narzędzie, zabezpieczyć go try/exceptem i ewentualnym komunikatem zamiast pozwolić wyjątkom propagować). Kontynuować ideę _fallbacku_ – np. jeśli nowy typ filtra nie ma panelu, niech automatycznie dostanie ParamForm (to już jest) lub analogicznie, jeśli nowy rodzaj danych w cache nie ma wizualizacji w HUD, niech HUD wyświetli go jako surowy tekst zamiast np. crashować.  
+\- **Diagnostyka i transparentność:** rozwijając core, warto nadal dodawać wpisy do cache dla nowych rzeczy. Jeśli wprowadzamy np. warstwy, w cache można zawrzeć dodatkowe klucze typu layer/1/out itd., a HUD może je wtedy pokazać w osobnym slocie lub sekwencyjnie. Jeżeli powstaną nowe metryki czy analizy (np. wykres rozkładu kolorów), najlepiej generować je w core/analysis i umieszczać w cache – zgodnie z zasadą, że _GUI jest czytnikiem cache od core_.  
+\- **Ergonomia GUI:** każde nowe okno, przycisk, narzędzie – powinno być dodane tak, by nie zaburzyć prostoty interfejsu. GlitchLab ma dość bogaty UI, ale wciąż logicznie podzielony (podgląd, panele, HUD). Np. dodając toolbox w viewport, upewnajmy się, że nie zasłoni on obrazu nadmiernie i że można go zwinąć. Dodając warstwy, może trzeba będzie zmienić nieco UI (np. panel warstw po lewej?). Warto przeprowadzać testy z użytkownikami (lub przynajmniej samemu oceniać na bieżąco UX).
 
-cfg = {
-  "version": 2,
-  "seed": 7,
-  "amplitude": {"kind":"none","strength":1.0},
-  "edge_mask": {"thresh":60,"dilate":0,"ksize":3},
-  "steps": [{"name": available()[0], "params": {}}]  # pierwszy dostępny filtr
-}
-cfg = normalize_preset(cfg)
+- **Autoimport i modułowość:** kontynuować mechanizmy automatycznego wykrywania komponentów. Jeśli pojawi się nowa kategoria (np. _analyzer_ – hipotetycznie moduły, które coś analizują offline), można wzorować się na panel_loader i filter registry, by wczytywać je dynamicznie. Dzięki temu architektura pozostanie otwarta na rozszerzenia _plug-and-play_, co było jednym z celów[\[4\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,minimalnym%20naruszeniem%20ju%C5%BC%20dzia%C5%82aj%C4%85cych%20komponent%C3%B3w).
+- **Wydajność vs. jakość:** Nowe funkcje (zwłaszcza warstwy, skomplikowane filtry) mogą obciążyć system. Warto profilować i ewentualnie wprowadzać optymalizacje (np. wykorzystać wielowątkowość lub wektoryzację numpy w nowych filtrach). Jednocześnie nie należy komplikować architektury przedwcześnie optymalizując – na pierwszym miejscu stawiamy utrzymanie czystego podziału na core i GUI.
 
-img = np.zeros((96,128,3), np.uint8) + 40
-ctx = build_ctx(img, seed=cfg.get("seed", 7), cfg=cfg)
-out = apply_pipeline(img, ctx, cfg["steps"], fail_fast=True, metrics=True)
+Reasumując, plan rozwoju zakłada najpierw **ustabilizowanie** i uporządkowanie obecnej wersji (co przygotuje grunt pod bezproblemowe dodawanie nowości), a następnie stopniowe wprowadzanie ulepszeń interfejsu i zupełnie nowych możliwości (zachowując filozofię projektu). Dzięki temu GlitchLab będzie mógł ewoluować, nie tracąc swojej stabilności i przejrzystości działania.
 
-print(out.shape, out.dtype)         # (96,128,3) uint8
-print(sorted(k for k in ctx.cache)) # sprawdź kanały HUD
-```
+## README – Instrukcja Użytkownika i Dewelopera
 
----
+Poniżej znajduje się zintegrowany **README projektu GlitchLab v4.5**, podsumowujący najważniejsze informacje: opis aplikacji, strukturę katalogów, architekturę Core/GUI, wnioski z audytu kodu, planowane kierunki rozwoju oraz instrukcje uruchomienia i wskazówki dla deweloperów. Ten rozdział może służyć jako dokumentacja dla nowych osób dołączających do projektu.
 
-## Rozszerzanie
+### Opis Projektu
 
-### Nowy filtr
+**GlitchLab** to zaawansowana aplikacja do tworzenia efektów typu _glitch art_ w kontrolowany sposób. Pozwala ona stosować sekwencje filtrów graficznych do obrazów oraz modyfikować parametry tych filtrów, aby generować rozmaite artefakty. Celem projektu jest nie tylko zabawa efektami wizualnymi, ale przede wszystkim dostarczenie narzędzia do **analizy** – dzięki wbudowanym metrykom i podglądom użytkownik może badać, jak poszczególne filtry wpływają na strukturę obrazu. Aplikacja cechuje się:
 
-```python
-from glitchlab.core.registry import register
-import numpy as np
+- **Modularnym interfejsem GUI** – stały układ z podglądem obrazu, panelami filtrów i telemetrią (HUD) zapewnia wygodną pracę i obserwację rezultatów w czasie rzeczywistym[\[1\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,i%20spe%C5%82nia%20za%C5%82o%C5%BCenie%20stabilnego%20interfejsu).
+- **Odpornością na błędy** – mechanizmy _fallback_ (awaryjne panele formularzy, obsługa wyjątków) sprawiają, że nawet wadliwy filtr czy panel nie zawiesi aplikacji[\[2\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,mog%C5%82a%20dalej%20dzia%C5%82a%C4%87%20pomimo%20b%C5%82%C4%99d%C3%B3w).
+- **Rozbudowaną diagnostyką** – wewnętrzny silnik zbiera metryki, obrazy pośrednie, widma częstotliwości i inne dane, które są prezentowane użytkownikowi na bieżąco w panelu HUD[\[30\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,minimalizuje%20trudno%C5%9B%C4%87%20analizowania%20dzia%C5%82ania%20filtr%C3%B3w).
+- **Łatwą rozszerzalnością** – architektura pozwala dodawać nowe filtry i panele bez modyfikacji istniejącego kodu (automatyczna detekcja pluginów)[\[4\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,minimalnym%20naruszeniem%20ju%C5%BC%20dzia%C5%82aj%C4%85cych%20komponent%C3%B3w), co czyni GlitchLab elastyczną platformą do eksperymentów.
 
-DEFAULTS = {"strength":1.0, "mask_key":None, "use_amp":1.0, "clamp":True}
-DOC = "Przykładowy filtr v2; pracuje w f32 [0..1], zwraca u8."
+### Struktura Katalogów i Modułów
 
-@register("my_filter", defaults=DEFAULTS, doc=DOC)
-def my_filter(img: np.ndarray, ctx, **p) -> np.ndarray:
-    # wewnątrz f32 [0,1]
-    x = img.astype(np.float32) / 255.0
-    strength = float(p.get("strength", 1.0))
-    amp = float(p.get("use_amp", 1.0))
-    mkey = p.get("mask_key")
-    m = None
-    if mkey and mkey in ctx.masks:
-        m = ctx.masks[mkey].astype(np.float32)
-        if m.shape != x.shape[:2]:
-            # tu zwykle resize do (H,W)
-            m = np.clip(m, 0, 1)
-    # przykładowy efekt: lekkie rozjaśnienie
-    eff = np.clip(x * (1.0 + strength*0.2*amp), 0, 1)
-    if m is not None:
-        eff = (1 - m[...,None]) * x + m[...,None] * eff
-    out = np.clip(eff, 0, 1)
-    ctx.cache["diag/my_filter/amp"] = amp
-    if m is not None:
-        ctx.cache["diag/my_filter/mask"] = m
-    return (out * 255.0 + 0.5).astype(np.uint8)
-```
+Projekt ma następującą strukturę (główne katalogi i pliki):
 
-### Nowy preset
+- **glitchlab/core/** – Warstwa Core (silnik filtrów, wersja 20). Kluczowe moduły:
+- registry.py – rejestr dostępnych filtrów (dekorator @register).
+- pipeline.py – wykonanie pipeline’u filtrów, gromadzenie metryk i wyników w ctx.cache.
+- graph.py – budowanie grafu (DAG) procesu filtracji, eksport do JSON.
+- mosaic.py – generowanie mozaik/metrycznych nakładek graficznych.
+- astmap.py – analiza AST kodu filtrów i projekcja na mozaikę.
+- metrics/ – implementacje metryk (podstawowe i porównawcze).  
+    _(Szczegóły w sekcji Architektura Core.)_
+- **glitchlab/gui/** – Warstwa GUI (interfejs użytkownika, wersja 4.5). Ważniejsze elementy:
+- app.py – główna klasa aplikacji (okno), inicjalizacja UI, pętla zdarzeń, EventBus, DockManager[\[5\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,bazowe%20i%20interfejs%20dla%20paneli).
+- docking.py – mechanizm odpinania i przypinania paneli (DockManager)[\[6\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Mechanizm%20Dokowania%20).
+- panel_loader.py – ładowanie dedykowanych paneli filtrów lub fallback formularzy[\[7\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,kontekstu%2C%20emisja%20zdarze%C5%84%20zmiany%20parametr%C3%B3w).
+- views/ – zakładki interfejsu: tab_filters.py, tab_general.py, tab_preset.py (panele: lista filtrów, ustawienia globalne, presety)[\[9\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,zapisywanie%2F%C5%82adowanie%20ustawie%C5%84%2C%20historia%20wykonanych%20krok%C3%B3w); oraz elementy dolne: hud.py (HUD – wyświetlanie telemetrii)[\[12\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,topic%20%60diag.log), statusbar.py, menu.py itp.
+- panels/ – dedykowane panele filtrów (jeden moduł na filtr, automatycznie importowane)[\[13\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,starsze%20panele); plus panels/base.py (bazowa logika paneli).
+- widgets/ – wspólne komponenty UI: image_canvas.py (widżet canvas do obrazu z zoomem)[\[14\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,Opcjonalna%20konsola%20diagnostyczna%2C%20nas%C5%82uchuj%C4%85ca%20zdarze%C5%84), canvas_container.py (kontener canvas + narzędzia, linijki), param_form.py (automatyczny formularz parametrów)[\[8\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=%60on_change%60.%20,ParamForm), diag_console.py (konsola logów)[\[15\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,topic%20%60diag.log), itd.  
+    _(Szczegóły w sekcji Architektura GUI.)_
+- **glitchlab/filters/** – Implementacje filtrów graficznych (każdy filtr w osobnym pliku, rejestrowany automatycznie) – np. block_mosh.py, depth_displace.py, spectral_shaper.py… Wszystkie spełniają API: func(img_u8, ctx, \*\*params) -> np.ndarray i używają mechanizmów core (maski, amplitude, rng z ctx).
+- **glitchlab/presets/** – Wbudowane presety (YAML) konfigurujące sekwencje filtrów. Można je ładować w GUI (zakładka Presets) lub użyć jako przykłady. Format **v2** zawiera pola: version, name, seed, amplitude, edge_mask oraz listę steps z filtrami i parametrami.
+- **glitchlab/analysis/** – Dodatkowe moduły analizy (metryki, różnice, operacje FFT) wspierające core.
+- **glitchlab/resources/** – Zasoby statyczne (ikony UI, obrazy testowe).
+- **glitchlab/tests/** – Skrypty testowe (smoke testy paneli, parser raportu PyCharm, itd.) – przydatne dla deweloperów do szybkiego sprawdzenia integralności systemu.
 
-Skorzystaj z **Prompt P1** (patrz **SYSTEM\_ARCHITECTURE.md** / **ARCHITECTURE.md**), a następnie zweryfikuj **Prompt P3** (walidacja + dry-run).
+### Architektura Systemu
 
-### Panele GUI
+**Core (v20)** – działa jak _silnik_ wykonujący filtry. Przyjmuje obraz wejściowy (w formacie numpy uint8 RGB) i preset (z listą kroków filtrów). Tworzy kontekst Ctx (zawierający obraz, maski, RNG itp.) i sekwencyjnie stosuje filtry z rejestru[\[19\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,AppState.cache). Każdy filtr może zapisywać dane do ctx.cache – po zakończeniu przetwarzania cache zawiera wszystkie istotne wyniki pośrednie (obrazy po filtrach, różnice, metryki, itp.). Core udostępnia funkcje API:  
+\- build_ctx(image, seed, cfg) -> ctx – przygotowuje kontekst dla zadanego obrazu i konfiguracji[\[19\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,AppState.cache).  
+\- apply_pipeline(image, ctx, steps) -> output_image – wykonuje listę kroków filtrów na obrazie, zwraca wynik końcowy; efekty uboczne (telemetria) są w ctx.cache.
 
-* Dodaj panel do `glitchlab/gui/panels/panel_<filter>.py`.
-* Pobierz `defaults/doc` z `registry.meta(name)`.
-* Emituj parametry jako dict → GUI odpala rerun; mapy diagnostyczne pokażą się automatycznie (klucze `diag/<filter>/...`).
+Core jest **jedynym miejscem** obliczania metryk i modyfikacji obrazu – GUI niczego nie przelicza na własną rękę, tylko wyświetla to, co otrzyma[\[29\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,nie%20oblicza%20ich%20samodzielnie). Dzięki temu wyniki są spójne i można łatwo je logować czy zapisywać.
 
----
+**GUI (v4.5)** – opiera się na bibliotece Tkinter i składa z kilku współpracujących komponentów:  
+\- **App + AppState:** klasa App tworzy wszystkie elementy interfejsu i zawiera centralny stan AppState[\[22\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,maski%20obszar%C3%B3w%20dla%20filtra). AppState trzyma aktualny obraz, bieżący preset, cache wyników z core oraz ewentualne maski. Komponenty UI mają referencję do AppState, ale nie modyfikują go bezpośrednio – zamiast tego komunikują się przez **EventBus**.  
+\- **EventBus:** mechanizm publikuj/subskrybuj zdarzenia wewnątrz GUI (zaimplementowany prosto jako klasa z listą subskrypcji). Kluczowe zdarzenia to wybór filtra, zmiana parametru, uruchomienie przetwarzania, zapis presetów itp.[\[24\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,%E2%80%93%20logi%20diagnostyczne). Pozwala to luźno połączyć np. zakładkę filtry z panelem – po wybraniu filtra event bus powiadamia panel loader, który tworzy panel.  
+\- **Panel loader i fallback:** przy zmianie filtra GUI dynamicznie importuje moduł panelu (jeśli istnieje). Jeśli nie znajdzie odpowiedniego panelu lub ten panel rzuci wyjątek przy inicjalizacji, system przełącza się w tryb awaryjny – generuje automatyczny **ParamForm** z polami dla parametrów filtra[\[8\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=%60on_change%60.%20,ParamForm)[\[27\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Obs%C5%82uga%20B%C5%82%C4%99d%C3%B3w%20i%20Wyj%C4%85tk%C3%B3w). Dzięki temu użytkownik **zawsze** ma możliwość kontrolować filtr, nawet jeśli dedykowany panel jest niedostępny (niska kruchość interfejsu).  
+\- **HUD:** panel diagnostyczny na dole okna zawierający trzy sloty. Po każdym uruchomieniu filtra, HUD odświeża się czytając dane z AppState.cache – pokazuje obrazy (np. wejście, wyjście, różnicę) lub liczby (metryki, statystyki) w zależności od zawartości cache[\[20\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Trzy%20sloty%20HUD%20wy%C5%9Bwietlaj%C4%85%20kluczowe,zgodnie%20z%20preferowan%C4%85%20list%C4%85%20kluczy). HUD obsługuje też specjalne tryby: np. potrafi rozpoznać, jeśli w cache jest klucz ast/json z danymi grafu, i umożliwić jego wizualizację (GraphView).  
+\- **Viewport (Canvas + Container):** lewa część UI to podgląd obrazu. Składa się z widżetu ImageCanvas osadzonego w CanvasContainer. Umożliwia to płynne powiększanie/oddalanie, scrollowanie obrazu oraz wyświetlanie pomocniczych elementów (siatki, linijki, celownik). CanvasContainer współpracuje z globalnym wyborem narzędzia (np. tryb przesuwania vs. tryb zaznaczania) poprzez zmienną tool_var. Jest gotowy na dalszą rozbudowę – np. dodanie interaktywnego zaznaczania ROI czy pomiarów.  
+\- **Zakładki i panele:** prawa strona UI to notebook z trzema zakładkami: **Filters** (wybór filtra, przycisk Apply, narzędzia testowe Probe/Reload), **General** (ustawienia globalne, np. parametry maski krawędzi wykorzystywane przez niektóre filtry) oraz **Presets** (zarządzanie presetami: zapisz/otwórz, lista ostatnio użytych). Wewnątrz zakładki Filters pojawia się dynamicznie panel wybranego filtra – albo dedykowany, albo formularz.
 
-## Maski i amplitude (praktyka)
+**Przepływ działania:** Użytkownik wybiera filtr → GUI emituje zdarzenie → panel zostaje załadowany → użytkownik ustawia parametry → klika Apply → GUI emituje zdarzenie uruchomienia → core wykonuje pipeline (to może zająć chwilę) → wyniki trafiają do AppState.cache → HUD i podgląd odświeżają się, pokazując rezultat[\[10\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=1.%20,Reload)[\[28\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=3.%20,Reload). Użytkownik może zapisać konfigurację jako preset YAML lub załadować inny preset – co spowoduje automatyczne przełączenie filtra i załadowanie odpowiednich parametrów.
 
-* **Maski**: grayscale (0..255) → \[0..1]; wczytywane w GUI; dostępne jako `ctx.masks["<key>"]`.
-* **Amplitude**: `linear_x/y`, `radial`, `perlin`, `mask`; zwykle mnoży siłę efektu (`use_amp`).
-* Dla stabilności zalecana baza **>0** (np. `0.25 + 0.75*A`), by uniknąć „dziur”.
+**Kontrakty i formaty danych:** Komunikacja między GUI a Core opiera się na prostym kontrakcie:  
+\- Obraz wejściowy jest przekazywany jako numpy.ndarray dtype=uint8 w formacie RGB[\[19\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,AppState.cache) (Core ewentualnie konwertuje go do float32 wewnętrznie).  
+\- Parametry filtrów są przekazywane jako słowniki (np. odczytane z preset YAML lub z formularza GUI).  
+\- Rezultaty filtrów są zwracane poprzez ctx.cache (słownik) i tam GUI ich szuka. Np. HUD wie, że obrazy są pod kluczami stage/i/out, różnice pod stage/i/diff itd., więc nie musi niczego liczyć – po prostu wyświetla te dane[\[29\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,nie%20oblicza%20ich%20samodzielnie).  
+\- Wszelkie dodatkowe informacje (np. logi diagnostyczne) są przekazywane jako zdarzenia diag.log lub wpisy w cache (np. filtry mogą dodać diag/&lt;nazwa_filtra&gt;/... do cache z własnymi specjalnymi danymi).
 
----
+**Odporność na błędy:** Aplikacja jest tak zaprojektowana, by błąd w jednym miejscu nie przekreślał całej sesji. Przykłady:  
+\- Jeśli filtr rzuci wyjątek w trakcie działania, wynik nie zostanie nadpisany – HUD zachowa poprzednie dane, a użytkownik zobaczy komunikat błędu zamiast np. pustego ekranu[\[31\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,dla%20deweloper%C3%B3w).  
+\- Jeśli panel UI ma błąd (np. dzielenie przez zero przy obliczaniu czegoś na suwaku), aplikacja złapie wyjątek i przełączy panel na tryb awaryjny lub pokaże komunikat, zamiast się zamknąć.  
+\- Lista filtrów jest generowana dynamicznie. Gdyby jakiś moduł filtra nie dał się zaimportować (błąd składni, brak zależności), zostanie pominięty przy ładowaniu (w logu konsoli diagnozującej pojawi się komunikat, ale reszta filtrów będzie dostępna).
 
-## Rozwiązywanie problemów
+**Wydajność:** Core wykonuje operacje głównie za pomocą biblioteki **NumPy**, unikając cięższych zależności (brak OpenCV, brak SciPy – by utrzymać lekkość). Mimo to, pewne filtry mogą być kosztowne obliczeniowo (np. wiele iteracji lub operacje FFT). Aplikacja stara się pozostawać responsywna: PipelineRunner może działać w osobnym wątku (w zależności od implementacji, do sprawdzenia), a GUI w tym czasie wyświetla wskaźnik w status barze. Po stronie GUI wprowadzono udogodnienia jak _debounce_ – przy szybkim kręceniu suwakiem parametru filtr nie będzie uruchamiany dla każdej zmiany, tylko z pewnym opóźnieniem, by zapobiec zalaniu kolejki zdarzeń[\[34\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,1%2F2%2F3).
 
-* **„Unknown filter '…'”** — upewnij się, że moduł filtra jest jawnie importowany w `filters/__init__.py` i/lub alias istnieje w rejestrze.
-* **„Maska nie w HUD”** — sprawdź rozmiar maski (musi równać się obrazowi) i klucz w `ctx.masks`.
-* **„Brak efektu”** — podnieś `strength/p/mix` lub `use_amp`; sprawdź mapy diagnostyczne.
+### Audyt Kodu – Jakość i Problemy
 
----
+Kod GlitchLab v4.5 został przeanalizowany pod kątem jakości (inspekcje PyCharm, testy). Ogólnie, projekt prezentuje **dobry poziom jakości**, jednak zidentyfikowano kilka obszarów do poprawy:
 
-## Licencja i autorzy
+- **Ostrzeżenia typowe:** Niektóre wywołania funkcji przekazują argumenty spoza specyfikacji – wymaga to korekty, by uniknąć potencjalnych błędów. Przykładem była niezgodność parametru menu przy tworzeniu okna – warto to naprawić, aby kod był zgodny z API tkinter (lub odpowiedniej klasy).
+- **Adnotacje typów:** Wiele fragmentów kodu ignoruje błędy mypy (# type: ignore). W miarę możliwości należy to ograniczyć, uzupełniając poprawne typy zmiennych i parametrów. Ułatwi to wychwycenie niezgodności w przyszłości i zrozumienie kodu przez nowych deweloperów.
+- **Inicjalizacja atrybutów:** Sporo pól obiektów jest tworzonych w metodach innych niż \__init__(zwłaszcza w kodzie UI). Chociaż działa to poprawnie (bo metody inicjalizujące są wywoływane zaraz po konstruktorze), utrudnia to czytelność. Postulatem jest przeniesienie deklaracji atrybutów do \__init__ dla klarowności.
+- **Struktura kodu:** W kilku miejscach klasy i funkcje są zagnieżdżone w jednym pliku (np. app.py zawiera definicje kilku klas naraz). Podział tego na mniejsze moduły poprawiłby organizację.
+- **Styl i konwencje:** Projekt w większości trzyma się PEP8 i dobrych praktyk, ale zauważono drobne rzeczy (np. metody nieużywające self – można je oznaczyć jako @staticmethod dla jasności). To kosmetyka, ale warto się tym zająć przy okazji innych zmian.
 
-Open Source — D2J3 aka Cha0s (for test and fun)
+**Stabilność:** Mimo powyższych uwag, dzięki mechanizmom obronnym, aplikacja jest stabilna – żaden z wykrytych problemów nie powoduje awarii przy typowym użyciu. Naprawa ich przyniesie jednak korzyści w długim terminie, zapobiegając błędom w przyszłości i ułatwiając implementację nowych funkcji.
 
----
+**Wpływ na rozwijalność:** Refaktoryzacja wskazanych elementów sprawi, że kod będzie **łatwiejszy w utrzymaniu i rozbudowie**. Nowi deweloperzy szybciej zrozumieją strukturę (gdy atrybuty będą jasno zadeklarowane, a moduły podzielone logicznie), a narzędzia statyczne staną się bardziej użyteczne (mniej ignorowanych ostrzeżeń). To szczególnie ważne, biorąc pod uwagę plany rozszerzeń – lepiej wejść w kolejny etap z czystym kodem niż mnożyć złożoność na chwiejnej podstawie.
 
-## Dalsza lektura
-* [**ARCHITECTURE**](ARCHITECTURE.md)
-* [**GUI ARCHITECTURE**](gui/ARCHITECTURE.md)
-* [**CORE ARCHITECTURE**](core/ARCHITECTURE.md)
-* [**ANALYSIS**](analysis/analysis.md)
+### Plan Refaktoryzacji i Rozwoju
 
+Bazując na wynikach audytu, proponujemy plan działań:
+
+**Krótkoterminowe (refaktoryzacja):**  
+\- Poprawić wyłapane niezgodności w kodzie (argumenty funkcji, nieużywane zmienne, itp.).  
+\- Wprowadzić inicjalizację kluczowych atrybutów w konstruktorach klas.  
+\- Podzielić monolityczne moduły (szczególnie gui/app.py) na mniejsze, lepiej nazwane (np. przenieść EventBus do gui/event_bus.py).  
+\- Uporządkować **adnotacje typów** – usunąć zbędne type: ignore przez dostosowanie sygnatur.  
+\- Zapewnić, że mechanizmy auto-importu i fallbacków działają po zmianach (przetestować Probe, Reload, ładowanie starych presetów).
+
+**Średnioterminowe (architektura i UX):**  
+\- Wprowadzić **pasek narzędzi (toolbox)** do okna podglądu z opcjami: pan, zoom, zaznaczanie ROI, linijka, pipeta – korzystając z istniejących ikon.  
+\- Dodać możliwość zapisu/odczytu **układu paneli** (dock/undock) między sesjami, np. zapis w pliku konfiguracyjnym.  
+\- Udoskonalić zarządzanie presetami: np. opcja „Import preset…” by załadować plik spoza domyślnego folderu, czy edytor presetów (to drugie może być nadmiarowe – YAML jest dość czytelny).  
+\- Rozważyć przeniesienie logiki presetów do core (aby można było korzystać z presetów bez GUI).  
+\- Zwiększyć konfigurowalność HUD: np. pozwolić użytkownikowi wybrać, jakie dane mają priorytet w slotach (można to zrobić poprzez plik YAML konfiguracyjny lub UI).
+
+**Długoterminowe (nowe funkcje):**  
+\- Eksperymentować z **warstwami obrazów**: umożliwić załadowanie dodatkowego obrazu i zastosowanie filtrów łączących dwa wejścia (np. maskowanie jednym obrazem drugiego, efekty kompozytowe). To wymaga zmian w formacie presetów i pipeline – można najpierw wprowadzić to na poziomie GUI prototypowo (drugi obraz w AppState, wybór w panelu filtra), a docelowo rozszerzyć core.  
+\- Dodawać kolejne **filtry** inspirowane technikami glitch art (np. filtry generatywne, losowe deformacje, filtrowanie przez sieci neuronowe – jeśli ma to sens w tym projekcie). Każdy nowy filtr to osobny moduł + ewentualnie dedykowany panel GUI. Dzięki architekturze pluginów ich dodanie nie narusza istniejącego kodu, co chcemy utrzymać.  
+\- Ewentualnie rozważyć integrację z innymi narzędziami: np. eksport wyników do pliku PDF/raportu (można wykorzystać istniejący analysis/exporters.py).  
+\- Jeśli społeczność użytkowników się pojawi: funkcja **udostępniania presetów** (np. integracja z jakimś repo online) – ale to raczej poza zakresem podstawowym.
+
+**Podział na komponenty:**  
+\- W dłuższej perspektywie, można podzielić GlitchLab na niezależne komponenty: **Core** jako biblioteka, **GUI** jako aplikacja wykorzystująca Core, ewentualnie **CLI** (interfejs konsolowy do batch processingu) jako kolejny front-end. Na razie jednak projekt jest rozwijany jako całość, co jest OK – strukturę katalogów wewnątrz repo już to odzwierciedla.
+
+Przy wdrażaniu nowych funkcji kluczowe jest, by **nie zepsuć** nic z obecnych zalet: interfejs ma zostać stabilny, mechanizmy fallback mają działać też dla nowych paneli, a diagnostyka (HUD) powinna obejmować nowe rodzaje danych (np. jeśli wprowadzimy warstwy, może sloty HUD będą pętlować przez stage/0/, stage1/ itd.). Dlatego rozwój będzie iteracyjny – każda większa zmiana powinna być testowana pod kątem integracji z resztą systemu. Dokument **Architecture.md** (który czytasz) będzie aktualizowany na bieżąco, aby odzwierciedlać zmiany i nowe decyzje projektowe.
+
+### Instrukcja Uruchomienia
+
+Aby uruchomić GlitchLab v4.5 lokalnie, należy:
+
+1. **Wymagania:** Zainstaluj środowisko Python (wersja 3.9+ zalecana). Aplikacja korzysta z bibliotek: numpy, Pillow (PIL), oraz tkinter (wbudowany w większość dystrybucji Pythona) – upewnij się, że są dostępne.
+2. **Pobranie kodu:** Uzyskaj źródła GlitchLab (np. klon repozytorium z Git).
+3. **Uruchomienie GUI:** W katalogu projektu wykonaj:  
+
+- python -m glitchlab.gui.app
+- lub alternatywnie:  
+
+- python glitchlab/gui/app.py
+- Spowoduje to otwarcie okna aplikacji. Na konsoli w terminalu mogą pojawiać się logi diagnostyczne (np. informacje o pomijanych modułach, jeśli coś się nie załaduje).
+
+1. **Załadowanie obrazu:** Po uruchomieniu, wybierz w menu **File -> Open Image...** i wskaż obraz JPEG/PNG do przetworzenia. Załadowany obraz pojawi się w lewej części okna.
+2. **Wybór filtra:** Przejdź do zakładki **Filters** (prawa strona) i z listy rozwijanej wybierz jeden z dostępnych filtrów. Powinien załadować się panel z kontrolkami dla wybranego filtra. Jeśli filtr nie ma swojego panelu, zobaczysz uniwersalny formularz z suwakami/polami dla wszystkich jego parametrów.
+3. **Ustawienia globalne:** W zakładce **General** możesz ustawić parametry globalne, takie jak **Amplitude** (wpływa na intensywność glitchy – wiele filtrów ma opcję _use_amp_ by korzystać z tej wartości) czy **Edge Mask** (maskowanie efektu do krawędzi wykrytych w obrazie). Te ustawienia obowiązują niezależnie od wybranego filtra.
+4. **Zastosowanie filtra:** Wróć do zakładki Filters, kliknij **Apply**. Aplikacja uruchomi pipeline core: zastosuje wybrany filtr do obrazu. Jeśli w presetcie były zdefiniowane wiele kroków, zastosuje je kolejno (w przypadku wybrania filtra ręcznie, mamy 1 krok). Po zakończeniu, podgląd obrazu zostanie zaktualizowany, a w dolnym panelu HUD pojawią się dane diagnostyczne.
+5. **Analiza wyniku:** Spójrz na HUD – domyślnie: lewy slot pokazuje obraz wejściowy lub jego metryki, środkowy slot obraz wyjściowy lub widmo, prawy slot różnicę między obrazem sprzed i po filtrze wraz z ewentualnymi statystykami zmiany[\[20\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Trzy%20sloty%20HUD%20wy%C5%9Bwietlaj%C4%85%20kluczowe,zgodnie%20z%20preferowan%C4%85%20list%C4%85%20kluczy). Możesz kliknąć **View** przy danym slocie, aby zobaczyć obraz w pełnym rozmiarze, lub **Copy key**, aby skopiować nazwę klucza (np. stage/0/diff) – przydatne do zaawansowanych analiz czy logów.
+6. **Eksperymentowanie:** Zmień parametry filtra (suwaki, pola) – zauważ, że nie uruchamia to filtra natychmiast, musisz ponownie kliknąć **Apply** (to jest celowe, aby umożliwić zmianę wielu parametrów na raz bez opóźnień). Możesz także użyć przycisku **Probe** (jeśli dostępny) – spróbuje on wykonać test filtracji w trybie diagnostycznym (niektóre panele mają wbudowaną akcję pod _Probe_). Przycisk **Reload** jest przydatny podczas developmentu paneli – przeładowuje moduły paneli z dysku (ignorując cache importu), co pozwala odświeżyć UI panelu bez restartu aplikacji.
+7. **Zapisywanie wyników:** Jeśli chcesz zapisać wygenerowany _glitch_ – wybierz **File -> Save Image...** (zapisuje aktualny obraz z podglądu). Jeśli chcesz zapisać cały preset ustawień – przejdź do zakładki **Presets**, wpisz nazwę i kliknij **Save Preset**. Utworzy to plik YAML w folderze glitchlab/presets/ (lub innym wskazanym), który możesz później wczytać klikając **Load Preset**.
+
+### Struktura Presetów YAML (v2)
+
+Format presetów używany w GlitchLab v4.5 to **YAML version 2**. Przykładowy plik presetu wygląda następująco:  
+
+version: 2  
+name: "Example Glitch Preset"  
+seed: 123 # ziarno losowe dla powtarzalności efektu  
+amplitude: # globalne ustawienia "mocy" glitchy  
+kind: linear_y # typ funkcji amplitudy (np. linear_y – rośnie w dół obrazu)  
+strength: 0.8 # siła maksymalna efektu  
+edge_mask: # globalne ustawienia maski krawędzi (jeśli filtry korzystają)  
+thresh: 50 # próg detekcji krawędzi  
+dilate: 2 # rozszerzenie maski  
+ksize: 5 # rozmiar filtru krawędzi  
+steps:  
+\- name: block_mosh # pierwszy filtr: nazwa (identyczna jak z rejestru filtrów)  
+params:  
+blocks: 8 # parametry filtra (tu: wielkość bloków w glitchu mozaikowym)  
+severity: 0.5 # intensywność efektu w tym filtrze  
+use_amp: true # ten filtr korzysta z globalnej amplitude  
+\- name: spectral_shaper # drugi filtr zastosowany po pierwszym  
+params:  
+mode: "ring" # (każdy filtr ma własny zestaw parametrów)  
+low: 0.05  
+high: 0.2  
+boost: 2.0  
+clamp: true # np. clamp – przycięcie wartości poza \[0,255\]
+
+Kilka uwag:  
+\- Pole **version: 2** jest wymagane i informuje program, jak interpretować plik. Ewentualne starsze wersje są konwertowane przez warstwę core.  
+\- **seed** ustawia ziarno generatora losowego – filtry wykorzystujące losowość będą dawały powtarzalne wyniki przy tym samym seed (chyba że użytkownik wyłączy deterministykę).  
+\- **amplitude** i **edge_mask** to ustawienia globalne. Wiele filtrów ma parametry use_amp lub mask_key, które decydują, czy używać tych globalnych ustawień. Np. w powyższym presetcie filtr _block_mosh_ ma use_amp: true, więc jego efekt będzie skalowany według pola amplitude (0.8); natomiast filtr _spectral_shaper_ nie ma parametru use_amp (więc ignoruje amplitude).  
+\- **steps:** to lista kroków – kolejność ma znaczenie (pierwszy na liście filtr stosowany jest pierwszy do obrazu). Każdy krok ma nazwę filtra (**name**) i słownik parametrów (**params**). Nazwy filtrów muszą odpowiadać tym z rejestru (można je podejrzeć w GUI na liście filtrów lub w glitchlab/filters/\__init_\_.py). Parametry zależą od filtra – jeśli brak jakiegoś w pliku, zostanie użyta wartość domyślna zdefiniowana w kodzie filtra.
+
+Zapisywane presety v2 starają się być **czytelne** – YAML jest intuicyjny, a nazwy parametrów opisowe. Dzięki temu użytkownicy mogą ręcznie edytować presety w razie potrzeby (choć zalecane jest robienie tego poprzez interfejs, by uniknąć literówek).
+
+**Ładowanie presetów:** W GUI, po wybraniu pliku preset, system:  
+\- Wczytuje YAML do słownika,  
+\- Sprawdza wersję (musi być 2 – jeśli inna, próbuję zaktualizować lub zgłasza błąd),  
+\- Normalizuje preset (core uzupełnia brakujące pola domyślnymi, przez normalize_preset),  
+\- Ustawia AppState.preset i emituje zdarzenie wyboru filtra dla pierwszego kroku (aby panel się przeładował). Panele filtrów kolejnych kroków nie są jednocześnie widoczne – użytkownik przechodzi do nich klikając _Apply_ iteracyjnie lub może przeglądać historię w zakładce Presets.
+
+**Zapis presetów:** Gdy użytkownik kliknie Save, bieżący AppState.preset (który jest budowany na podstawie aktualnie ustawionych wartości w GUI) zostaje wyeksportowany do YAML. System upewnia się, że ma version: 2 oraz dołącza wszystkie parametry (nawet jeśli są domyślne, aby zapis był kompletny).
+
+### Wskazówki dla Deweloperów
+
+Jeśli planujesz rozwijać GlitchLab – dodawać nowe filtry, panele lub inne rozszerzenia – oto garść zaleceń i informacji, które ułatwią Ci start w kodzie:
+
+**Dodawanie nowego filtra (Core):**  
+\- Stwórz nowy plik w katalogu glitchlab/filters/, nazwij go adekwatnie do efektu, np. my_effect.py. Wewnątrz zdefiniuj funkcję filtra, np.:  
+
+from glitchlab.core.registry import register  
+import numpy as np  
+<br/>@register("my_effect")  
+def my_effect(img_u8: np.ndarray, ctx, intensity: float = 1.0) -> np.ndarray:  
+"""Krótki opis co robi filtr."""  
+img = img_u8.astype(np.float32) / 255.0 # konwersja do \[0,1\] float  
+\# ... \[tu manipulacje na img\] ...  
+output = (img \* 255.0).clip(0, 255).astype(np.uint8)  
+return output
+
+Ważne: użyj dekoratora @register("unikalna_nazwa") – nazwa powinna być unikalna w skali całego systemu i opisowa. Jeśli dekoratorowi nie podasz nazwy, system sam wygeneruje nazwę na podstawie funkcji, ale jawna nazwa jest czytelniejsza.  
+\- Funkcja filtra powinna przyjmować obraz jako np.ndarray (H,W,3), kontekst ctx (możesz z niego czytać np. ctx.mask – domyślną maskę ROI, ctx.rng – generator losowy, ctx.cache – schowek na wyniki diagnostyczne) oraz dowolne parametry ze **słowami kluczowymi** (ważne: parametry pozycyjne nie zadziałają, bo pipeline wywołuje funkcję przekazując parametry jako **kwargs**).  
+\- W ciele funkcji zaimplementuj efekt. Staraj się operować wektorowo (NumPy) zamiast pętli Pythona dla wydajności. Jeżeli Twój filtr potrzebuje parametru globalnego amplitude lub maski, **niech ma parametry** use_amp: bool = False i/lub mask_key: str = "" – core rozumie te nazwy i uzupełni je, a także ustawi ctx.mask jeśli mask_key jest podane. Przykład użycia:
+
+if mask_key:  
+mask = ctx.masks.get(mask_key) # maska to tablica numpy 0/1  
+if mask is not None:  
+img = img \* mask # przykładowo, zastosuj efekt tylko tam gdzie maska==1
+
+\- Jeśli filtr wylicza jakieś metryki własne lub obrazy pomocnicze, umieść je w ctx.cache. Np.:
+
+ctx.cache\["diag/my_effect/histogram"\] = np.histogram(img, bins=10)
+
+W HUD póki co takie rzeczy nie pokażą się automatycznie (chyba że dopiszesz obsługę), ale logi diag można zobaczyć w konsoli diagnostycznej lub pliku wynikowym. To jednak głównie dla Twoich testów – klucze ze słowem diag/ są pomijane w standardowym HUD.
+
+- Po napisaniu filtra, uruchom aplikację – powinien automatycznie pojawić się na liście filtrów (nazwą będzie to, co podałeś w @register). Przetestuj go na przykładowym obrazie. Jeśli filtr rzuci wyjątek, zobaczysz w konsoli informację, a GUI pokaże alert – popraw kod i spróbuj ponownie (możesz użyć przycisku Reload w GUI po poprawce kodu filtra, aby nie restartować całej aplikacji).
+
+**Dodawanie nowego panelu GUI (dedykowany panel filtra):**  
+\- Jeśli Twój filtr jest bardziej skomplikowany i chcesz dla niego własnego UI zamiast automatycznego formularza, dodaj nowy plik w glitchlab/gui/panels/, nazwij go np. panel_my_effect.py **lub** my_effect_panel.py (obie konwencje są obsługiwane[\[36\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,starsze%20panele)).  
+\- W tym module zaimportuj potrzebne rzeczy z tkinter (tk, ttk) oraz klasę bazową panelu: from glitchlab.gui.panel_base import PanelBase, PanelContext.  
+\- Zdefiniuj klasę Panel (dokładnie taką nazwę – loader będzie jej szukał w module) dziedziczącą po PanelBase lub ttk.Frame. Zalecane jest PanelBase ponieważ zapewnia pewne udogodnienia. Konstruktor powinien przyjmować ctx: PanelContext oraz **być wywołany** w stylu:  
+
+class Panel(PanelBase):  
+def \__init_\_(self, ctx: PanelContext):  
+super().\__init_\_(ctx)  
+self.ctx = ctx  
+\# tu buduj UI panelu
+
+PanelContext przekazuje różne dane: ctx.app_state (odniesienie do AppState, można podejrzeć np. bieżący obraz czy maski), ctx.defaults (słownik domyślnych wartości parametrów filtra), ctx.on_change (callback, który należy wywołać gdy zmieni się parametr, żeby odnotować zmianę).  
+\- Zbuduj interfejs: dodaj kontrolki (Label, Scale, Checkbutton etc.) odpowiadające parametrom Twojego filtra. Dla każdej kontrolki ustaw jej wartość początkową na wartość z ctx.defaults – kontekst zapewnia domyślne parametry wczytane np. z presetu. Przykład:  
+
+val = tk.DoubleVar(value=ctx.defaults.get("intensity", 1.0))  
+scale = ttk.Scale(self, from_=0.0, to=1.0, variable=val, command=lambda v: ctx.on_change("intensity", float(v)))  
+scale.pack()
+
+Tutaj tworzymy suwak od 0 do 1 dla parametru intensity. Używamy ctx.on_change("intensity", value) – to powiadomi system, że zmienił się parametr intensity w presetcie (spowoduje to np. odblokowanie przycisku Apply lub zapis do historii zmian).  
+\- Jeśli panel potrzebuje reakcji na jakieś zdarzenia (np. użytkownik kliknął przycisk, żeby wywołać jakąś akcję diagnostyczną), możesz skorzystać z ctx.bus (EventBus) – np. ctx.bus.publish("diag.log", "Test message") wyśle wiadomość do konsoli diagnostycznej. Możesz też wywołać bezpośrednio pewne rzeczy z AppState, ale lepiej trzymać się zdarzeń.  
+\- Po zbudowaniu UI, warto zaimplementować metodę reset(self) jeśli Twój panel powinien jakoś reagować na ponowne wybranie filtra (PanelBase może wywołać reset gdy np. użytkownik kliknie Reload panelu). Często wystarczy pass.  
+\- (Opcjonalnie) Zaimplementuj metodę probe(self) – będzie wywołana, gdy użytkownik kliknie przycisk _Probe_. Tu możesz np. wykonać szybkie przeliczenie czegoś bez faktycznego stosowania filtra. Np. panel może wygenerować i wyświetlić w HUD jakąś charakterystykę filtra. Jeśli nie zaimplementujesz probe, przycisk _Probe_ może być niewidoczny lub nieaktywny.  
+\- Zarejestruj ewentualnie Twój panel, jeśli używasz mechanizmu aliasów (to raczej dla starszych paneli – np. jeśli nowy panel ma zastąpić stary). Zobacz panels/base.py jak to działa, ale generalnie nie musisz tego ruszać dla nowych paneli.  
+\- Uruchom aplikację, wybierz filtr – Twój panel powinien się pojawić. Sprawdź, czy wartości domyślne się zgadzają, czy zmiany parametrów trafiają do ctx.defaults (po kliknięciu Apply, pipeline powinien użyć nowych wartości). Debugowanie panelu możesz prowadzić np. poprzez print (wyświetlą się w konsoli) lub wykorzystując diag.log.
+
+**Dodawanie nowego presetu:**  
+\- Najprościej: uruchom aplikację, skonfiguruj filtry i parametry jak chcesz, potem w zakładce Presets kliknij **Save Preset** i podaj nazwę pliku (np. my_preset.yaml). Zapisze on się do glitchlab/presets/. Możesz ten plik później edytować ręcznie jeśli znasz YAML.  
+\- Alternatywnie, stwórz plik YAML ręcznie wzorując się na istniejących w glitchlab/presets/. Pamiętaj o version: 2. Umieść go w tym folderze lub innym. W aplikacji kliknij **Load Preset** i wybierz swój plik, żeby przetestować. Jeśli pojawią się błędy przy wczytywaniu, sprawdź konsolę – core powinien wypisać, czego brakuje (np. literówka w nazwie filtra, parametr który nie istnieje dla danego filtra, itp.).  
+\- Gdy Twój preset działa, możesz go dodać do repozytorium, żeby inni mogli korzystać. Warto też dopisać do niego krótki opis (pole name może mieć człon opisowy).
+
+**Najlepsze praktyki:**  
+\- Staraj się utrzymywać rozdział na warstwy: logikę do **core**, interakcję do **GUI**. Nie wywołuj funkcji tkinter z poziomu core i odwrotnie – komunikacja powinna iść przez AppState i EventBus.  
+\- Wykorzystuj istniejące mechanizmy: np. jeśli Twój filtr generuje ciekawy artefakt, dodaj go do ctx.cache – może w przyszłości zrobimy panel który to pokaże.  
+\- Testuj swoje zmiany. Do szybkiego sprawdzenia paneli użyj tests/panels_smoke.py (uruchom go, jeśli kończy się bez wyjątku, to znaczy że wszystkie panele dają się zaimportować i stworzyć).  
+\- Dokumentuj: dodaj docstringi do swoich filtrów i paneli. Projekt jest częściowo dokumentowany po polsku, więc możesz pisać docstring w języku polskim dla spójności (lub po angielsku, ważne by przekazać intencję).  
+\- Jeśli Twój kod korzysta z zewnętrznych zależności (staramy się unikać, ale np. może chcesz dodać filtr wykorzystujący bibliotekę scipy), upewnij się, że ich brak nie wysadzi aplikacji. Umieść import w bloku try/except i obsłuż to – np. jeśli brak biblioteki, filtr może nie działać, ale reszta aplikacji powinna. Ewentualnie zgłoś to w README.
+
+**Wkład w projekt:**  
+\- Jeśli projekt jest na GitHub, przestrzegaj stylu commitów i konwencji (np. prefix \[core\], \[gui\] w opisach commitów).  
+\- Dyskutuj zmiany architektoniczne, otwieraj issues jeśli planujesz duże refaktory – warto synchronizować się z innymi deweloperami.  
+\- Pamiętaj o aktualizacji dokumentacji (README, Architecture.md) kiedy dodasz większą funkcję lub zmienisz zachowanie istniejących – to pomaga utrzymać spójność wiedzy o projekcie.
+
+GlitchLab v4.5 stanowi solidną bazę do dalszych eksperymentów z _glitchami_. Dzięki czystej architekturze i licznym zabezpieczeniom, możesz śmiało dodawać nowe pomysły nie obawiając się, że coś łatwo zepsujesz – w razie czego mechanizmy fallback i diagnostyczne pomogą Ci namierzyć problem bez frustracji. Powodzenia w rozwijaniu projektu i tworzeniu niesamowitych efektów!
+
+[\[1\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,i%20spe%C5%82nia%20za%C5%82o%C5%BCenie%20stabilnego%20interfejsu) [\[2\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,mog%C5%82a%20dalej%20dzia%C5%82a%C4%87%20pomimo%20b%C5%82%C4%99d%C3%B3w) [\[3\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,dost%C4%99pne%2C%20co%20minimalizuje%20trudno%C5%9B%C4%87%20analizowania) [\[4\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,minimalnym%20naruszeniem%20ju%C5%BC%20dzia%C5%82aj%C4%85cych%20komponent%C3%B3w) [\[5\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,bazowe%20i%20interfejs%20dla%20paneli) [\[6\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Mechanizm%20Dokowania%20) [\[7\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,kontekstu%2C%20emisja%20zdarze%C5%84%20zmiany%20parametr%C3%B3w) [\[8\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=%60on_change%60.%20,ParamForm) [\[9\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,zapisywanie%2F%C5%82adowanie%20ustawie%C5%84%2C%20historia%20wykonanych%20krok%C3%B3w) [\[10\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=1.%20,Reload) [\[11\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,zapisywanie%2F%C5%82adowanie%20ustawie%C5%84%2C%20historia%20wykonanych%20krok%C3%B3w) [\[12\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,topic%20%60diag.log) [\[13\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,starsze%20panele) [\[14\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,Opcjonalna%20konsola%20diagnostyczna%2C%20nas%C5%82uchuj%C4%85ca%20zdarze%C5%84) [\[15\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,topic%20%60diag.log) [\[16\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,Manualne%20testowanie%20interfejsu) [\[17\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,Manualne%20testowanie%20interfejsu) [\[18\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=_Decyzje%20projektowe_%3A%20Taka%20struktura%20pozwala,aplikacji%20a%20specyficznymi%20panelami%20filtr%C3%B3w) [\[19\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,AppState.cache) [\[20\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Trzy%20sloty%20HUD%20wy%C5%9Bwietlaj%C4%85%20kluczowe,zgodnie%20z%20preferowan%C4%85%20list%C4%85%20kluczy) [\[21\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Specjalne%20widoki%3A%20,dla%20mozaik%20i%20graf%C3%B3w%20AST) [\[22\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,maski%20obszar%C3%B3w%20dla%20filtra) [\[23\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,nie%20oblicza%20ich%20samodzielnie) [\[24\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,%E2%80%93%20logi%20diagnostyczne) [\[25\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,%E2%80%93%20logi%20diagnostyczne) [\[26\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,%E2%80%93%20logi%20diagnostyczne) [\[27\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Obs%C5%82uga%20B%C5%82%C4%99d%C3%B3w%20i%20Wyj%C4%85tk%C3%B3w) [\[28\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=3.%20,Reload) [\[29\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,nie%20oblicza%20ich%20samodzielnie) [\[30\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,minimalizuje%20trudno%C5%9B%C4%87%20analizowania%20dzia%C5%82ania%20filtr%C3%B3w) [\[31\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,dla%20deweloper%C3%B3w) [\[32\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,dla%20deweloper%C3%B3w) [\[33\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=Wydajno%C5%9B%C4%87%20i%20Ergonomia) [\[34\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,1%2F2%2F3) [\[35\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,dla%20zachowania%20uk%C5%82adu%20mi%C4%99dzy%20sesjami) [\[36\]](file://file-FBu8D3hUTFJrvHXtaBCNQv#:~:text=,starsze%20panele) ARCHITECTURE.md
+
+file://file-FBu8D3hUTFJrvHXtaBCNQv

@@ -1,0 +1,340 @@
+    diff --git a/glitchlab/gui/services/compositor.py b/glitchlab/gui/services/compositor.py
+    new file mode 100644
+    index 0000000..1111111
+    --- /dev/null
+    +++ b/glitchlab/gui/services/compositor.py
+    @@
+    +# glitchlab/gui/services/compositor.py
++# Pure numpy compositor for layer blending (2D RGB uint8).
++from __future__ import annotations
++from typing import Optional, Literal
++import numpy as np
++
++BlendMode = Literal["normal","multiply","screen","overlay","add","subtract","darken","lighten"]
++
++def _to_float(img_u8: np.ndarray) -> np.ndarray:
++    if img_u8.dtype != np.uint8:
++        raise TypeError(f"Expected uint8 image, got {img_u8.dtype}")
++    if img_u8.ndim != 3 or img_u8.shape[2] != 3:
++        raise ValueError(f"Expected (H,W,3) RGB, got {img_u8.shape}")
++    return img_u8.astype(np.float32) / 255.0
++
++def _to_u8(img_f: np.ndarray) -> np.ndarray:
++    return np.clip(img_f * 255.0 + 0.5, 0, 255).astype(np.uint8)
++
++def _apply_blend(base: np.ndarray, top: np.ndarray, mode: BlendMode) -> np.ndarray:
++    # base/top: float32 [0,1], shape (H,W,3)
++    if mode == "normal":
++        return top
++    if mode == "multiply":
++        return base * top
++    if mode == "screen":
++        return 1.0 - (1.0 - base) * (1.0 - top)
++    if mode == "overlay":
++        mask = base <= 0.5
++        lo = 2.0 * base * top
++        hi = 1.0 - 2.0 * (1.0 - base) * (1.0 - top)
++        return np.where(mask, lo, hi)
++    if mode == "add":
++        return np.clip(base + top, 0.0, 1.0)
++    if mode == "subtract":
++        return np.clip(base - top, 0.0, 1.0)
++    if mode == "darken":
++        return np.minimum(base, top)
++    if mode == "lighten":
++        return np.maximum(base, top)
++    # default
++    return top
++
++def composite_stack(layers: list[tuple[np.ndarray, float, BlendMode, Optional[np.ndarray]]]) -> np.ndarray:
++    """Composite layers from bottom to top.
++    Each item: (img_u8, opacity in [0..1], blend_mode, mask_f32_or_None)
++    Returns: np.uint8 RGB composite.
++    """
++    assert layers, "composite_stack(): no layers provided"
++    base_u8, op, mode, mask = layers[0]
++    out = _to_float(base_u8)
++
++    # Apply initial opacity (kept for conceptual clarity).
++    if op < 1.0:
++        out = (1.0 - (1.0 - op)) * out + (1.0 - op) * out
++
++    for img_u8, opacity, mode, mask in layers[1:]:
++        top = _to_float(img_u8)
++        blended = _apply_blend(out, top, mode)
++        if mask is not None:
++            if mask.ndim == 2:
++                mask3 = np.clip(mask[..., None].astype(np.float32), 0.0, 1.0)
++            elif mask.ndim == 3 and mask.shape[2] == 1:
++                mask3 = np.clip(mask.astype(np.float32), 0.0, 1.0)
++            else:
++                raise ValueError("Mask must be HxW (float32 [0..1]) or HxWx1")
++        else:
++            mask3 = 1.0
++        out = (1.0 - mask3 * opacity) * out + (mask3 * opacity) * blended
++    return _to_u8(out)
++
+    diff --git a/glitchlab/gui/services/layer_manager.py b/glitchlab/gui/services/layer_manager.py
+    new file mode 100644
+    index 0000000..2222222
+    --- /dev/null
+    +++ b/glitchlab/gui/services/layer_manager.py
+    @@
+    +# glitchlab/gui/services/layer_manager.py
++# Layer state management and composition orchestration.
++from __future__ import annotations
++from dataclasses import replace
++from typing import Optional, Callable, Dict, Any
++import uuid
++import numpy as np
++from PIL import Image
++
++try:
++    from glitchlab.gui.app import AppState  # central state (preferred)
++except Exception:
++    from dataclasses import dataclass, field
++    from typing import List, Optional, Literal
++
++    BlendMode = Literal["normal","multiply","screen","overlay","add","subtract","darken","lighten"]
++
++    @dataclass
++    class Layer:
++        id: str
++        name: str
++        image: np.ndarray | Image.Image
++        visible: bool = True
++        opacity: float = 1.0
++        blend: BlendMode = "normal"
++        mask: Optional[np.ndarray] = None
++        meta: Dict[str, Any] = field(default_factory=dict)
++
++    @dataclass
++    class AppState:
++        image_in: Image.Image | np.ndarray | None = None
++        layers: List[Layer] = field(default_factory=list)
++        active_layer_id: Optional[str] = None
++
++from glitchlab.gui.services.compositor import composite_stack, BlendMode
++
++class LayerManager:
++    def __init__(self, state: AppState, publish: Callable[[str, Dict[str, Any]], None]) -> None:
++        self.state = state
++        self.publish = publish
++
++    def _ensure_active(self) -> None:
++        if not getattr(self.state, "layers", None) and getattr(self.state, "image_in", None) is not None:
++            self.add_layer(self.state.image_in, name="Background")
++        if getattr(self.state, "active_layer_id", None) is None and getattr(self.state, "layers", None):
++            self.state.active_layer_id = self.state.layers[0].id
++
++    def add_layer(self, image: np.ndarray | Image.Image, name: str = "Layer",
++                  blend: BlendMode = "normal", opacity: float = 1.0, visible: bool = True) -> str:
++        lid = str(uuid.uuid4())
++        if isinstance(image, Image.Image):
++            img_u8 = np.asarray(image.convert("RGB"), dtype=np.uint8)
++        else:
++            img_u8 = image
++        layer = Layer(id=lid, name=name, image=img_u8, visible=visible, opacity=opacity, blend=blend)
++        self.state.layers.append(layer)  # type: ignore[attr-defined]
++        self.state.active_layer_id = lid
++        self.publish("ui.layers.changed", {})
++        return lid
++
++    def remove_layer(self, lid: str) -> None:
++        self.state.layers = [l for l in self.state.layers if l.id != lid]  # type: ignore[attr-defined]
++        if getattr(self.state, "active_layer_id", None) == lid:
++            self.state.active_layer_id = self.state.layers[0].id if self.state.layers else None  # type: ignore[attr-defined]
++        self.publish("ui.layers.changed", {})
++
++    def update_layer(self, lid: str, **patch) -> None:
++        for i, l in enumerate(self.state.layers):  # type: ignore[attr-defined]
++            if l.id == lid:
++                self.state.layers[i] = replace(l, **patch)  # type: ignore[index]
++                break
++        self.publish("ui.layers.changed", {})
++
++    def move(self, lid: str, direction: str) -> None:
++        L = self.state.layers  # type: ignore[attr-defined]
++        idx = next((i for i, l in enumerate(L) if l.id == lid), -1)
++        if idx < 0:
++            return
++        if direction == "up" and idx < len(L) - 1:
++            L[idx], L[idx + 1] = L[idx + 1], L[idx]
++        elif direction == "down" and idx > 0:
++            L[idx], L[idx - 1] = L[idx - 1], L[idx]
++        elif direction == "top":
++            L.append(L.pop(idx))
++        elif direction == "bottom":
++            L.insert(0, L.pop(idx))
++        self.publish("ui.layers.changed", {})
++
++    def get_composite_for_viewport(self) -> Optional[np.ndarray]:
++        self._ensure_active()
++        vis = [l for l in getattr(self.state, "layers", []) if getattr(l, "visible", True)]
++        if not vis:
++            return None
++        stack = []
++        for l in vis:
++            mask = l.mask.astype(np.float32) if getattr(l, "mask", None) is not None else None
++            img = np.asarray(l.image) if isinstance(l.image, Image.Image) else l.image
++            stack.append((img, float(l.opacity), l.blend, mask))
++        return composite_stack(stack)
++
+    diff --git a/glitchlab/gui/app.py b/glitchlab/gui/app.py
+    index 4d2e1f1..9c9c9c9 100644
+    --- a/glitchlab/gui/app.py
+    +++ b/glitchlab/gui/app.py
+    @@ -1,10 +1,67 @@
+     import tkinter as tk
+     from tkinter import ttk
+    +from dataclasses import dataclass, field, replace
+    +from typing import Optional, Dict, Any, List, Literal
+    +import numpy as np
+    +from PIL import Image
+
+     # ... existing imports ...
+    +try:
+    +    from glitchlab.gui.services.layer_manager import LayerManager
+    +except Exception:
+    +    LayerManager = None  # patched later
+    +
+    +BlendMode = Literal["normal","multiply","screen","overlay","add","subtract","darken","lighten"]
+    +
+    +@dataclass
+    +class Layer:
+    +    id: str
+    +    name: str
+    +    image: np.ndarray | Image.Image
+    +    visible: bool = True
+    +    opacity: float = 1.0
+    +    blend: BlendMode = "normal"
+    +    mask: Optional[np.ndarray] = None
+    +    meta: Dict[str, Any] = field(default_factory=dict)
+    +
+    +@dataclass
+    +class AppState:
+    +    image_in:  Image.Image | np.ndarray | None = None
+    +    image_out: Image.Image | np.ndarray | None = None
+    +    preset_cfg: dict | None = None
+    +    active_filter: str | None = None
+    +    filter_params: dict = field(default_factory=dict)
+    +    seed: int = 7
+    +    last_ctx_cache: dict = field(default_factory=dict)
+    +    # Layers support
+    +    layers: List[Layer] = field(default_factory=list)
+    +    active_layer_id: Optional[str] = None
+
+     class App(ttk.Frame):
+         def __init__(self, master):
+             super().__init__(master)
+             self.pack(fill="both", expand=True)
+    -        # existing initialization...
+    +        # existing initialization...
+    +        self.state = AppState()
+    +
+    +        # EventBus should be available in the app; assume self.bus
+    +        # If you have a different bus, adapt references accordingly.
+    +        if LayerManager is not None:
+    +            self.layer_mgr = LayerManager(self.state, self.publish)
+    +        else:
+    +            self.layer_mgr = None
+    +
+    +        # When an image is loaded elsewhere, ensure a background layer is created.
+    +        # Example hook (adapt to your Open action):
+    +        # self.state.image_in = loaded_pil_image
+    +        # if self.layer_mgr: self.layer_mgr.add_layer(self.state.image_in, name="Background")
+    +
+    +    def publish(self, topic: str, payload: dict) -> None:
+    +        """Publish to EventBus (replace with actual bus call)."""
+    +        try:
+    +            self.bus.publish(topic, payload)  # type: ignore[attr-defined]
+    +        except Exception:
+    +            pass
+
+    diff --git a/glitchlab/gui/widgets/canvas_container.py b/glitchlab/gui/widgets/canvas_container.py
+    index a1b2c3d..b4c4d5e 100644
+    --- a/glitchlab/gui/widgets/canvas_container.py
+    +++ b/glitchlab/gui/widgets/canvas_container.py
+    @@ -1,20 +1,66 @@
+     import tkinter as tk
+     from tkinter import ttk
+     # ... existing imports ...
+    +from typing import Optional
+    +
+    +try:
+    +    from glitchlab.gui.services.layer_manager import LayerManager
+    +except Exception:
+    +    LayerManager = None
+
+     class CanvasContainer(ttk.Frame):
+    -    def __init__(self, master, state, bus):
+    +    def __init__(self, master, state, bus, layer_mgr: Optional[LayerManager] = None):
+             super().__init__(master)
+             self.state = state
+             self.bus = bus
+    +        self.layer_mgr = layer_mgr
+             # existing setup ...
+
+             # Example: create image canvas widget
+             self.canvas = ImageCanvas(self)
+             self.canvas.pack(fill="both", expand=True)
+
+    +        # Subscriptions
+    +        if hasattr(self.bus, "subscribe"):
+    +            self.bus.subscribe("ui.layers.changed", lambda _p=None: self._rerender())
+    +            self.bus.subscribe("ui.viewport.fit", lambda _p=None: self.canvas.fit())
+    +            self.bus.subscribe("ui.viewport.center", lambda _p=None: self.canvas.center())
+    +            self.bus.subscribe("ui.viewport.zoom_to", self._on_zoom_to)
+    +
+    +        self._rerender()
+    +
+    +    def _on_zoom_to(self, payload):
+    +        try:
+    +            z = float(payload.get("z", 1.0))
+    +            self.canvas.zoom_to(z)
+    +        except Exception:
+    +            pass
+    +
+    +    def _rerender(self):
+    +        comp = None
+    +        if self.layer_mgr is not None:
+    +            try:
+    +                comp = self.layer_mgr.get_composite_for_viewport()
+    +            except Exception:
+    +                comp = None
+    +        else:
+    +            # legacy fallback
+    +            comp = getattr(self.state, "image_out", None) or getattr(self.state, "image_in", None)
+    +
+    +        self.canvas.set_image(comp)
+
+     # ... rest of the file ...
+
+    diff --git a/glitchlab/gui/services/pipeline_runner.py b/glitchlab/gui/services/pipeline_runner.py
+    index 7e7e7e7..8f8f8f8 100644
+    --- a/glitchlab/gui/services/pipeline_runner.py
+    +++ b/glitchlab/gui/services/pipeline_runner.py
+    @@ -100,12 +100,31 @@ class PipelineRunner:
+             # After pipeline finishes:
+             out = result_np_uint8  # <- existing variable with np.uint8 RGB
+    -        state.image_out = out
+    -        bus.publish("run.done", {"ok": True})
+    +        target = payload.get("target", "active") if isinstance(payload, dict) else "active"
+    +        try:
+    +            layer_mgr = getattr(self, "layer_mgr", None)
+    +            state = self.state
+    +            if layer_mgr is not None:
+    +                if target == "new" or getattr(state, "active_layer_id", None) is None:
+    +                    layer_mgr.add_layer(out, name=f"{step_name} result")
+    +                else:
+    +                    layer_mgr.update_layer(state.active_layer_id, image=out)
+    +                bus.publish("ui.layers.changed", {})
+    +            else:
+    +                # fallback: legacy single-image flow
+    +                state.image_out = out
+    +            bus.publish("run.done", {"ok": True})
+    +        except Exception as e:
+    +            bus.publish("run.error", {"ok": False, "error": str(e)})
+             # propagate diagnostics
+             state.last_ctx_cache = ctx.cache
+             # ...

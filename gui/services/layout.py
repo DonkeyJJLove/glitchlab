@@ -35,7 +35,6 @@ license: "Proprietary"
 ---
 """
 # glitchlab/gui/services/layout.py
-# glitchlab/gui/services/layout.py
 from __future__ import annotations
 
 from dataclasses import dataclass, field

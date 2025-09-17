@@ -1,232 +1,212 @@
-# glitchlab/gui/panels/panel_spectral_shaper.py
+# glitchlab/filters/spectral_shaper.py
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import tkinter as tk
-from tkinter import ttk
-from typing import Any, Dict, Optional, List
+
+import math
+from typing import Any, Dict, Optional
 
 try:
-    from glitchlab.gui.panel_base import PanelContext  # type: ignore
+    import numpy as np
 except Exception:  # pragma: no cover
-    class PanelContext:
-        def __init__(self, **kw): self.__dict__.update(kw)
+    np = None  # type: ignore
 
-PLACEHOLDER_NONE = "<none>"
+# Rejestr filtrów
+try:
+    from glitchlab.core.registry import register
+except Exception as e:  # pragma: no cover
+    def register(_name: str):
+        def deco(f): return f
+        return deco
 
-DEFAULTS: Dict[str, Any] = {
-    "mode": "ring",         # ring|bandpass|bandstop|direction
-    "low": 0.15,
-    "high": 0.45,
-    "angle_deg": 0.0,
-    "ang_width": 20.0,
-    "boost": 0.8,
-    "soft": 0.08,
-    "blend": 0.0,
-    "mask_key": None,
-    # wspólne:
-    "use_amp": 1.0,
-    "clamp": True,
-}
 
-class SpectralShaperPanel(ttk.Frame):
+def _to_float_img(arr: np.ndarray) -> np.ndarray:
+    """uint8[H,W,(3|4)] -> float32[H,W,3] w zakresie 0..1"""
+    a = np.asarray(arr)
+    if a.ndim == 2:
+        a = np.stack([a, a, a], axis=-1)
+    if a.shape[-1] == 4:
+        # zrób premultiply (bezpieczniej do FFT)
+        rgb = a[..., :3].astype(np.float32)
+        alpha = (a[..., 3:4].astype(np.float32) / 255.0)
+        rgb = np.where(alpha > 0, rgb * alpha, rgb)
+        a = rgb
+    return (a.astype(np.float32) / 255.0).clip(0.0, 1.0)
+
+
+def _to_uint8(arr: np.ndarray) -> np.ndarray:
+    a = np.clip(arr * 255.0, 0.0, 255.0).astype(np.uint8)
+    if a.ndim == 2:
+        a = np.stack([a, a, a], axis=-1)
+    if a.shape[-1] != 3:
+        a = a[..., :3]
+    return a
+
+
+def _smoothstep(x: np.ndarray, edge0: float, edge1: float) -> np.ndarray:
+    # gładkie przejście (0..1)
+    t = np.clip((x - edge0) / max(1e-6, (edge1 - edge0)), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def _make_radial_mask(h: int, w: int) -> np.ndarray:
+    yc = (h - 1) / 2.0
+    xc = (w - 1) / 2.0
+    y = np.arange(h, dtype=np.float32)[:, None]
+    x = np.arange(w, dtype=np.float32)[None, :]
+    ry = (y - yc) / max(1.0, yc)
+    rx = (x - xc) / max(1.0, xc)
+    r = np.sqrt(rx * rx + ry * ry)  # 0..~1.4 (rog)
+    return r
+
+
+def _make_angle(h: int, w: int) -> np.ndarray:
+    yc = (h - 1) / 2.0
+    xc = (w - 1) / 2.0
+    y = np.arange(h, dtype=np.float32)[:, None]
+    x = np.arange(w, dtype=np.float32)[None, :]
+    ang = np.degrees(np.arctan2(y - yc, x - xc))  # -180..180
+    return ang
+
+
+def _build_spectral_mask(h: int, w: int, mode: str,
+                         low: float, high: float,
+                         angle_deg: float, ang_width: float,
+                         soft: float) -> np.ndarray:
+    r = _make_radial_mask(h, w)  # radius
+    m_rad = np.zeros((h, w), dtype=np.float32)
+
+    s = max(0.0, float(soft))
+    # pasmo radialne
+    if mode == "ring" or mode == "bandpass" or mode == "direction":
+        # bandpass-like
+        edge = max(1e-4, 0.5 * s)
+        lo_in, lo_out = low - edge, low + edge
+        hi_out, hi_in = high - edge, high + edge
+        m_low = _smoothstep(r, lo_in, lo_out)
+        m_high = 1.0 - _smoothstep(r, hi_in, hi_out)
+        m_rad = np.clip(m_low * m_high, 0.0, 1.0)
+    elif mode == "bandstop":
+        edge = max(1e-4, 0.5 * s)
+        lo_in, lo_out = low - edge, low + edge
+        hi_out, hi_in = high - edge, high + edge
+        m_low = _smoothstep(r, lo_in, lo_out)
+        m_high = 1.0 - _smoothstep(r, hi_in, hi_out)
+        m_bp = np.clip(m_low * m_high, 0.0, 1.0)
+        m_rad = 1.0 - m_bp
+    else:
+        m_rad = np.ones((h, w), dtype=np.float32)
+
+    if mode == "direction":
+        ang = _make_angle(h, w)
+        # okno kierunkowe ± ang_width/2 wokół angle_deg
+        d = np.abs(((ang - angle_deg + 180.0) % 360.0) - 180.0)  # 0..180
+        half = max(1.0, ang_width * 0.5)
+        edge = max(0.1, soft * 15.0)  # miękkie przejście kątowe
+        m_dir = 1.0 - _smoothstep(d, half, half + edge)
+        m = np.clip(m_rad * m_dir, 0.0, 1.0)
+    else:
+        m = m_rad
+
+    # wyzeruj DC (środek) – unikamy offsetu jasności
+    m[h // 2, w // 2] = 0.0
+    return m.astype(np.float32)
+
+
+def _apply_fft_boost(img_f: np.ndarray, mask: np.ndarray, boost: float) -> np.ndarray:
     """
-    Panel sterujący dla 'spectral_shaper'.
-    Tryby: ring/bandpass/bandstop/direction, pełne parametry + presety.
-    Zintegrowany wybór maski (wspólna biblioteka), placeholder <none>, auto-odświeżanie.
+    img_f: float32 [H,W,3] 0..1
+    mask: float32 [H,W]    0..1 (w przestrzeni częstotliwości)
     """
-    def __init__(self, master: tk.Misc, ctx: Optional[PanelContext] = None, **kw: Any) -> None:
-        super().__init__(master, **kw)
-        self.ctx = ctx or PanelContext(filter_name="spectral_shaper", defaults=DEFAULTS, params={}, on_change=None, cache_ref={})
-        p = {**DEFAULTS, **(getattr(self.ctx, "defaults", {}) or {}), **(getattr(self.ctx, "params", {}) or {})}
+    h, w, c = img_f.shape
+    out = np.empty_like(img_f)
+    eps = 1e-6
+    # mnożnik w dziedzinie częstotliwości: 1 + boost*mask
+    mult = 1.0 + float(boost) * mask
+    for ch in range(c):
+        F = np.fft.fftshift(np.fft.fft2(img_f[..., ch]))
+        F2 = F * mult
+        res = np.fft.ifft2(np.fft.ifftshift(F2))
+        out[..., ch] = np.real(res)
+    out = np.clip(out, 0.0, 1.0)
+    return out
 
-        # zmienne
-        self.var_mode      = tk.StringVar(value=str(p.get("mode", "ring")))
-        self.var_low       = tk.DoubleVar(value=float(p.get("low", 0.15)))
-        self.var_high      = tk.DoubleVar(value=float(p.get("high", 0.45)))
-        self.var_angle     = tk.DoubleVar(value=float(p.get("angle_deg", 0.0)))
-        self.var_angw      = tk.DoubleVar(value=float(p.get("ang_width", 20.0)))
-        self.var_boost     = tk.DoubleVar(value=float(p.get("boost", 0.8)))
-        self.var_soft      = tk.DoubleVar(value=float(p.get("soft", 0.08)))
-        self.var_blend     = tk.DoubleVar(value=float(p.get("blend", 0.0)))
-        self.var_mask_key  = tk.StringVar(value=str(p.get("mask_key", "") or PLACEHOLDER_NONE))
-        self.var_use_amp   = tk.DoubleVar(value=float(p.get("use_amp", 1.0)))
-        self.var_clamp     = tk.BooleanVar(value=bool(p.get("clamp", True)))
 
-        self._build_ui()
-        self._bind_all()
-        self._refresh_masks()  # start: lista masek
-        self._emit()
+def _apply_spatial_mask(src: np.ndarray, dst: np.ndarray, mask_u8: Optional[np.ndarray]) -> np.ndarray:
+    """
+    Jeśli jest maska przestrzenna (0..255), zrób lokalny miks dst/src.
+    """
+    if mask_u8 is None:
+        return dst
+    m = np.asarray(mask_u8).astype(np.float32) / 255.0
+    if m.ndim == 2:
+        m = m[..., None]
+    m = np.clip(m, 0.0, 1.0)
+    return src * (1.0 - m) + dst * m
 
-    # ---------- UI ----------
-    def _build_ui(self) -> None:
-        top = ttk.Frame(self, padding=(8,8,8,4)); top.pack(fill="x")
-        ttk.Label(top, text="Spectral Shaper", font=("", 10, "bold")).pack(side="left")
 
-        row0 = ttk.LabelFrame(self, text="Tryb", padding=8); row0.pack(fill="x", padx=8, pady=4)
-        ttk.Label(row0, text="mode").grid(row=0, column=0, sticky="w")
-        ttk.Combobox(row0, textvariable=self.var_mode, state="readonly",
-                     values=["ring", "bandpass", "bandstop", "direction"], width=12)\
-            .grid(row=0, column=1, sticky="w", padx=6)
+@register("spectral_shaper")
+def spectral_shaper(arr: Any, ctx: Any = None, params: Optional[Dict[str, Any]] = None, **kw: Any) -> Any:
+    """
+    Filtr częstotliwościowy:
+      mode:        ring|bandpass|bandstop|direction
+      low, high:   granice pasma (0..~1.4, sensownie 0..1.0)
+      angle_deg:   kąt centralny dla 'direction'
+      ang_width:   szerokość kątowa dla 'direction' (stopnie)
+      boost:       siła modyfikacji (np. 0.8)
+      soft:        zmiękczenie krawędzi masek (0..1)
+      blend:       miks z oryginałem w dziedzinie przestrzennej (0..1)
+      mask_key:    nazwa maski z ctx.masks (jeśli dostępna)
+      use_amp:     skaler (jeśli chcesz modulować przez "amplitude")
+      clamp:       jeżeli True – klamruj wynik 0..1
+    """
+    if np is None:
+        raise RuntimeError("NumPy is required by 'spectral_shaper'.")
 
-        row1 = ttk.LabelFrame(self, text="Pasmo radialne", padding=8); row1.pack(fill="x", padx=8, pady=4)
-        ttk.Label(row1, text="low").grid(row=0, column=0, sticky="w")
-        ttk.Scale(row1, from_=0.0, to=1.0, variable=self.var_low, command=lambda *_: self._clamp_low_high())\
-            .grid(row=0, column=1, sticky="ew", padx=6)
-        ttk.Entry(row1, textvariable=self.var_low, width=6).grid(row=0, column=2, sticky="w")
-        ttk.Label(row1, text="high").grid(row=0, column=3, sticky="w")
-        ttk.Scale(row1, from_=0.0, to=1.0, variable=self.var_high, command=lambda *_: self._clamp_low_high())\
-            .grid(row=0, column=4, sticky="ew", padx=6)
-        ttk.Entry(row1, textvariable=self.var_high, width=6).grid(row=0, column=5, sticky="w")
-        row1.columnconfigure(1, weight=1)
-        row1.columnconfigure(4, weight=1)
+    p = dict(params or {})
+    p.update(kw or {})
 
-        row2 = ttk.LabelFrame(self, text="Kierunek (dla mode=direction)", padding=8); row2.pack(fill="x", padx=8, pady=4)
-        ttk.Label(row2, text="angle_deg").grid(row=0, column=0, sticky="w")
-        ttk.Spinbox(row2, from_=-180.0, to=180.0, increment=1.0, textvariable=self.var_angle, width=8)\
-            .grid(row=0, column=1, sticky="w", padx=6)
-        ttk.Label(row2, text="ang_width").grid(row=0, column=2, sticky="w")
-        ttk.Spinbox(row2, from_=1.0, to=180.0, increment=1.0, textvariable=self.var_angw, width=8)\
-            .grid(row=0, column=3, sticky="w", padx=6)
+    mode = str(p.get("mode", "ring")).lower()
+    low = float(p.get("low", 0.15))
+    high = float(p.get("high", 0.45))
+    angle_deg = float(p.get("angle_deg", 0.0))
+    ang_width = float(p.get("ang_width", 20.0))
+    boost = float(p.get("boost", 0.8))
+    soft = float(p.get("soft", 0.08))
+    blend = float(p.get("blend", 0.0))
+    mask_key = p.get("mask_key", None)
+    use_amp = float(p.get("use_amp", 1.0))
+    clamp = bool(p.get("clamp", True))
 
-        row3 = ttk.LabelFrame(self, text="Modyfikacja i miks", padding=8); row3.pack(fill="x", padx=8, pady=4)
-        ttk.Label(row3, text="boost").grid(row=0, column=0, sticky="w")
-        ttk.Scale(row3, from_=-1.0, to=3.0, variable=self.var_boost).grid(row=0, column=1, sticky="ew", padx=6)
-        ttk.Entry(row3, textvariable=self.var_boost, width=6).grid(row=0, column=2, sticky="w")
-        ttk.Label(row3, text="soft").grid(row=0, column=3, sticky="w")
-        ttk.Scale(row3, from_=0.0, to=1.0, variable=self.var_soft).grid(row=0, column=4, sticky="ew", padx=6)
-        ttk.Entry(row3, textvariable=self.var_soft, width=6).grid(row=0, column=5, sticky="w")
-        ttk.Label(row3, text="blend").grid(row=1, column=0, sticky="w", pady=(6,0))
-        ttk.Scale(row3, from_=0.0, to=1.0, variable=self.var_blend).grid(row=1, column=1, sticky="ew", padx=6, pady=(6,0))
-        ttk.Entry(row3, textvariable=self.var_blend, width=6).grid(row=1, column=2, sticky="w", pady=(6,0))
-        row3.columnconfigure(1, weight=1)
-        row3.columnconfigure(4, weight=1)
+    # amplituda globalna (jeśli ctx ma)
+    try:
+        amp = float(getattr(getattr(ctx, "cfg", None), "get", lambda *_: 1.0)("amplitude", {}).get("strength", 1.0))
+    except Exception:
+        amp = 1.0
+    boost = boost * max(0.0, use_amp) * float(amp)
 
-        # Maski / amplitude / clamp (wspólna biblioteka masek)
-        row4 = ttk.LabelFrame(self, text="Maska & Amplitude", padding=8); row4.pack(fill="x", padx=8, pady=4)
-        ttk.Label(row4, text="mask_key").grid(row=0, column=0, sticky="w")
-        mask_row = ttk.Frame(row4); mask_row.grid(row=0, column=1, columnspan=3, sticky="ew", padx=6)
-        self.cmb_mask = ttk.Combobox(mask_row, state="readonly", width=24, textvariable=self.var_mask_key, values=[])
-        self.cmb_mask.pack(side="left", fill="x", expand=True)
-        self.cmb_mask.bind("<Button-1>", lambda _e: self._refresh_masks())  # auto-refresh po kliknięciu
-        ttk.Button(mask_row, text="Refresh", command=self._refresh_masks).pack(side="left", padx=(6, 0))
-        ttk.Button(mask_row, text="edge", command=lambda: self._set_mask("edge")).pack(side="left", padx=(6, 2))
-        ttk.Button(mask_row, text="clear", command=lambda: self._set_mask("")).pack(side="left")
+    img_f = _to_float_img(arr)
+    h, w, _ = img_f.shape
 
-        ttk.Label(row4, text="use_amp").grid(row=1, column=0, sticky="w", pady=(6,0))
-        ttk.Scale(row4, from_=0.0, to=2.0, variable=self.var_use_amp, orient="horizontal")\
-            .grid(row=1, column=1, sticky="ew", padx=6, pady=(6,0))
-        ttk.Entry(row4, textvariable=self.var_use_amp, width=6).grid(row=1, column=2, sticky="w", pady=(6,0))
-        ttk.Checkbutton(row4, text="clamp", variable=self.var_clamp).grid(row=1, column=3, sticky="w", pady=(6,0))
-        row4.columnconfigure(1, weight=1)
+    # maska częstotliwościowa
+    m_spec = _build_spectral_mask(h, w, mode, low, high, angle_deg, ang_width, soft)
 
-        pres = ttk.Frame(self, padding=(8,2,8,8)); pres.pack(fill="x")
-        ttk.Label(pres, text="Presets:").pack(side="left")
-        ttk.Button(pres, text="Ring boost",
-                   command=lambda: self._apply_preset(mode="ring", low=0.18, high=0.5, boost=1.2, soft=0.1, blend=0.0))\
-            .pack(side="left", padx=2)
-        ttk.Button(pres, text="Bandstop low",
-                   command=lambda: self._apply_preset(mode="bandstop", low=0.0, high=0.12, boost=0.7, soft=0.08, blend=0.15))\
-            .pack(side="left", padx=2)
-        ttk.Button(pres, text="Directional 45°",
-                   command=lambda: self._apply_preset(mode="direction", low=0.12, high=0.7, angle_deg=45.0, ang_width=22.0, boost=1.0, soft=0.06))\
-            .pack(side="left", padx=2)
+    # przetwarzanie
+    out_f = _apply_fft_boost(img_f, m_spec, boost)
 
-    # ---------- binding / masks ----------
-    def _bind_all(self) -> None:
-        for v in (self.var_mode, self.var_low, self.var_high, self.var_angle, self.var_angw,
-                  self.var_boost, self.var_soft, self.var_blend,
-                  self.var_mask_key, self.var_use_amp, self.var_clamp):
-            v.trace_add("write", lambda *_: self._emit())
-        # odśwież listę, gdy panel staje się widoczny
-        self.bind("<Visibility>", lambda _e: self._refresh_masks())
-        # natychmiast po wyborze z listy
+    # miks w przestrzeni
+    out_f = (1.0 - blend) * img_f + blend * out_f
+
+    # opcjonalny miks przez maskę przestrzenną z ctx
+    mask_u8 = None
+    if mask_key:
         try:
-            self.cmb_mask.bind("<<ComboboxSelected>>", lambda _e: self._emit())
+            if hasattr(ctx, "masks") and mask_key in ctx.masks:
+                mask_u8 = ctx.masks[mask_key]
         except Exception:
             pass
+    out_f = _apply_spatial_mask(img_f, out_f, mask_u8)
 
-    def _mask_source_keys(self) -> List[str]:
-        """Lista masek z Global: ctx.get_mask_keys() lub cache_ref['cfg/masks/keys']."""
-        # 1) przez provider
-        try:
-            f = getattr(self.ctx, "get_mask_keys", None)
-            if callable(f):
-                keys = list(f())
-                return [k for k in keys if isinstance(k, str)]
-        except Exception:
-            pass
-        # 2) przez cache_ref
-        try:
-            cache = getattr(self.ctx, "cache_ref", {}) or {}
-            keys = list(cache.get("cfg/masks/keys", []))
-            return [k for k in keys if isinstance(k, str)]
-        except Exception:
-            return []
+    if clamp:
+        out_f = np.clip(out_f, 0.0, 1.0)
 
-    def _refresh_masks(self) -> None:
-        keys = self._mask_source_keys()
-        values = [PLACEHOLDER_NONE] + sorted(keys)
-        cur = self.var_mask_key.get() or PLACEHOLDER_NONE
-        if cur not in values:
-            cur = PLACEHOLDER_NONE
-        try:
-            self.cmb_mask["values"] = values
-        except Exception:
-            pass
-        self.var_mask_key.set(cur)
-
-    # ---------- helpers ----------
-    def _clamp_low_high(self) -> None:
-        lo = float(self.var_low.get()); hi = float(self.var_high.get())
-        if hi < lo:
-            self.var_high.set(lo)
-
-    def _set_mask(self, key: str) -> None:
-        self.var_mask_key.set(key if key else PLACEHOLDER_NONE)
-        self._emit()
-
-    def _apply_preset(self, **kw: Any) -> None:
-        for k, v in kw.items():
-            if k in ("mode",):
-                getattr(self, f"var_{k}").set(str(v))
-            elif k in ("low", "high", "boost", "soft", "blend"):
-                getattr(self, f"var_{k}").set(float(v))
-            elif k in ("angle_deg",):
-                self.var_angle.set(float(v))
-            elif k in ("ang_width",):
-                self.var_angw.set(float(v))
-            elif k == "mask_key":
-                self.var_mask_key.set(str(v) if v else PLACEHOLDER_NONE)
-        self._emit()
-
-    def _emit(self) -> None:
-        # sanity i ograniczenia
-        lo = float(self.var_low.get()); hi = float(self.var_high.get())
-        if hi < lo:
-            hi = lo
-            self.var_high.set(hi)
-
-        mk = (self.var_mask_key.get() or "").strip()
-        params = {
-            "mode":      self.var_mode.get().strip(),
-            "low":       float(max(0.0, min(1.5, lo))),
-            "high":      float(max(0.0, min(1.5, hi))),
-            "angle_deg": float(self.var_angle.get()),
-            "ang_width": float(max(1.0, min(180.0, self.var_angw.get()))),
-            "boost":     float(self.var_boost.get()),
-            "soft":      float(max(0.0, min(1.0, self.var_soft.get()))),
-            "blend":     float(max(0.0, min(1.0, self.var_blend.get()))),
-            "mask_key":  (None if mk in ("", PLACEHOLDER_NONE) else mk),
-            # wspólne:
-            "use_amp":   float(max(0.0, self.var_use_amp.get())),
-            "clamp":     bool(self.var_clamp.get()),
-        }
-        cb = getattr(self.ctx, "on_change", None)
-        if callable(cb):
-            try:
-                cb(params)
-            except Exception:
-                pass
-
-# Loader hook
-Panel = SpectralShaperPanel
+    return _to_uint8(out_f)

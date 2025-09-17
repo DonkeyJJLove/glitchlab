@@ -3,20 +3,25 @@
 """
 CanvasContainer – viewer 2-D + toolbox + linijki + crosshair.
 
-Wersja kompletna:
-• brakujące atrybuty (TOOLS, metody *_on_…)
-• przechowuje oryginalny obraz   (self._img_orig)
-• skaluje kopię przy każdej zmianie self._scale  →  ImageCanvas
-• poprawne centrowanie + ruler’y reagujące na zoom
+Funkcje:
+• Przechowuje oryginalny obraz (self._img_orig) i renderuje skalowaną kopię.
+• Prawidłowe centrowanie w viewport + linijki zależne od zoomu.
+• Toolbox (pan/zoom/ruler/probe/pick) jako radiobuttony z ikonami.
+• Crosshair i publikacja pozycji kursora na busie: topic "ui.cursor.pos".
+• Obsługa pan (LPM przeciągnij) oraz zoom (scroll) – gdy wybrane narzędzie.
+• Integracja z EventBus: reaguje na "ui.tools.select".
+• Blokada UI w trakcie pracy (set_enabled(False)) – wygaszanie zdarzeń.
+
+Uwaga: korzysta z opcjonalnych zależności (Pillow). W razie braku – degraduje się do etykiety.
 """
 
 from __future__ import annotations
 
 import math
-import tkinter as tk
 from pathlib import Path
+import tkinter as tk
 from tkinter import ttk
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Dict
 
 # ────────── Pillow (opcjonalnie – miniatury, powiększacz) ──────────
 try:
@@ -31,7 +36,6 @@ except Exception:
 
     class ImageCanvas(ttk.Label):  # type: ignore
         """Awaryjny viewer – zwykły Label z obrazkiem."""
-
         def set_image(self, pil_img):  # type: ignore
             if Image and ImageTk:
                 try:
@@ -56,6 +60,7 @@ class CanvasContainer(ttk.Frame):
     FG_RULER = "#9a9a9a"
     FG_RULER_MINOR = "#5b5b5b"
     FG_CROSS = "#66aaff"
+    FG_DISABLED = "#444444"
 
     _ICON_DIR = Path(__file__).resolve().parents[2] / "resources" / "icons"
     _ICON_FILES = {
@@ -93,6 +98,7 @@ class CanvasContainer(ttk.Frame):
         self._build_rulers()
         self._build_viewport()
         self._wire_events()
+        self._wire_bus()
 
     # ---------- budowanie pod-UI ----------
     def _build_toolbox(self) -> None:
@@ -101,7 +107,7 @@ class CanvasContainer(ttk.Frame):
         box.grid_propagate(False)
 
         # ikony (opcjonalnie)
-        self._icons: dict[str, tk.PhotoImage] = {}
+        self._icons: Dict[str, tk.PhotoImage] = {}
         if Image and ImageTk:
             for key, fname in self._ICON_FILES.items():
                 p = self._ICON_DIR / fname
@@ -166,6 +172,11 @@ class CanvasContainer(ttk.Frame):
         self._cross_h = self._viewport.create_line(0, 0, 0, 0, fill=self.FG_CROSS)
         self._cross_v = self._viewport.create_line(0, 0, 0, 0, fill=self.FG_CROSS)
 
+        # półprzezroczysta „kurtyna” przy disabled
+        self._disabled_overlay = self._viewport.create_rectangle(
+            0, 0, 0, 0, fill="", outline=""
+        )
+
     # ---------- publiczne API ----------
     def set_image(self, pil_img: "Image.Image") -> None:
         """Zapisz oryginał i wyrenderuj w aktualnej skali."""
@@ -186,6 +197,38 @@ class CanvasContainer(ttk.Frame):
         self._render_scaled_image()
         self._resize_and_center()
 
+    def set_enabled(self, flag: bool) -> None:
+        """Blokuj/odblokuj interakcję (używane podczas run.progress)."""
+        self._enabled = bool(flag)
+        # wizualne przykrycie (półprzezroczyste)
+        try:
+            vw, vh = self._viewport.winfo_width(), self._viewport.winfo_height()
+            if not self._enabled:
+                self._viewport.coords(self._disabled_overlay, 0, 0, vw, vh)
+                self._viewport.itemconfigure(self._disabled_overlay, fill="#00000060", outline="")
+                self._viewport.configure(cursor="watch")
+            else:
+                self._viewport.itemconfigure(self._disabled_overlay, fill="", outline="")
+                self._viewport.configure(cursor="")
+        except Exception:
+            pass
+
+    # ---------- bus ----------
+    def _wire_bus(self) -> None:
+        if not (self.bus and hasattr(self.bus, "subscribe")):
+            return
+
+        # zmiana narzędzia z menu „Tools”
+        def _on_tool(_t: str, d: Dict[str, Any]) -> None:
+            name = (d or {}).get("name")
+            if isinstance(name, str):
+                self._set_tool(name)
+
+        try:
+            self.bus.subscribe("ui.tools.select", _on_tool)
+        except Exception:
+            pass
+
     # ---------- eventy ----------
     def _wire_events(self) -> None:
         vp = self._viewport
@@ -197,9 +240,9 @@ class CanvasContainer(ttk.Frame):
         vp.bind("<Leave>", self._on_leave)
 
         # wheel (zoom)
-        vp.bind("<MouseWheel>", self._on_wheel)  # Win/macOS
-        vp.bind("<Button-4>", self._on_wheel)  # X11 up
-        vp.bind("<Button-5>", self._on_wheel)  # X11 down
+        vp.bind("<MouseWheel>", self._on_wheel)   # Win/macOS
+        vp.bind("<Button-4>", self._on_wheel)     # X11 up
+        vp.bind("<Button-5>", self._on_wheel)     # X11 down
 
         # panning
         vp.bind("<ButtonPress-1>", self._on_btn1_down)
@@ -208,6 +251,8 @@ class CanvasContainer(ttk.Frame):
 
     # ---------- handlers ----------
     def _on_motion(self, ev: tk.Event) -> None:  # type: ignore[override]
+        if not self._enabled:
+            return
         x, y = int(ev.x), int(ev.y)
         # crosshair
         vw, vh = self._viewport.winfo_width(), self._viewport.winfo_height()
@@ -220,12 +265,14 @@ class CanvasContainer(ttk.Frame):
             self.bus.publish("ui.cursor.pos", {"x": x, "y": y})
 
     def _on_leave(self, _ev=None):
+        if not self._enabled:
+            return
         self._viewport.coords(self._cross_h, 0, 0, 0, 0)
         self._viewport.coords(self._cross_v, 0, 0, 0, 0)
         self._redraw_rulers()
 
     def _on_wheel(self, ev: tk.Event) -> None:  # type: ignore[override]
-        if self._tool != "zoom":
+        if not self._enabled or self._tool != "zoom":
             return
         delta = int(getattr(ev, "delta", 0))
         if getattr(ev, "num", None) in (4, 5):  # X11
@@ -237,12 +284,14 @@ class CanvasContainer(ttk.Frame):
         self._redraw_rulers()
 
     def _on_btn1_down(self, ev: tk.Event) -> None:  # type: ignore[override]
+        if not self._enabled:
+            return
         if self._tool == "pan":
             self._pan_origin = (int(ev.x), int(ev.y))
             self._viewport.configure(cursor="fleur")
 
     def _on_btn1_drag(self, ev: tk.Event) -> None:  # type: ignore[override]
-        if self._tool != "pan" or not self._pan_origin:
+        if not self._enabled or self._tool != "pan" or not self._pan_origin:
             return
         x0, y0 = self._pan_origin
         dx, dy = int(ev.x) - x0, int(ev.y) - y0
@@ -251,6 +300,8 @@ class CanvasContainer(ttk.Frame):
         self._pan_origin = (int(ev.x), int(ev.y))
 
     def _on_btn1_up(self, _ev=None):
+        if not self._enabled:
+            return
         self._pan_origin = None
         self._viewport.configure(cursor="")
 
@@ -301,12 +352,8 @@ class CanvasContainer(ttk.Frame):
         sx = sy = self._scale
 
         # tło
-        self._ruler_top.create_rectangle(
-            0, 0, vw, self.RULER_TOP_H, fill=self.BG_RULER, outline=""
-        )
-        self._ruler_left.create_rectangle(
-            0, 0, self.RULER_LEFT_W, vh, fill=self.BG_RULER, outline=""
-        )
+        self._ruler_top.create_rectangle(0, 0, vw, self.RULER_TOP_H, fill=self.BG_RULER, outline="")
+        self._ruler_left.create_rectangle(0, 0, self.RULER_LEFT_W, vh, fill=self.BG_RULER, outline="")
 
         # helper: krok
         def _step(size: int) -> int:
@@ -331,12 +378,7 @@ class CanvasContainer(ttk.Frame):
             self._ruler_top.create_line(x, 0, x, y1, fill=self.FG_RULER_MINOR)
             if major:
                 self._ruler_top.create_text(
-                    x + 3,
-                    self.RULER_TOP_H - 12,
-                    anchor="nw",
-                    text=str(ix),
-                    fill=self.FG_RULER,
-                    font=("", 9),
+                    x + 3, self.RULER_TOP_H - 12, anchor="nw", text=str(ix), fill=self.FG_RULER, font=("", 9)
                 )
 
         # skala Y
@@ -347,18 +389,12 @@ class CanvasContainer(ttk.Frame):
                 break
             major = iy % (step_y * 5) == 0
             x0 = self.RULER_LEFT_W - (18 if major else 14)
-            self._ruler_left.create_line(
-                x0, y, self.RULER_LEFT_W, y, fill=self.FG_RULER_MINOR
-            )
+            self._ruler_left.create_line(x0, y, self.RULER_LEFT_W, y, fill=self.FG_RULER_MINOR)
             if major:
-                self._ruler_left.create_text(
-                    2, y + 2, anchor="nw", text=str(iy), fill=self.FG_RULER, font=("", 9)
-                )
+                self._ruler_left.create_text(2, y + 2, anchor="nw", text=str(iy), fill=self.FG_RULER, font=("", 9))
 
         # podświetlenie kursora
         if cursor:
             cx, cy = cursor
             self._ruler_top.create_line(cx, 0, cx, self.RULER_TOP_H, fill=self.FG_CROSS)
-            self._ruler_left.create_line(
-                0, cy, self.RULER_LEFT_W, cy, fill=self.FG_CROSS
-            )
+            self._ruler_left.create_line(0, cy, self.RULER_LEFT_W, cy, fill=self.FG_CROSS)

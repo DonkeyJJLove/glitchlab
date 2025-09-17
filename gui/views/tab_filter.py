@@ -4,7 +4,7 @@ from __future__ import annotations
 import importlib, importlib.util, pkgutil, sys, traceback
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, Optional, List, Tuple, Type
+from typing import Any, Dict, Optional, List, Tuple, Type, Iterable
 
 # --- Registry filtrów (miękko) ----------------------------------------------
 try:
@@ -47,6 +47,7 @@ class TabFilter(ttk.Frame):
       • fallback do ParamForm,
       • Apply,
       • narzędzia: Load Filters / Rescan / Probe / Reload,
+      • auto-disable kontrolek na czas wykonywania,
       • bogate logowanie przez EventBus (diag.log).
     """
 
@@ -68,13 +69,18 @@ class TabFilter(ttk.Frame):
         self._filter_params_cache: Dict[str, Any] = {}
         self._last_loaded_module: Optional[str] = None
 
+        # do auto-disable
+        self._disable_nodes: list[tk.Widget] = []
+
         self._build_ui()
 
-        # Spróbuj od razu zaimportować filtry (żeby registry nie było puste)
+        # Spróbuj od razu zaimportować filtry
         self._ensure_filters_imported()
         self._refresh_filter_list()
-        # Zamontuj pierwszy
         self._mount_panel(self.cmb_filter.get() or "")
+
+        # podłączenie busa
+        self._wire_bus()
 
     # ------------------------------------------------------------------ UI ---
     def _build_ui(self) -> None:
@@ -83,16 +89,24 @@ class TabFilter(ttk.Frame):
 
         self.cmb_filter = ttk.Combobox(top, values=[], state="readonly", width=36)
         self.cmb_filter.pack(side="left", fill="x", expand=True)
+        self._disable_nodes.append(self.cmb_filter)
 
         # Akcje: Load/Rescan/Probe/Reload
         act = ttk.Frame(top); act.pack(side="left", padx=(6, 0))
-        ttk.Button(act, text="Load Filters", command=self._on_load_filters).pack(side="left")
-        ttk.Button(act, text="Rescan", command=self._on_rescan).pack(side="left", padx=(4, 0))
-        ttk.Button(act, text="Probe", command=self._probe_current).pack(side="left", padx=(8, 0))
-        ttk.Button(act, text="Reload", command=self._reload_current).pack(side="left", padx=(4, 0))
+        for txt, cmd in (
+            ("Load Filters", self._on_load_filters),
+            ("Rescan", self._on_rescan),
+            ("Probe", self._probe_current),
+            ("Reload", self._reload_current),
+        ):
+            b = ttk.Button(act, text=txt, command=cmd)
+            b.pack(side="left", padx=(4 if txt != "Load Filters" else 0, 0))
+            self._disable_nodes.append(b)
 
         if self.cfg.allow_apply:
-            ttk.Button(top, text="Apply", command=self._apply_clicked).pack(side="left", padx=8)
+            b_apply = ttk.Button(top, text="Apply", command=self._apply_clicked)
+            b_apply.pack(side="left", padx=8)
+            self._disable_nodes.append(b_apply)
 
         self.panel_host = ttk.Frame(self)
         self.panel_host.pack(fill="x", padx=6, pady=(0, 6))
@@ -154,7 +168,6 @@ class TabFilter(ttk.Frame):
         self._filter_params_cache = {}
 
     def _refresh_filter_list(self, *, prefer_scan: bool = False) -> None:
-        """Uzupełnia combobox: najpierw registry, a jak jest puste — skan paneli."""
         names: List[str] = []
         reg = list(registry_available() or [])
         if reg and not prefer_scan:
@@ -176,9 +189,9 @@ class TabFilter(ttk.Frame):
     def _mount_panel(self, filter_name: str) -> None:
         self._clear_host()
         if not filter_name:
-            self._log("No filter selected (empty registry?). Try 'Load Filters' or 'Rescan'.", "WARN")
+            self._log("No filter selected (empty registry?).", "WARN")
             f = ttk.Frame(self.panel_host)
-            ttk.Label(f, text="(No filters detected — use 'Load Filters' or 'Rescan')").pack(padx=6, pady=6, anchor="w")
+            ttk.Label(f, text="(No filters detected)").pack(padx=6, pady=6, anchor="w")
             f.pack(fill="x")
             self._panel = f
             return
@@ -191,7 +204,59 @@ class TabFilter(ttk.Frame):
 
         panel.pack(fill="x")
         self._panel = panel
+
+        # zbierz kontrolki do disable_nodes
+        self.after_idle(lambda: self._collect_disable_nodes(panel))
+
         self._publish("ui.filter.select", {"name": filter_name})
+
+    # ---------------------------------------------------------- auto-disable ---
+    def _collect_disable_nodes(self, root: tk.Misc) -> None:
+        try:
+            for w in self._iter_widgets(root):
+                if isinstance(w, (ttk.Button, ttk.Entry, ttk.Combobox,
+                                  ttk.Checkbutton, ttk.Radiobutton)):
+                    self._disable_nodes.append(w)
+                elif isinstance(w, (tk.Listbox, tk.Text, tk.Spinbox, tk.Scale)):
+                    self._disable_nodes.append(w)
+        except Exception:
+            pass
+
+    def _iter_widgets(self, root: tk.Misc) -> Iterable[tk.Widget]:
+        try:
+            for w in root.winfo_children():
+                yield w
+                yield from self._iter_widgets(w)
+        except Exception:
+            return
+            yield
+
+    def _set_enabled(self, enabled: bool) -> None:
+        for w in list(self._disable_nodes):
+            try:
+                if isinstance(w, (tk.Listbox, tk.Text, tk.Spinbox, tk.Scale)):
+                    w.config(state=("normal" if enabled else "disabled"))
+                else:
+                    if enabled:
+                        w.state(["!disabled"])
+                    else:
+                        w.state(["disabled"])
+            except Exception:
+                pass
+
+    def _wire_bus(self) -> None:
+        if not (self.bus and hasattr(self.bus, "subscribe")):
+            return
+
+        def on_run_start(_t, _d): self._set_enabled(False)
+        def on_run_finish(_t, _d): self._set_enabled(True)
+
+        try:
+            self.bus.subscribe("run.start", on_run_start)
+            self.bus.subscribe("run.done", on_run_finish)
+            self.bus.subscribe("run.error", on_run_finish)
+        except Exception:
+            pass
 
     # ---------------------------------------------------------- diagnostics ---
     def _probe_current(self) -> None:

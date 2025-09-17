@@ -1,95 +1,113 @@
+# glitchlab/gui/services/pipeline_runner.py
+# -*- coding: utf-8 -*-
 """
-pipeline_runner.py
-===================
+Asynchroniczny uruchamiacz potoku (pipeline) z sygnałami postępu dla GUI.
 
-This module provides a simple wrapper around the core pipeline to
-execute it asynchronously and report progress back to the GUI.  It
-offloads the heavy work to a background thread and communicates via
-``EventBus`` topics.  The API is intentionally minimal: call
-``PipelineRunner.run(...)`` with the steps and context, and listen
-for ``run.progress``, ``run.done`` and ``run.error`` events on the
-bus.  Only one pipeline run can be active at a time; subsequent calls
-are ignored until the previous run finishes or is cancelled.
+Publikowane zdarzenia na EventBus:
+  • run.start     {steps}
+  • run.progress  {value: 0..1, text: str}
+  • run.done      {ctx, output}
+  • run.error     {error: str, steps}
 
-The runner does not interpret the core's ``ctx.cache``; it merely
-exposes the finished ``ctx`` as part of the payload.  GUI code
-consuming the events should read the cache and display images
-accordingly.
+Cechy:
+  • pojedynczy aktywny bieg (kolejne żądania są ignorowane)
+  • best-effort progress (0% na starcie, 100% na końcu lub przy błędzie)
+  • cancel() zatrzymuje publikację zdarzeń końcowych (nie przerywa core)
 """
 
 from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import Callable, List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
+# ---- soft import core ----
 try:
-    # Soft import, as ``glitchlab.core`` may not be available (fallback mode)
-    from glitchlab.core.pipeline import apply_pipeline
+    from glitchlab.core.pipeline import apply_pipeline  # type: ignore
 except Exception:  # pragma: no cover
-    # Fallback apply_pipeline that returns input and leaves ctx untouched
-    def apply_pipeline(img_u8, ctx, steps, **kwargs):
+    def apply_pipeline(img_u8, ctx, steps, **_kw):  # fallback noop
         return img_u8
 
-from glitchlab.gui.event_bus import EventBus
+# ---- EventBus (oczekiwany interfejs: publish(topic, payload)) ----
+try:
+    from glitchlab.gui.event_bus import EventBus  # type: ignore
+except Exception:  # pragma: no cover
+    class EventBus:  # minimal stub
+        def __init__(self, *_a, **_k): ...
+        def publish(self, topic: str, payload: Dict[str, Any]) -> None:
+            print(f"[bus] {topic}: {payload}")
 
 
 @dataclass
 class PipelineRunner:
-    """Run the glitchlab pipeline asynchronously.
-
-    Parameters
-    ----------
-    bus : EventBus
-        The event bus used to publish progress and completion events.
-    master : Any
-        The Tkinter master widget used for scheduling callbacks (may be
-        used by the bus itself).  If ``None``, callbacks are invoked
-        synchronously.
     """
-
+    Uruchamia pipeline w tle (wątku daemon) i publikuje zdarzenia na busie.
+    """
     bus: EventBus
-    master: Any = None
-    _current_thread: Optional[threading.Thread] = field(default=None, init=False)
+    master: Any = None  # niewykorzystywane tutaj, ale zachowana sygnatura
+    _thread: Optional[threading.Thread] = field(default=None, init=False)
+    _cancel_flag: bool = field(default=False, init=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+
+    # ------------------------- PUBLIC API -------------------------
+
+    def is_running(self) -> bool:
+        t = self._thread
+        return bool(t and t.is_alive())
 
     def run(self, img_u8: Any, ctx: Any, steps: List[Dict[str, Any]]) -> None:
-        """Start running the pipeline in a background thread.
-
-        Publishes events:
-
-          - ``run.start`` with ``{"steps": steps}``
-          - ``run.progress`` (optional, not yet implemented) with partial ctx
-          - ``run.done`` with ``{"ctx": ctx, "output": out}``
-          - ``run.error`` with ``{"error": exc, "steps": steps}``
-
-        Only one run at a time is allowed.  If a run is already
-        executing, further calls are ignored.
         """
-        if self._current_thread and self._current_thread.is_alive():
-            # ignore new requests while a run is in progress
-            return
-
-        def _runner():
-            try:
-                self.bus.publish("run.start", {"steps": steps.copy()})
-                out = apply_pipeline(img_u8, ctx, steps, fail_fast=True, metrics=True)
-                # propagate results on Tk thread via bus
-                self.bus.publish("run.done", {"ctx": ctx, "output": out})
-            except Exception as exc:
-                self.bus.publish("run.error", {"error": exc, "steps": steps.copy()})
-
-        self._current_thread = threading.Thread(target=_runner, daemon=True)
-        self._current_thread.start()
+        Startuje asynchroniczne wykonanie `apply_pipeline`.
+        Ignoruje wywołanie, jeśli poprzedni bieg jeszcze trwa.
+        """
+        with self._lock:
+            if self.is_running():
+                return
+            self._cancel_flag = False
+            self._thread = threading.Thread(
+                target=self._runner, args=(img_u8, ctx, list(steps) or []),
+                daemon=True
+            )
+            self._thread.start()
 
     def cancel(self) -> None:
-        """Cancel the current run, if any.
-
-        Currently cancellation is cooperative: the runner simply
-        abandons publishing the final ``run.done`` and the pipeline
-        continues in the background.  To implement full cancellation
-        support, the pipeline would need to be interruptible.
         """
-        # There is no cancellation support in core pipeline yet; this
-        # method simply discards the thread reference so that future
-        # runs can be scheduled.
-        self._current_thread = None
+        „Miękkie” anulowanie – przestaje publikować wyniki końcowe.
+        (Nie zatrzymuje samego `apply_pipeline`, które nie jest przerywalne.)
+        """
+        with self._lock:
+            self._cancel_flag = True
+
+    # ------------------------- INTERNAL --------------------------
+
+    def _emit(self, topic: str, payload: Dict[str, Any]) -> None:
+        try:
+            self.bus.publish(topic, dict(payload))
+        except Exception:
+            pass
+
+    def _progress(self, value: float, text: str) -> None:
+        self._emit("run.progress", {"value": float(max(0.0, min(1.0, value))), "text": str(text)})
+
+    def _runner(self, img_u8: Any, ctx: Any, steps: List[Dict[str, Any]]) -> None:
+        # start
+        self._emit("run.start", {"steps": steps})
+        self._progress(0.0, "Starting…")
+
+        try:
+            # (tu moglibyśmy w przyszłości streamować postęp, jeśli core na to pozwoli)
+            out = apply_pipeline(img_u8, ctx, steps, fail_fast=True, metrics=True)  # type: ignore[arg-type]
+            if self._cancel_flag:
+                return
+            self._progress(1.0, "Completed")
+            self._emit("run.done", {"ctx": ctx, "output": out})
+        except Exception as exc:
+            if self._cancel_flag:
+                return
+            self._progress(1.0, "Error")
+            self._emit("run.error", {"error": str(exc), "steps": steps})
+        finally:
+            # wyczyść referencję wątku
+            with self._lock:
+                self._thread = None
+                self._cancel_flag = False

@@ -39,6 +39,7 @@ from typing import Any, Callable, DefaultDict, Dict, List, Tuple
 
 Subscriber = Tuple[Callable[[str, Dict[str, Any]], None], bool]  # (fn, on_ui)
 
+
 class EventBus:
     """
     Lekki event bus dla GUI.

@@ -1,10 +1,10 @@
-# gui/views/left_toolbar.py
+# glitchlab/gui/views/left_toolbar.py
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict, Optional
 
 
 class LeftToolBar(ttk.Frame):
@@ -14,7 +14,7 @@ class LeftToolBar(ttk.Frame):
       - ui.tools.select {name: str}      # wybór aktywnego narzędzia
     Reaguje na zdarzenia run.* (best-effort), aby blokować interakcje podczas wykonywania:
       - run.progress {value: 0..1}
-      - run.done / run.error / run.status
+      - run.done / run.error
 
     Minimalny kontrakt busa: bus.publish(topic: str, payload: dict)
     (subskrypcja run.* jest opcjonalna — jeśli bus ma .subscribe, to się podpinamy)
@@ -45,12 +45,10 @@ class LeftToolBar(ttk.Frame):
         self._current = tk.StringVar(value=initial if initial in self.TOOLS else "pan")
         self._buttons: Dict[str, ttk.Radiobutton] = {}
 
-        # Styl „Toolbutton” by pasował do bottom panelu
         self.columnconfigure(0, weight=1)
 
         # Sekcja: 2D
-        sec2d = ttk.Label(self, text="2D Tools", anchor="w")
-        sec2d.grid(row=0, column=0, sticky="ew", padx=6, pady=(6, 2))
+        ttk.Label(self, text="2D Tools", anchor="w").grid(row=0, column=0, sticky="ew", padx=6, pady=(6, 2))
 
         row = 1
         for key in ("pan", "zoom", "ruler", "probe", "pick"):
@@ -63,8 +61,7 @@ class LeftToolBar(ttk.Frame):
 
         # Sekcja: 3D (opcjonalna)
         if show_3d:
-            sec3d = ttk.Label(self, text="3D (experimental)", anchor="w")
-            sec3d.grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 2))
+            ttk.Label(self, text="3D (experimental)", anchor="w").grid(row=row, column=0, sticky="ew", padx=6, pady=(0, 2))
             row += 1
             for key in ("orbit3d", "move3d"):
                 self._add_tool_button(key, text=self.TOOLS[key], row=row)
@@ -91,7 +88,6 @@ class LeftToolBar(ttk.Frame):
         self._buttons[name] = b
 
     def _on_select(self, name: str) -> None:
-        # stabilizujemy wartość (np. gdy przychodzi z klawiatury)
         self._current.set(name)
         self._publish("ui.tools.select", {"name": name})
 
@@ -108,10 +104,7 @@ class LeftToolBar(ttk.Frame):
                 v = float((d or {}).get("value") or 0.0)
             except Exception:
                 v = 0.0
-            if 0.0 < v < 1.0:
-                self.set_enabled(False)
-            else:
-                self.set_enabled(True)
+            self.set_enabled(not (0.0 < v < 1.0))
 
         def on_done(_t: str, _d: Dict[str, Any]) -> None:
             self.set_enabled(True)
@@ -124,17 +117,15 @@ class LeftToolBar(ttk.Frame):
             self.bus.subscribe("run.done", on_done)
             self.bus.subscribe("run.error", on_error)
         except Exception:
-            # brak subscribe — ignorujemy
             pass
 
     # --------------------------------------------------------------- PUBLIC API
 
     def set_enabled(self, enabled: bool) -> None:
         """Włącza/wyłącza interaktywność wszystkich przycisków."""
-        state = ("!disabled",) if enabled else ("disabled",)
         try:
             for b in self._buttons.values():
-                b.state(state)
+                b.state(("!disabled",) if enabled else ("disabled",))
         except Exception:
             for b in self._buttons.values():
                 try:

@@ -81,6 +81,3 @@ def instantiate_panel(parent, filter_name: str, ctx: Optional[PanelContext] = No
         # część starszych paneli mogła nie przyjmować ctx
         return Cls(parent)
 
-
-# Zgodnościowy alias (dla kodu, który importuje `get_panel` z tego modułu)
-get_panel = get_panel_class

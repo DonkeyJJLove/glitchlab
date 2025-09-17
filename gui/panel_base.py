@@ -9,7 +9,7 @@ from tkinter import ttk
 __all__ = [
     "PanelContext",
     "PanelBase",
-    "BasicPanel",          # alias dla kompatybilności
+    "BasicPanel",
     "register_panel",
     "get_panel",
     "list_registered",
@@ -23,6 +23,7 @@ __all__ = [
 
 _PANEL_REG: Dict[str, Type[ttk.Frame]] = {}
 
+
 def register_panel(filter_name: str, panel_cls: Type[ttk.Frame]) -> None:
     """Zarejestruj klasę panelu dla danego filtra."""
     if not isinstance(filter_name, str) or not filter_name:
@@ -31,12 +32,15 @@ def register_panel(filter_name: str, panel_cls: Type[ttk.Frame]) -> None:
         raise TypeError("register_panel: panel_cls must be a ttk.Frame subclass")
     _PANEL_REG[filter_name] = panel_cls
 
+
 def get_panel(filter_name: str) -> Optional[Type[ttk.Frame]]:
     """Zwróć klasę panelu z rejestru, lub None jeśli nie ma."""
     return _PANEL_REG.get(filter_name)
 
+
 def list_registered() -> List[str]:
     return sorted(_PANEL_REG.keys())
+
 
 # ---------------------------------------------------------------------
 # Kontekst i baza paneli (jak dotąd)
@@ -89,6 +93,7 @@ class PanelBase(ttk.Frame):
       - zwraca parametry przez get_params(),
       - emituje on_change przy każdej zmianie (ctx.emit).
     """
+
     def __init__(self, parent: tk.Widget, ctx: PanelContext | None = None, **kwargs):
         super().__init__(parent, **kwargs)
         self.ctx: PanelContext = ctx or PanelContext()
@@ -99,11 +104,11 @@ class PanelBase(ttk.Frame):
 
     # -------- śledzenie zmiennych --------
     def track_var(
-        self,
-        name: str,
-        var: tk.Variable,
-        conv: Optional[Callable[[Any], Any]] = None,
-        emit_immediately: bool = True,
+            self,
+            name: str,
+            var: tk.Variable,
+            conv: Optional[Callable[[Any], Any]] = None,
+            emit_immediately: bool = True,
     ) -> None:
         """Zarejestruj zmienną formularza. conv – opcjonalna funkcja konwersji."""
         self._tracked.append((name, var, conv))
@@ -137,8 +142,8 @@ class PanelBase(ttk.Frame):
 
     # -------- helpers --------
     def add_labeled_entry(
-        self, parent: tk.Widget, label: str, name: str, width: int = 8,
-        init: Any = "", conv: Optional[Callable[[str], Any]] = None
+            self, parent: tk.Widget, label: str, name: str, width: int = 8,
+            init: Any = "", conv: Optional[Callable[[str], Any]] = None
     ) -> ttk.Frame:
         frm = ttk.Frame(parent)
         ttk.Label(frm, text=label).pack(side="left", padx=(0, 6))
@@ -155,7 +160,7 @@ class PanelBase(ttk.Frame):
         return chk
 
     def add_combo(
-        self, parent: tk.Widget, label: str, name: str, values: List[str], init: str = ""
+            self, parent: tk.Widget, label: str, name: str, values: List[str], init: str = ""
     ) -> ttk.Frame:
         frm = ttk.Frame(parent)
         ttk.Label(frm, text=label).pack(side="left", padx=(0, 6))
@@ -169,8 +174,8 @@ class PanelBase(ttk.Frame):
         return frm
 
     def add_slider(
-        self, parent: tk.Widget, label: str, name: str,
-        from_: float, to: float, init: float, resolution: float = 0.01
+            self, parent: tk.Widget, label: str, name: str,
+            from_: float, to: float, init: float, resolution: float = 0.01
     ) -> ttk.Frame:
         frm = ttk.Frame(parent)
         ttk.Label(frm, text=label).pack(side="left", padx=(0, 6))
@@ -179,6 +184,7 @@ class PanelBase(ttk.Frame):
         scl.pack(side="left", fill="x", expand=True)
         self.track_var(name, var, conv=lambda v: float(v))
         return frm
+
 
 # Alias dla starszych importów:
 BasicPanel = PanelBase

@@ -3,51 +3,64 @@
 from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Zależności opcjonalne (łagodne importy)
+# ─────────────────────────────────────────────────────────────────────────────
 try:
     from glitchlab.gui.views.hud import HUDView as Hud
-except Exception:
+except Exception:  # pragma: no cover
     Hud = None  # type: ignore
 
 try:
     from glitchlab.gui.widgets.graph_view import GraphView
-except Exception:
+except Exception:  # pragma: no cover
     GraphView = None  # type: ignore
 
 try:
     from glitchlab.gui.widgets.mosaic_view import MosaicMini
-except Exception:
+except Exception:  # pragma: no cover
     MosaicMini = None  # type: ignore
 
 try:
     from glitchlab.gui.widgets.diag_console import DiagConsole
-except Exception:
+except Exception:  # pragma: no cover
     DiagConsole = None  # type: ignore
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Pomocniczy adapter: dict -> obiekt z atrybutem .cache
+# ─────────────────────────────────────────────────────────────────────────────
+class _DictCtx:
+    __slots__ = ("cache",)
+    def __init__(self, cache: Dict[str, Any]) -> None:
+        self.cache = cache
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BottomPanel
+# ─────────────────────────────────────────────────────────────────────────────
 class BottomPanel(ttk.Frame):
     """
     Zintegrowany dolny panel (zakładki HUD/Graph/Mosaic/Diagnostics).
-    • Stała wysokość (scrollable content).
-    • Sterowany radiobuttonami segmentowymi.
-    API:
-      - select(view_name)
-      - set_ctx(ctx_or_cache)
-      - log(msg)
-      - set_visible(flag)
+
+    • Stała minimalna wysokość zawartości (nie „zapada się”).
+    • Radiobuttony segmentowe do przełączania kart.
+    • Tło zgodne z motywem (nie hardcodowane na czarno).
     """
 
     VIEWS = ("hud", "graph", "mosaic", "diag")
-    PANEL_HEIGHT = 260  # stała wysokość panelu (px)
+    PANEL_MIN_HEIGHT = 260  # px
 
     def __init__(self, master: tk.Misc, *, bus: Optional[Any] = None, default: str = "hud"):
-        super().__init__(master)
+        super().__init__(master, style="BottomArea.TFrame")
+
         self.bus = bus
         self._current = tk.StringVar(value=(default if default in self.VIEWS else "hud"))
 
-        # Pasek przycisków
-        bar = ttk.Frame(self)
+        # ── Pasek przycisków ────────────────────────────────────────────────
+        bar = ttk.Frame(self, style="BottomArea.TFrame")
         bar.pack(side="top", fill="x", padx=6, pady=(6, 4))
 
         def seg(text: str, val: str):
@@ -58,43 +71,29 @@ class BottomPanel(ttk.Frame):
             rb.pack(side="left", padx=(0, 4))
             return rb
 
-        self._btn_hud = seg("HUD", "hud")
-        self._btn_graph = seg("Graph", "graph")
+        self._btn_hud    = seg("HUD", "hud")
+        self._btn_graph  = seg("Graph", "graph")
         self._btn_mosaic = seg("Mosaic", "mosaic")
-        self._btn_diag = seg("Diagnostics", "diag")
+        self._btn_diag   = seg("Diagnostics", "diag")
 
         ttk.Separator(self).pack(fill="x")
 
-        # Obszar treści – kontener z przewijaniem
-        self._scroll_canvas = tk.Canvas(self, height=self.PANEL_HEIGHT, highlightthickness=0, bg="#1a1a1a")
-        self._scroll_canvas.pack(fill="x", expand=False, side="top")
+        # ── Kontener widoków (Frame, nie Canvas z czarnym bg) ───────────────
+        self._container = ttk.Frame(self, style="BottomArea.TFrame")
+        self._container.pack(fill="both", expand=True)
 
-        self._scroll_frame = ttk.Frame(self._scroll_canvas)
-        self._scroll_win = self._scroll_canvas.create_window(0, 0, window=self._scroll_frame, anchor="nw")
-
-        sb = ttk.Scrollbar(self, orient="vertical", command=self._scroll_canvas.yview)
-        self._scroll_canvas.configure(yscrollcommand=sb.set)
-        sb.pack(side="right", fill="y")
-
-        self._scroll_frame.bind(
-            "<Configure>",
-            lambda e: self._scroll_canvas.configure(
-                scrollregion=self._scroll_canvas.bbox("all")
-            )
-        )
-
-        # widoki wewnętrzne
+        # ── Widoki wewnętrzne ───────────────────────────────────────────────
         self._views: dict[str, tk.Widget] = {
-            "hud": self._make_hud(self._scroll_frame),
-            "graph": self._make_graph(self._scroll_frame),
-            "mosaic": self._make_mosaic(self._scroll_frame),
-            "diag": self._make_diag(self._scroll_frame),
+            "hud":    self._make_hud(self._container),
+            "graph":  self._make_graph(self._container),
+            "mosaic": self._make_mosaic(self._container),
+            "diag":   self._make_diag(self._container),
         }
 
+        # Startowy widok
         self._show_only(self._current.get())
 
-    # ---------- Tworzenie pod-widoków ----------
-
+    # ───────────────────── Tworzenie pod-widoków ─────────────────────────────
     def _make_hud(self, parent):
         if Hud is not None:
             w = Hud(parent)
@@ -140,8 +139,7 @@ class BottomPanel(ttk.Frame):
         f.pack_forget()
         return f
 
-    # ---------- API ----------
-
+    # ───────────────────────────── API publiczne ─────────────────────────────
     def select(self, view_name: str) -> None:
         if view_name in self.VIEWS:
             self._current.set(view_name)
@@ -149,12 +147,12 @@ class BottomPanel(ttk.Frame):
             self._publish("ui.bottom.select", {"view": view_name})
 
     def set_ctx(self, ctx_or_cache: Any) -> None:
-        """Przekaż ctx lub cache, aby odświeżyć HUD i Mosaic."""
-        cache = None
         if isinstance(ctx_or_cache, dict):
-            cache = ctx_or_cache
+            cache: Optional[Dict[str, Any]] = ctx_or_cache
+            ctx_for_hud: Any = _DictCtx(cache)
         else:
             cache = getattr(ctx_or_cache, "cache", None)
+            ctx_for_hud = ctx_or_cache
 
         if not isinstance(cache, dict):
             return
@@ -162,9 +160,10 @@ class BottomPanel(ttk.Frame):
         try:
             hv = self._views.get("hud")
             if hv and hasattr(hv, "render_from_cache"):
-                hv.render_from_cache(cache)
+                hv.render_from_cache(ctx_for_hud)
         except Exception:
             pass
+
         try:
             mv = self._views.get("mosaic")
             if mv and hasattr(mv, "render_from_cache"):
@@ -182,25 +181,26 @@ class BottomPanel(ttk.Frame):
 
     def set_visible(self, flag: bool) -> None:
         if flag:
-            self.pack(fill="x", expand=False, side="bottom")
+            self.pack(fill="both", expand=True, side="top")
         else:
             self.pack_forget()
 
-    # ---------- Wewnętrzne ----------
-
+    # ───────────────────────────── Pomocnicze ────────────────────────────────
     def _on_select(self, view_name: str) -> None:
         self._show_only(view_name)
         self._publish("ui.bottom.select", {"view": view_name})
 
     def _show_only(self, key: str) -> None:
-        for name, widget in self._views.items():
+        for _, widget in self._views.items():
             try:
                 widget.pack_forget()
             except Exception:
                 pass
+
         w = self._views.get(key)
         if w:
-            w.pack(fill="both", expand=True)
+            w.pack(fill="both", expand=True, padx=6, pady=6, anchor="center")
+        self.update_idletasks()
 
     def _publish(self, topic: str, payload: dict) -> None:
         if self.bus is not None and hasattr(self.bus, "publish"):
