@@ -1,27 +1,22 @@
 # glitchlab/gui/widgets/canvas_container.py
 # -*- coding: utf-8 -*-
 """
-CanvasContainer – viewer 2-D + toolbox + linijki + crosshair.
-
-Funkcje:
-• Przechowuje oryginalny obraz (self._img_orig) i renderuje skalowaną kopię.
-• Prawidłowe centrowanie w viewport + linijki zależne od zoomu.
-• Toolbox (pan/zoom/ruler/probe/pick) jako radiobuttony z ikonami.
-• Crosshair i publikacja pozycji kursora na busie: topic "ui.cursor.pos".
-• Obsługa pan (LPM przeciągnij) oraz zoom (scroll) – gdy wybrane narzędzie.
-• Integracja z EventBus: reaguje na "ui.tools.select".
-• Blokada UI w trakcie pracy (set_enabled(False)) – wygaszanie zdarzeń.
-
-Uwaga: korzysta z opcjonalnych zależności (Pillow). W razie braku – degraduje się do etykiety.
+CanvasContainer – kontener widoku obrazu:
+• Toolbox (ikony narzędzi)
+• Rulers (góra/lewo)
+• LayerCanvas (dwuwarstwowy viewer: obraz + overlay crosshair)
+• Pan/Zoom przez LayerCanvas (overlay zawsze nad obrazem)
+• Publikacja pozycji kursora w image-space: "ui.cursor.pos"
 """
 
 from __future__ import annotations
 
 import math
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Optional, Tuple, Dict
 
 # ────────── Pillow (opcjonalnie – miniatury, powiększacz) ──────────
 try:
@@ -29,32 +24,55 @@ try:
 except Exception:  # Pillow nieobecny
     Image = ImageTk = None  # type: ignore
 
-# ────────── fallback ImageCanvas (pojedyncza etykieta) ──────────
+# ────────── nowy dwuwarstwowy viewer ──────────
 try:
-    from glitchlab.gui.widgets.image_canvas import ImageCanvas  # type: ignore
+    from glitchlab.gui.widgets.layer_canvas import LayerCanvas  # type: ignore
 except Exception:
+    LayerCanvas = None  # type: ignore
 
-    class ImageCanvas(ttk.Label):  # type: ignore
-        """Awaryjny viewer – zwykły Label z obrazkiem."""
-        def set_image(self, pil_img):  # type: ignore
-            if Image and ImageTk:
+# ────────── fallback mini-viewer jeśli LayerCanvas niedostępny ──────────
+if LayerCanvas is None:
+    class LayerCanvas(ttk.Label):  # type: ignore
+        def __init__(self, master: tk.Misc, *, bus: Optional[Any] = None) -> None:
+            super().__init__(master, text="(LayerCanvas unavailable)")
+            self._photo = None
+
+        def set_layers(self, images, names=None) -> None:
+            if Image and ImageTk and images:
                 try:
-                    self._photo = ImageTk.PhotoImage(pil_img)  # type: ignore[arg-type]
+                    pil = images[0]
+                    if not hasattr(pil, "mode"):
+                        from PIL import Image as _PIL  # type: ignore
+                        pil = _PIL.fromarray(pil, "RGB")
+                    pil = pil.convert("RGB")
+                    self._photo = ImageTk.PhotoImage(pil)  # type: ignore[arg-type]
                     self.configure(image=self._photo, text="")
-                    return
-                except Exception:  # pragma: no cover
+                except Exception:
                     pass
-            self.configure(text="(viewer unavailable)")
+
+        def add_layer(self, image, name="Layer") -> int: return -1
+        def remove_layer(self, index: int) -> None: ...
+        def reorder_layer(self, src: int, dst: int) -> None: ...
+        def set_active_layer(self, index: int) -> None: ...
+        def get_active_layer(self) -> Optional[int]: return 0
+        def set_layer_visible(self, index: int, visible: bool) -> None: ...
+        def set_layer_offset(self, index: int, dx: int, dy: int) -> None: ...
+        def get_zoom(self) -> float: return 1.0
+        def set_zoom(self, z: float) -> None: ...
+        def zoom_fit(self) -> None: ...
+        def center(self) -> None: ...
+        def set_view_center(self, x_img: float, y_img: float) -> None: ...
+        def screen_to_image(self, sx: int, sy: int) -> Tuple[int, int]: return (sx, sy)
+        def set_crosshair(self, flag: bool) -> None: ...
 
 
-# ══════════════════════════ CanvasContainer ══════════════════════════
 class CanvasContainer(ttk.Frame):
-    """Viewer + toolbox + rulers + crosshair / pan / zoom / probe."""
+    """Viewer + toolbox + rulers + crosshair / pan / zoom / probe (via LayerCanvas)."""
 
     # ---------- stałe UI ----------
     TOOLS = ("pan", "zoom", "ruler", "probe", "pick")
 
-    TOOLBOX_W, RULER_TOP_H, RULER_LEFT_W = 48, 28, 34
+    TOOLBOX_W, RULER_TOP_H, RULER_LEFT_W = 56, 28, 34
     BG_VIEWPORT = "#101010"
     BG_RULER = "#1b1b1b"
     FG_RULER = "#9a9a9a"
@@ -71,7 +89,6 @@ class CanvasContainer(ttk.Frame):
         "pick": "icon_pick.png",
     }
 
-    # ---------- konstruktor ----------
     def __init__(
         self,
         master: tk.Misc,
@@ -86,9 +103,11 @@ class CanvasContainer(ttk.Frame):
         # runtime
         self._tool = self.tool_var.get()
         self._enabled = True
-        self._img_orig: Optional["Image.Image"] = None  # oryginał
+        self._img_orig: Optional["Image.Image"] = None
         self._scale = 1.0
-        self._pan_origin: Optional[Tuple[int, int]] = None
+
+        # tag do „kurtyny” na płótnie obrazu (rysowanej na _viewer._cv_img)
+        self._disabled_tag = "_disabled_overlay"
 
         # siatka 3×2
         self.columnconfigure(2, weight=1)
@@ -106,34 +125,48 @@ class CanvasContainer(ttk.Frame):
         box.grid(row=1, column=0, sticky="ns")
         box.grid_propagate(False)
 
-        # ikony (opcjonalnie)
+        # Ikony – wczytaj gdy dostępne
         self._icons: Dict[str, tk.PhotoImage] = {}
         if Image and ImageTk:
             for key, fname in self._ICON_FILES.items():
                 p = self._ICON_DIR / fname
                 if p.exists():
                     try:
-                        img = Image.open(p).resize((32, 32), Image.NEAREST)
+                        img = Image.open(p).convert("RGBA").resize((28, 28), Image.LANCZOS)
                         self._icons[key] = ImageTk.PhotoImage(img)  # type: ignore[arg-type]
                     except Exception:
                         pass
 
-        # radiobuttony
-        for r, name in enumerate(self.TOOLS):
-            ttk.Radiobutton(
+        def make_radio(name: str, text_fallback: str) -> ttk.Radiobutton:
+            return ttk.Radiobutton(
                 box,
                 image=self._icons.get(name, ""),
-                text=name.capitalize() if name not in self._icons else "",
+                text=text_fallback if name not in self._icons else "",
                 compound="top",
-                padding=1,
+                padding=2,
                 variable=self.tool_var,
                 value=name,
                 command=lambda n=name: self._set_tool(n),
                 style="Toolbutton",
-            ).grid(row=r, column=0, pady=4, padx=6)
+            )
+
+        radios = [
+            ("pan", "🖐"),
+            ("zoom", "🔍"),
+            ("ruler", "📏"),
+            ("probe", "🎯"),
+            ("pick", "🎨"),
+        ]
+        for r, (name, label) in enumerate(radios):
+            make_radio(name, label).grid(row=r, column=0, pady=4, padx=10)
+
+        ttk.Separator(box, orient="horizontal").grid(row=len(radios), column=0, sticky="ew", pady=(8, 2))
+        self._cross_var = tk.BooleanVar(value=True)
+        chk = ttk.Checkbutton(box, text="Cross", variable=self._cross_var, style="Toolbutton",
+                              command=lambda: self._viewer.set_crosshair(bool(self._cross_var.get())))
+        chk.grid(row=len(radios)+1, column=0, pady=2)
 
     def _build_rulers(self) -> None:
-        # narożne maski
         tk.Canvas(
             self,
             width=self.TOOLBOX_W,
@@ -160,56 +193,58 @@ class CanvasContainer(ttk.Frame):
         self._ruler_top.grid(row=0, column=2, sticky="ew")
 
     def _build_viewport(self) -> None:
-        self._viewport = tk.Canvas(self, bg=self.BG_VIEWPORT, highlightthickness=0)
-        self._viewport.grid(row=1, column=2, sticky="nsew")
+        # Obszar widoku (LayerCanvas)
+        wrap = ttk.Frame(self)
+        wrap.grid(row=1, column=2, sticky="nsew")
+        wrap.rowconfigure(0, weight=1)
+        wrap.columnconfigure(0, weight=1)
 
-        self._viewer = ImageCanvas(self._viewport)
-        self._viewer_win = self._viewport.create_window(
-            0, 0, window=self._viewer, anchor="center"
-        )
+        self._viewer = LayerCanvas(wrap, bus=self.bus)  # overlay crosshair nad obrazem
+        self._viewer.grid(row=0, column=0, sticky="nsew")
 
-        # crosshair
-        self._cross_h = self._viewport.create_line(0, 0, 0, 0, fill=self.FG_CROSS)
-        self._cross_v = self._viewport.create_line(0, 0, 0, 0, fill=self.FG_CROSS)
-
-        # półprzezroczysta „kurtyna” przy disabled
-        self._disabled_overlay = self._viewport.create_rectangle(
-            0, 0, 0, 0, fill="", outline=""
-        )
+        # UWAGA: rezygnujemy z osobnego Canvas dla „disabled overlay”
+        # (bg="" wywala się na niektórych Tk). Kurtynę rysujemy jako elementy
+        # na _viewer._cv_img z unikalnym tagiem self._disabled_tag.
 
     # ---------- publiczne API ----------
     def set_image(self, pil_img: "Image.Image") -> None:
-        """Zapisz oryginał i wyrenderuj w aktualnej skali."""
-        self._img_orig = pil_img
-        self._render_scaled_image()
+        """Ustaw pojedynczy obraz jako jedyną warstwę (Background)."""
+        self._img_orig = pil_img if (not Image or getattr(pil_img, "mode", "") == "RGB") else pil_img.convert("RGB")
+        self._viewer.set_layers([self._img_orig], names=["Background"])
         self.fit_to_window()
         self._redraw_rulers()
 
     def fit_to_window(self) -> None:
-        if not self._img_orig:
-            return
-        vw, vh = (
-            max(1, self._viewport.winfo_width()),
-            max(1, self._viewport.winfo_height()),
-        )
-        iw, ih = self._img_orig.size
-        self._scale = min(vw / iw, vh / ih, 1.0)
-        self._render_scaled_image()
-        self._resize_and_center()
+        self._viewer.zoom_fit()
+        self._redraw_rulers()
 
     def set_enabled(self, flag: bool) -> None:
         """Blokuj/odblokuj interakcję (używane podczas run.progress)."""
         self._enabled = bool(flag)
-        # wizualne przykrycie (półprzezroczyste)
         try:
-            vw, vh = self._viewport.winfo_width(), self._viewport.winfo_height()
+            cv = getattr(self._viewer, "_cv_img", None)
+            if not isinstance(cv, tk.Canvas):
+                return
+            # usuń poprzednią kurtynę
+            try:
+                cv.delete(self._disabled_tag)
+            except Exception:
+                pass
             if not self._enabled:
-                self._viewport.coords(self._disabled_overlay, 0, 0, vw, vh)
-                self._viewport.itemconfigure(self._disabled_overlay, fill="#00000060", outline="")
-                self._viewport.configure(cursor="watch")
+                w = max(1, cv.winfo_width())
+                h = max(1, cv.winfo_height())
+                # półprzezroczysta „kurtyna” przez stipple (symulacja alfa)
+                cv.create_rectangle(
+                    0, 0, w, h,
+                    fill="#000000",
+                    stipple="gray25",   # 25% coverage
+                    width=0,
+                    tags=(self._disabled_tag,),
+                )
+                # kursor „zajęty”
+                cv.configure(cursor="watch")
             else:
-                self._viewport.itemconfigure(self._disabled_overlay, fill="", outline="")
-                self._viewport.configure(cursor="")
+                cv.configure(cursor="")
         except Exception:
             pass
 
@@ -218,92 +253,36 @@ class CanvasContainer(ttk.Frame):
         if not (self.bus and hasattr(self.bus, "subscribe")):
             return
 
-        # zmiana narzędzia z menu „Tools”
         def _on_tool(_t: str, d: Dict[str, Any]) -> None:
             name = (d or {}).get("name")
             if isinstance(name, str):
                 self._set_tool(name)
 
+        def _on_cross(_t: str, d: Dict[str, Any]) -> None:
+            flag = bool((d or {}).get("enabled", True))
+            self._cross_var.set(flag)
+            self._viewer.set_crosshair(flag)
+
         try:
             self.bus.subscribe("ui.tools.select", _on_tool)
+            self.bus.subscribe("ui.image.crosshair.set", _on_cross)
         except Exception:
             pass
 
     # ---------- eventy ----------
     def _wire_events(self) -> None:
-        vp = self._viewport
-        vp.bind(
-            "<Configure>",
-            lambda _e: (self._resize_and_center(), self._redraw_rulers()),
-        )
-        vp.bind("<Motion>", self._on_motion)
-        vp.bind("<Leave>", self._on_leave)
-
-        # wheel (zoom)
-        vp.bind("<MouseWheel>", self._on_wheel)   # Win/macOS
-        vp.bind("<Button-4>", self._on_wheel)     # X11 up
-        vp.bind("<Button-5>", self._on_wheel)     # X11 down
-
-        # panning
-        vp.bind("<ButtonPress-1>", self._on_btn1_down)
-        vp.bind("<B1-Motion>", self._on_btn1_drag)
-        vp.bind("<ButtonRelease-1>", self._on_btn1_up)
+        # redraw rulers przy zmianach rozmiaru kontenera
+        self.bind("<Configure>", lambda _e: self._redraw_rulers())
+        # ruch kursora z overlay (LayerCanvas sam publikuje ui.cursor.pos)
+        self._viewer.bind("<Motion>", lambda e: self._on_overlay_motion(e), add="+")
 
     # ---------- handlers ----------
-    def _on_motion(self, ev: tk.Event) -> None:  # type: ignore[override]
-        if not self._enabled:
+    def _on_overlay_motion(self, e: tk.Event) -> None:  # type: ignore[override]
+        try:
+            x, y = int(e.x), int(e.y)
+        except Exception:
             return
-        x, y = int(ev.x), int(ev.y)
-        # crosshair
-        vw, vh = self._viewport.winfo_width(), self._viewport.winfo_height()
-        self._viewport.coords(self._cross_h, 0, y, vw, y)
-        self._viewport.coords(self._cross_v, x, 0, x, vh)
-        # rulers highlight
         self._redraw_rulers(cursor=(x, y))
-        # publish cursor pos
-        if self.bus and hasattr(self.bus, "publish"):
-            self.bus.publish("ui.cursor.pos", {"x": x, "y": y})
-
-    def _on_leave(self, _ev=None):
-        if not self._enabled:
-            return
-        self._viewport.coords(self._cross_h, 0, 0, 0, 0)
-        self._viewport.coords(self._cross_v, 0, 0, 0, 0)
-        self._redraw_rulers()
-
-    def _on_wheel(self, ev: tk.Event) -> None:  # type: ignore[override]
-        if not self._enabled or self._tool != "zoom":
-            return
-        delta = int(getattr(ev, "delta", 0))
-        if getattr(ev, "num", None) in (4, 5):  # X11
-            delta = 120 if ev.num == 4 else -120
-        factor = 1.1 if delta > 0 else 0.9
-        self._scale = min(8.0, max(1e-3, self._scale * factor))
-        self._render_scaled_image()
-        self._resize_and_center()
-        self._redraw_rulers()
-
-    def _on_btn1_down(self, ev: tk.Event) -> None:  # type: ignore[override]
-        if not self._enabled:
-            return
-        if self._tool == "pan":
-            self._pan_origin = (int(ev.x), int(ev.y))
-            self._viewport.configure(cursor="fleur")
-
-    def _on_btn1_drag(self, ev: tk.Event) -> None:  # type: ignore[override]
-        if not self._enabled or self._tool != "pan" or not self._pan_origin:
-            return
-        x0, y0 = self._pan_origin
-        dx, dy = int(ev.x) - x0, int(ev.y) - y0
-        vx, vy = self._viewport.coords(self._viewer_win)
-        self._viewport.coords(self._viewer_win, vx + dx, vy + dy)
-        self._pan_origin = (int(ev.x), int(ev.y))
-
-    def _on_btn1_up(self, _ev=None):
-        if not self._enabled:
-            return
-        self._pan_origin = None
-        self._viewport.configure(cursor="")
 
     # ---------- pomocnicze ----------
     def _set_tool(self, name: str) -> None:
@@ -311,51 +290,26 @@ class CanvasContainer(ttk.Frame):
             self._tool = name
             self.tool_var.set(name)
 
-    def _render_scaled_image(self) -> None:
-        """Tworzy kopię oryginału w aktualnej skali i przekazuje do ImageCanvas."""
-        if not (self._img_orig and Image and ImageTk):
-            return
-        iw, ih = self._img_orig.size
-        w = max(1, int(iw * self._scale))
-        h = max(1, int(ih * self._scale))
-        try:
-            img_scaled = (
-                self._img_orig
-                if (w, h) == self._img_orig.size
-                else self._img_orig.resize((w, h), Image.LANCZOS)
-            )
-            self._viewer.set_image(img_scaled)
-            # zachowaj refę, żeby GC nie zjadł bitmapy
-            self._viewer._photo_ref = getattr(self._viewer, "_photo", None)
-            self._viewport.itemconfigure(self._viewer_win, width=w, height=h)
-        except Exception:  # pragma: no cover
-            pass
-
-    def _resize_and_center(self) -> None:
-        if not self._img_orig:
-            return
-        iw, ih = self._img_orig.size
-        ww, wh = int(iw * self._scale), int(ih * self._scale)
-        vw, vh = self._viewport.winfo_width(), self._viewport.winfo_height()
-        self._viewport.itemconfigure(self._viewer_win, width=ww, height=wh)
-        self._viewport.coords(self._viewer_win, vw // 2, vh // 2)
-
     # ---------- rulers ----------
     def _redraw_rulers(self, cursor: Optional[Tuple[int, int]] = None) -> None:
         for c in (self._ruler_top, self._ruler_left):
             c.delete("all")
-        if not self._img_orig:
+        base_img = getattr(self._viewer, "_get_base_image", None)
+        pil_img = base_img() if callable(base_img) else None
+        if pil_img is None:
+            vw = self._ruler_top.winfo_width()
+            vh = self._ruler_left.winfo_height()
+            self._ruler_top.create_rectangle(0, 0, max(1, vw), self.RULER_TOP_H, fill=self.BG_RULER, outline="")
+            self._ruler_left.create_rectangle(0, 0, self.RULER_LEFT_W, max(1, vh), fill=self.BG_RULER, outline="")
             return
 
-        vw, vh = self._viewport.winfo_width(), self._viewport.winfo_height()
-        iw, ih = self._img_orig.size
-        sx = sy = self._scale
+        vw, vh = self._ruler_top.winfo_width(), self._ruler_left.winfo_height()
+        iw, ih = pil_img.size
+        sx = sy = float(self._viewer.get_zoom())
 
-        # tło
         self._ruler_top.create_rectangle(0, 0, vw, self.RULER_TOP_H, fill=self.BG_RULER, outline="")
         self._ruler_left.create_rectangle(0, 0, self.RULER_LEFT_W, vh, fill=self.BG_RULER, outline="")
 
-        # helper: krok
         def _step(size: int) -> int:
             if size <= 0:
                 return 1
@@ -367,7 +321,6 @@ class CanvasContainer(ttk.Frame):
                     return max(1, step)
             return max(1, int(raw))
 
-        # skala X
         step_x = _step(iw)
         for ix in range(0, iw + 1, step_x):
             x = int(ix * sx)
@@ -381,7 +334,6 @@ class CanvasContainer(ttk.Frame):
                     x + 3, self.RULER_TOP_H - 12, anchor="nw", text=str(ix), fill=self.FG_RULER, font=("", 9)
                 )
 
-        # skala Y
         step_y = _step(ih)
         for iy in range(0, ih + 1, step_y):
             y = int(iy * sy)
@@ -393,7 +345,6 @@ class CanvasContainer(ttk.Frame):
             if major:
                 self._ruler_left.create_text(2, y + 2, anchor="nw", text=str(iy), fill=self.FG_RULER, font=("", 9))
 
-        # podświetlenie kursora
         if cursor:
             cx, cy = cursor
             self._ruler_top.create_line(cx, 0, cx, self.RULER_TOP_H, fill=self.FG_CROSS)

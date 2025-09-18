@@ -1,2 +1,2 @@
 __all__ = ['core','filters']
-__version__ = '0.1.0'
+__version__ = '4.5.0'

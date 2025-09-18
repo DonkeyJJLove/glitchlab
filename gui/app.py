@@ -6,7 +6,7 @@ import os
 import sys
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from glitchlab.gui.views.bottom_area import init_styles
 
@@ -87,10 +87,24 @@ try:
 except Exception:
     ImageHistory = None  # type: ignore
 
+# >>> LAYERS <<<
+try:
+    from glitchlab.gui.services.layer_manager import LayerManager
+    from glitchlab.gui.services.compositor import BlendMode
+except Exception:
+    LayerManager = None  # type: ignore
+    BlendMode = str  # type: ignore
+
 
 class AppState:
     def __init__(self) -> None:
+        # single-image fallback (legacy)
         self.image: Optional["Image.Image"] = None
+
+        # layers state (zarządzane przez LayerManager)
+        self.layers: List[Any] = []               # list[Layer]
+        self.active_layer_id: Optional[str] = None
+
         self.masks: Dict[str, Any] = {}
         self.cache: Dict[str, Any] = {}
         self.preset_cfg: Optional[Dict[str, Any]] = None
@@ -98,8 +112,6 @@ class AppState:
 
 
 class App(tk.Frame):
-    """LeftDummy ▸ Viewer (CanvasContainer) ▸ Notebook ▸ BottomArea (+ historia obrazu)."""
-
     def __init__(self, master: tk.Tk, **kw: Any) -> None:
         super().__init__(master, **kw)
 
@@ -114,6 +126,9 @@ class App(tk.Frame):
         self.state = AppState()
         self.runner = PipelineRunner(self.bus, master) if PipelineRunner else None
         self.history = ImageHistory(bus=self.bus, max_len=50) if ImageHistory else None
+
+        # LAYERS service
+        self.layer_mgr: Optional[LayerManager] = None
 
         # referencje
         self.menubar: Optional[MenuBar] = None
@@ -138,17 +153,17 @@ class App(tk.Frame):
         self.main = ttk.Panedwindow(self, orient="horizontal")
         self.main.pack(fill="both", expand=True)
 
-        # (1) Wąski lewy dock – tylko placeholder „in project”
+        # (1) Wąski lewy dock – placeholder
         self.left_dummy = LeftDummy(self.main)
-        self.main.add(self.left_dummy, weight=0)  # stała, wąska kolumna
+        self.main.add(self.left_dummy, weight=0)
 
-        # (2) ŚRODEK: Viewer (CanvasContainer ma własny, wewnętrzny toolbox – ciemny)
+        # (2) Viewer (CanvasContainer ma toolbox + rulers + LayerCanvas)
         self.center = ttk.Frame(self.main)
         self.viewer = CanvasContainer(self.center, bus=self.bus, tool_var=self.tool_var)
         self.viewer.pack(fill="both", expand=True)
         self.main.add(self.center, weight=65)
 
-        # (3) PRAWO: Notebook
+        # (3) Notebook
         self.right = ttk.Notebook(self.main)
         self.tab_general = GeneralTab(self.right, ctx_ref=self.state, cfg=GeneralTabConfig(preview_size=320), bus=self.bus)
         self.tab_filter = TabFilter(self.right, bus=self.bus, ctx_ref=self.state, cfg=FilterTabConfig(allow_apply=True))
@@ -158,19 +173,15 @@ class App(tk.Frame):
         self.right.add(self.tab_preset, text="Presets")
         self.main.add(self.right, weight=35)
 
-        # sash: 65% na viewer, 35% na prawe zakładki
+        # sash init
         def _init_sash():
             w = self.main.winfo_width()
             if w < 100:
                 self.after(30, _init_sash)
                 return
-            # sash #0 to granica między left_dummy a center – zostawiamy przy lewym brzegu
-            # ustaw pozycję #1 na 65% szerokości (po dummy)
             try:
-                total = w
-                # pozycja sasha #1: szerokość dummy + 65% (reszty)
                 dummy_w = self.left_dummy.winfo_width() or 28
-                self.main.sashpos(1, int(dummy_w + (total - dummy_w) * 0.65))
+                self.main.sashpos(1, int(dummy_w + (w - dummy_w) * 0.65))
             except Exception:
                 pass
         self.after_idle(_init_sash)
@@ -206,7 +217,7 @@ class App(tk.Frame):
         B = self.bus
 
         # View toggles
-        B.subscribe("ui.view.toggle_left", lambda *_: self._toggle_left())   # teraz przełącza LeftDummy
+        B.subscribe("ui.view.toggle_left", lambda *_: self._toggle_left())
         B.subscribe("ui.view.toggle_right", lambda *_: self._toggle_right())
         B.subscribe("ui.view.toggle_hud", lambda *_: self._toggle_hud())
         B.subscribe("ui.view.fullscreen", lambda *_: self._toggle_fullscreen())
@@ -250,6 +261,20 @@ class App(tk.Frame):
         # preset_cfg – śledź
         B.subscribe("preset.parsed", lambda _t, d: self._on_preset_parsed(d))
 
+        # >>> Layers wiring <<<
+        B.subscribe("ui.layer.add", lambda _t, d: self._on_layer_add(d))
+        B.subscribe("ui.layer.remove", lambda _t, d: self._on_layer_remove(d))
+        B.subscribe("ui.layer.set_active", lambda _t, d: self._on_layer_set_active(d))
+        B.subscribe("ui.layer.update", lambda _t, d: self._on_layer_update(d))
+        B.subscribe("ui.layers.reorder", lambda _t, d: self._on_layers_reorder(d))
+        # „pull” z panelu Layers → odeślij snapshot bieżącego stanu
+        B.subscribe("ui.layers.pull", lambda *_: self._publish_layers_snapshot())
+        # Reakcja na wewnętrzne publikacje LayerManagera (przeliczenie podglądu)
+        B.subscribe("ui.layers.changed", lambda *_: self._refresh_composite())
+
+        # Move Layer – trwałe zapisanie przesunięcia
+        B.subscribe("ui.layer.commit_offset", lambda _t, d: self._on_layer_commit_offset(d))
+
     def _on_preset_parsed(self, d: Dict[str, Any]) -> None:
         try:
             cfg = d.get("cfg") or {}
@@ -268,12 +293,25 @@ class App(tk.Frame):
         try:
             img = ImageOps.exif_transpose(Image.open(path))  # type: ignore[arg-type]
             img = img.convert("RGB") if img.mode != "RGB" else img
-            self.state.image = img
-            self.viewer.set_image(img)
+            # layers bootstrap
+            if LayerManager and self.layer_mgr is None:
+                self.layer_mgr = LayerManager(self.state, self.bus.publish)
+            if self.layer_mgr:
+                self.state.layers.clear()
+                self.state.active_layer_id = None
+                self.layer_mgr.add_layer(img, name="Background", blend="normal", opacity=1.0, visible=True)  # type: ignore[arg-type]
+                self._layers_set_snapshot()
+                # composite → viewer
+                self._refresh_composite()
+            else:
+                # fallback single image
+                self.state.image = img
+                self.viewer.set_image(img)
 
             if self.history is not None:
                 try:
-                    self.history.reset(img, cache={}, label="source")
+                    base = self._pil_to_u8(img)
+                    self.history.reset(base, cache={}, label="source")
                 except Exception:
                     pass
             self._update_edit_menu_state()
@@ -291,11 +329,16 @@ class App(tk.Frame):
     def _save_image_path(self, path: Optional[str]) -> None:
         if not path:
             return
-        if self.state.image is None:
+        # zapisujemy kompozyt
+        comp = self._get_composite_np()
+        if comp is None:
             messagebox.showwarning("Save Image", "No image to save.")
             return
         try:
-            self.state.image.save(path)
+            if Image is None or np is None:
+                messagebox.showerror("Save", "Pillow/NumPy required.")
+                return
+            Image.fromarray(comp, "RGB").save(path)
             if self.status is not None:
                 self.status.set_text(f"Saved: {os.path.basename(path)}")
         except Exception as ex:
@@ -331,14 +374,17 @@ class App(tk.Frame):
 
     # ───────────── RUN: single step ─────────────
     def run_step(self, step: Dict[str, Any]) -> None:
-        if not self.state.image:
+        # Źródłem dla filtra jest obraz AKTYWNEJ WARSTWY (jeśli mamy layer_mgr),
+        # w przeciwnym razie single-image fallback.
+        img_input_pil = self._get_active_layer_pil() or self.state.image
+        if not img_input_pil:
             messagebox.showwarning("Run", "No image loaded.")
             return
         if not (build_ctx and apply_pipeline):
             messagebox.showwarning("Core", "core.pipeline unavailable.")
             return
 
-        img_u8 = self._pil_to_u8(self.state.image)
+        img_u8 = self._pil_to_u8(img_input_pil)
         ctx = build_ctx(img_u8, seed=self.state.seed,
                         cfg=self.state.preset_cfg or {"version": 2, "steps": []})  # type: ignore[arg-type]
         if self.state.masks:
@@ -367,7 +413,8 @@ class App(tk.Frame):
 
     # ───────────── RUN: preset ─────────────
     def run_preset(self, cfg: Optional[Dict[str, Any]] = None) -> None:
-        if not self.state.image:
+        img_input_pil = self._get_active_layer_pil() or self.state.image
+        if not img_input_pil:
             messagebox.showwarning("Run", "No image loaded.")
             return
         if not (build_ctx and apply_pipeline):
@@ -388,7 +435,7 @@ class App(tk.Frame):
         steps = list(effective_cfg.get("steps") or [])
         self.state.preset_cfg = effective_cfg
 
-        img_u8 = self._pil_to_u8(self.state.image)
+        img_u8 = self._pil_to_u8(img_input_pil)
         ctx = build_ctx(img_u8, seed=self.state.seed, cfg=effective_cfg)  # type: ignore[arg-type]
         if self.state.masks:
             try:
@@ -437,19 +484,24 @@ class App(tk.Frame):
             except Exception:
                 pass
 
-        if self.history is not None and out is not None:
-            try:
-                self.history.snapshot_from_ctx(out, ctx, label="step")
-            except Exception:
-                pass
-
-        pil = self._array_to_pil(out)
-        if pil is not None:
-            self.state.image = pil
-            try:
-                self.viewer.set_image(pil)
-            except Exception:
-                pass
+        # Aktualizacja aktywnej warstwy lub fallback single-image
+        updated_pil = self._array_to_pil(out)
+        if updated_pil is not None:
+            if self.layer_mgr and self.state.active_layer_id:
+                try:
+                    # zamień obraz aktywnej warstwy
+                    self.layer_mgr.update_layer(self.state.active_layer_id, image=self._pil_to_u8(updated_pil))
+                except Exception:
+                    # awaryjnie: single-image fallback
+                    self.state.image = updated_pil
+                self._layers_set_snapshot()
+                self._refresh_composite()
+            else:
+                self.state.image = updated_pil
+                try:
+                    self.viewer.set_image(updated_pil)
+                except Exception:
+                    pass
 
         self._update_bottom_from_cache(self.state.cache)
         self._update_edit_menu_state()
@@ -499,11 +551,17 @@ class App(tk.Frame):
             return
         pil = self._array_to_pil(img_u8)
         if pil is not None:
-            self.state.image = pil
-            try:
+            if self.layer_mgr and self.state.active_layer_id:
+                try:
+                    self.layer_mgr.update_layer(self.state.active_layer_id, image=self._pil_to_u8(pil))
+                    self._layers_set_snapshot()
+                    self._refresh_composite()
+                except Exception:
+                    self.state.image = pil
+                    self.viewer.set_image(pil)
+            else:
+                self.state.image = pil
                 self.viewer.set_image(pil)
-            except Exception:
-                pass
         try:
             cache = self.history.get_current_cache()
             self.state.cache = cache
@@ -522,11 +580,17 @@ class App(tk.Frame):
             return
         pil = self._array_to_pil(img_u8)
         if pil is not None:
-            self.state.image = pil
-            try:
+            if self.layer_mgr and self.state.active_layer_id:
+                try:
+                    self.layer_mgr.update_layer(self.state.active_layer_id, image=self._pil_to_u8(pil))
+                    self._layers_set_snapshot()
+                    self._refresh_composite()
+                except Exception:
+                    self.state.image = pil
+                    self.viewer.set_image(pil)
+            else:
+                self.state.image = pil
                 self.viewer.set_image(pil)
-            except Exception:
-                pass
         try:
             cache = self.history.get_current_cache()
             self.state.cache = cache
@@ -543,16 +607,13 @@ class App(tk.Frame):
         try:
             panes = self.main.panes()
             if self._leftdock_visible:
-                # schowaj
                 if str(self.left_dummy) in panes:
                     self.main.forget(self.left_dummy)
                 self._leftdock_visible = False
             else:
-                # pokaż z powrotem jako pierwszy pane
                 if str(self.left_dummy) not in panes:
                     self.main.insert(0, self.left_dummy)
                 self._leftdock_visible = True
-            # po zmianie popraw sash dla #1 (granica viewer/right)
             w = self.main.winfo_width() or 1200
             dummy_w = self.left_dummy.winfo_width() if self._leftdock_visible else 0
             try:
@@ -607,6 +668,246 @@ class App(tk.Frame):
             except Exception:
                 pass
 
+    # ───────────── Layers helpers ─────────────
+    def _get_active_layer_pil(self) -> Optional["Image.Image"]:
+        """Zwraca obraz aktywnej warstwy (PIL) jeśli dostępny."""
+        if not (self.layer_mgr and self.state.active_layer_id):
+            return None
+        try:
+            lid = self.state.active_layer_id
+            for l in self.state.layers:
+                if getattr(l, "id", None) == lid:
+                    img = getattr(l, "image", None)
+                    if img is None:
+                        return None
+                    if Image is None or np is None:
+                        return None
+                    if isinstance(img, Image.Image):
+                        return img.convert("RGB")
+                    a = np.asarray(img)
+                    if a.dtype != np.uint8:
+                        a = np.clip(a, 0, 255).astype(np.uint8)
+                    return Image.fromarray(a, "RGB")
+        except Exception:
+            return None
+        return None
+
+    def _get_composite_np(self) -> Optional["np.ndarray"]:
+        """Zwraca skomponowany podgląd sceny (RGB uint8) lub None."""
+        if self.layer_mgr:
+            try:
+                comp = self.layer_mgr.get_composite_for_viewport()
+                if comp is not None:
+                    return comp
+            except Exception:
+                pass
+        # fallback
+        if self.state.image is not None and np is not None:
+            try:
+                return self._pil_to_u8(self.state.image)
+            except Exception:
+                return None
+        return None
+
+    def _refresh_composite(self) -> None:
+        """Przelicza kompozyt i aktualizuje viewer."""
+        comp = self._get_composite_np()
+        if comp is None:
+            return
+        pil = self._array_to_pil(comp)
+        if pil is None:
+            return
+        try:
+            self.viewer.set_image(pil)
+        except Exception:
+            pass
+
+    # ───────────── Layers BUS handlers ─────────────
+    def _on_layer_add(self, d: Dict[str, Any]) -> None:
+        if not LayerManager:
+            messagebox.showwarning("Layers", "LayerManager unavailable.")
+            return
+        if self.layer_mgr is None:
+            self.layer_mgr = LayerManager(self.state, self.bus.publish)
+        # źródło: path | pil | np | duplicate_active
+        src_path = d.get("path")
+        name = d.get("name") or "Layer"
+        blend = d.get("blend") or "normal"
+        opacity = float(d.get("opacity", 1.0))
+        visible = bool(d.get("visible", True))
+        try:
+            if src_path and Image:
+                pil = Image.open(src_path).convert("RGB")
+                self.layer_mgr.add_layer(pil, name=name, blend=blend, opacity=opacity, visible=visible)
+            elif d.get("duplicate_active"):
+                pil = self._get_active_layer_pil() or self.state.image
+                if pil is not None:
+                    self.layer_mgr.add_layer(pil, name=name, blend=blend, opacity=opacity, visible=visible)
+            else:
+                # pusty layer (czarny)
+                base = self._get_active_layer_pil() or self.state.image
+                if base is None or Image is None:
+                    return
+                w, h = base.size
+                self.layer_mgr.add_layer(Image.new("RGB", (w, h), (0, 0, 0)), name=name,
+                                         blend=blend, opacity=opacity, visible=visible)
+        finally:
+            self._layers_set_snapshot()
+            self._refresh_composite()
+
+    def _on_layer_remove(self, d: Dict[str, Any]) -> None:
+        lid = d.get("id")
+        if not (lid and self.layer_mgr):
+            return
+        try:
+            self.layer_mgr.remove_layer(str(lid))
+        finally:
+            self._layers_set_snapshot()
+            self._refresh_composite()
+
+    def _on_layer_set_active(self, d: Dict[str, Any]) -> None:
+        lid = d.get("id")
+        if not lid:
+            return
+        self.state.active_layer_id = str(lid)
+        self._layers_set_snapshot()
+        self._refresh_composite()
+
+    def _on_layer_update(self, d: Dict[str, Any]) -> None:
+        """Patch layer fields: visible/opacity/blend/mask/image."""
+        lid = d.get("id")
+        if not (lid and self.layer_mgr):
+            return
+        patch = {}
+        for k in ("visible", "opacity", "blend", "mask", "name", "image"):
+            if k in d:
+                patch[k] = d[k]
+        if patch:
+            try:
+                self.layer_mgr.update_layer(str(lid), **patch)
+            finally:
+                self._layers_set_snapshot()
+                self._refresh_composite()
+
+    def _on_layers_reorder(self, d: Dict[str, Any]) -> None:
+        """Reorder wymaga prostego przepisania listy w state.layers."""
+        order = d.get("order")  # list of layer ids top→bottom
+        if not (order and isinstance(order, list)):
+            return
+        try:
+            id_to_layer = {getattr(l, "id", None): l for l in self.state.layers}
+            new_list = [id_to_layer.get(i) for i in order if i in id_to_layer]
+            self.state.layers = [l for l in new_list if l is not None]
+            self.bus.publish("ui.layers.changed", {})
+        except Exception:
+            pass
+        finally:
+            self._layers_set_snapshot()
+            self._refresh_composite()
+
+    # ───────────── Move Layer: commit przesunięcia ─────────────
+    def _on_layer_commit_offset(self, d: Dict[str, Any]) -> None:
+        """Trwale przesuwa piksele aktywnej warstwy o (dx, dy)."""
+        if not (self.layer_mgr and self.state.active_layer_id and np is not None):
+            return
+        dx = int(d.get("dx", 0) or 0)
+        dy = int(d.get("dy", 0) or 0)
+        if dx == 0 and dy == 0:
+            return
+
+        # znajdź aktywną warstwę
+        lid = self.state.active_layer_id
+        target = None
+        for l in self.state.layers:
+            if getattr(l, "id", None) == lid:
+                target = l
+                break
+        if target is None:
+            return
+
+        # pobierz obraz jako uint8 RGB ndarray
+        src = getattr(target, "image", None)
+        if src is None:
+            return
+        try:
+            if Image is not None and isinstance(src, Image.Image):
+                src_u8 = self._pil_to_u8(src)
+            else:
+                src_u8 = np.asarray(src)
+                if src_u8.ndim == 2:
+                    src_u8 = np.stack([src_u8, src_u8, src_u8], axis=-1)
+                if src_u8.dtype != np.uint8:
+                    src_u8 = np.clip(src_u8, 0, 255).astype(np.uint8)
+        except Exception:
+            return
+
+        H, W, C = src_u8.shape
+        if abs(dx) >= W or abs(dy) >= H:
+            dst = np.zeros_like(src_u8)
+        else:
+            dst = np.zeros_like(src_u8)
+            # oblicz okna kopiowania
+            if dx >= 0:
+                sx0, sx1 = 0, W - dx
+                dx0, dx1 = dx, W
+            else:
+                sx0, sx1 = -dx, W
+                dx0, dx1 = 0, W + dx
+
+            if dy >= 0:
+                sy0, sy1 = 0, H - dy
+                dy0, dy1 = dy, H
+            else:
+                sy0, sy1 = -dy, H
+                dy0, dy1 = 0, H + dy
+
+            if sx1 > sx0 and sy1 > sy0 and dx1 > dx0 and dy1 > dy0:
+                dst[dy0:dy1, dx0:dx1, :] = src_u8[sy0:sy1, sx0:sx1, :]
+
+        # aktualizuj warstwę
+        try:
+            self.layer_mgr.update_layer(lid, image=dst)
+        finally:
+            # zaktualizuj snapshot + odśwież podgląd
+            self._layers_set_snapshot()
+            self._refresh_composite()
+            # (CanvasContainer wyczyści overlay po commit przez własną subskrypcję)
+
+    # ───────────── Layers snapshots (dla panelu Layers) ─────────────
+    def _layers_snapshot(self) -> Dict[str, Any]:
+        """Zwraca {layers:[...], active:<id>} do panelu Layers."""
+        layers_desc: List[Dict[str, Any]] = []
+        for l in self.state.layers:
+            try:
+                layers_desc.append({
+                    "id": getattr(l, "id", ""),
+                    "name": getattr(l, "name", "Layer"),
+                    "visible": bool(getattr(l, "visible", True)),
+                    "opacity": float(getattr(l, "opacity", 1.0)),
+                    "blend": str(getattr(l, "blend", "normal")),
+                })
+            except Exception:
+                continue
+        return {"layers": layers_desc, "active": self.state.active_layer_id}
+
+    def _layers_set_snapshot(self) -> None:
+        """Aktualizuje cache snapshotu u busa (best-effort; bez emisji)."""
+        try:
+            setattr(self.bus, "last_layers_snapshot", self._layers_snapshot())
+        except Exception:
+            pass
+
+    def _publish_layers_snapshot(self) -> None:
+        """Publikuje 'ui.layers.changed' z pełnym snapshotem (na żądanie ui.layers.pull)."""
+        snap = self._layers_snapshot()
+        try:
+            setattr(self.bus, "last_layers_snapshot", snap)
+        except Exception:
+            pass
+        try:
+            self.bus.publish("ui.layers.changed", snap)
+        except Exception:
+            pass
 
 # ───────────── entrypoint ─────────────
 def main() -> None:
