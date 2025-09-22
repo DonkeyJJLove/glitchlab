@@ -1,0 +1,10 @@
+{
+  "id": "t02_fib",
+  "prompt": "Napisz funkcję fib(n: int) -> int (0->0,1->1,2->1). n <= 30.",
+  "entrypoint": "fib",
+  "tests": [
+    {"args": [0], "expect": 0},
+    {"args": [1], "expect": 1},
+    {"args": [7], "expect": 13}
+  ]
+}

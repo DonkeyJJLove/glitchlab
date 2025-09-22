@@ -1,0 +1,9 @@
+{
+  "id": "t03_parse_csv_sum",
+  "prompt": "Funkcja sum_csv_numbers(csv_text: str) -> int sumuje wszystkie liczby całkowite z CSV (separator ',').",
+  "entrypoint": "sum_csv_numbers",
+  "tests": [
+    {"args": ["1,2,3"], "expect": 6},
+    {"args": ["10, -5, 4"], "expect": 9}
+  ]
+}
