@@ -44,7 +44,7 @@ except Exception:  # pragma: no cover
     ImageCanvas = None  # type: ignore
 
 try:
-    from glitchlab.gui.widgets.image_toolbar import ImageToolbar  # właściwy toolbar (plik 2)
+    from glitchlab.gui.widgets.tools.image_toolbar import ImageToolbar  # właściwy toolbar (plik 2)
 except Exception:  # pragma: no cover
     ImageToolbar = None  # type: ignore
 

@@ -1,30 +1,5 @@
 # glitchlab/gui/widgets/layer_canvas.py
 # -*- coding: utf-8 -*-
-"""
-LayerCanvas — dwuwarstwowy viewer 2D:
-- dolny canvas: rendering warstw obrazu (PhotoImage na Canvasie),
-- górny canvas: overlay (crosshair, zaznaczenia, markery) ZAWSZE nad obrazem.
-
-Public API (stabilne pod v4.5):
-  • set_layers(images: list[PIL.Image.Image] | list[np.ndarray], names: list[str] | None = None) -> None
-  • add_layer(image, name: str = "Layer") -> int
-  • remove_layer(index: int) -> None
-  • reorder_layer(src: int, dst: int) -> None
-  • set_active_layer(index: int) -> None
-  • get_active_layer() -> int | None
-  • set_layer_visible(index: int, visible: bool) -> None
-  • set_layer_offset(index: int, dx: int, dy: int) -> None
-  • get_zoom() -> float ; set_zoom(z: float) ; zoom_fit() ; center() ; set_view_center(x_img: float, y_img: float)
-  • screen_to_image(x: int, y: int) -> tuple[int, int]
-  • set_crosshair(flag: bool) -> None
-
-Zdarzenia (EventBus jeśli podano `bus` w ctor):
-  • "ui.cursor.pos"             { "x": int, "y": int }          # image-space (aktywna warstwa)
-  • "ui.image.crosshair.moved"  { "sx": int, "sy": int }        # screen-space
-  • "ui.layers.changed"         {}
-  • "ui.layer.active_changed"   { "index": int }
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -34,12 +9,12 @@ import tkinter as tk
 from tkinter import ttk
 
 try:
-    from PIL import Image, ImageTk  # type: ignore
+    from PIL import Image, ImageTk
 except Exception:
     Image = ImageTk = None  # type: ignore
 
 try:
-    import numpy as np  # type: ignore
+    import numpy as np
 except Exception:
     np = None  # type: ignore
 
@@ -47,13 +22,22 @@ except Exception:
 @dataclass
 class _Layer:
     name: str
-    image: "Image.Image"
-    photo: Optional["ImageTk.PhotoImage"] = None
+    image: "Image.Image"                       # PIL RGB
+    photo: Optional["ImageTk.PhotoImage"] = None  # cache do Canvas.create_image
     visible: bool = True
     offset: Tuple[int, int] = (0, 0)
 
 
 class LayerCanvas(ttk.Frame):
+    """
+    Viewer jednopłótnowy:
+      • jeden Canvas dla obrazów i overlay (krzyż),
+      • brak publikacji zdarzeń warstw (źródło prawdy = App/LayerManager),
+      • emitujemy tylko:
+          - ui.image.crosshair.moved
+          - ui.cursor.pos
+    """
+
     BG = "#101010"
     CROSS_FG = "#66aaff"
 
@@ -61,23 +45,9 @@ class LayerCanvas(ttk.Frame):
         super().__init__(master)
         self.bus = bus
 
-        # dolny: obrazy
-        self._cv_img = tk.Canvas(self, bg=self.BG, highlightthickness=0, bd=0)
-        self._cv_img.pack(fill="both", expand=True)
-
-        # górny: overlay
-        self._cv_ovr = tk.Canvas(self, highlightthickness=0, bd=0)  # nie ustawiamy bg na "" (błąd)
-        self._cv_ovr.place(x=0, y=0, relwidth=1.0, relheight=1.0)
-
-        # >>> KLUCZ: podnieś WIDŻET, nie „tag”
-        try:
-            tk.Misc.lift(self._cv_ovr)  # poprawne podniesienie widgetu overlay
-        except Exception:
-            # awaryjnie, niskopoziomowo:
-            try:
-                self._cv_ovr.tk.call('raise', self._cv_ovr._w)
-            except Exception:
-                pass
+        # pojedynczy Canvas – nic go nie przykrywa
+        self._cv = tk.Canvas(self, bg=self.BG, highlightthickness=0, bd=0)
+        self._cv.pack(fill="both", expand=True)
 
         # stan warstw
         self._layers: List[_Layer] = []
@@ -93,21 +63,26 @@ class LayerCanvas(ttk.Frame):
         self._panning: bool = False
         self._pan_anchor: Tuple[int, int] = (0, 0)
 
-        # crosshair
+        # crosshair (rysowany na tym samym canvasie, ale wyżej)
         self._cross_enabled: bool = True
-        self._cross_h = self._cv_ovr.create_line(0, 0, 0, 0, fill=self.CROSS_FG)
-        self._cross_v = self._cv_ovr.create_line(0, 0, 0, 0, fill=self.CROSS_FG)
+        self._cross_h = self._cv.create_line(0, 0, 0, 0, fill=self.CROSS_FG, width=1, tags=("__cross__",))
+        self._cross_v = self._cv.create_line(0, 0, 0, 0, fill=self.CROSS_FG, width=1, tags=("__cross__",))
 
-        # eventy
+        self._did_first_fit: bool = False
+
         self._wire_events()
 
-    # --- (reszta pliku bez zmian; pozostaje Twoja działająca wersja:
-    # set_layers/add/remove/reorder/set_active/... render, _emit, _to_pil itd.) ---
+    # ─────────────────────────── public API: kompozyt/warstwy ───────────────────────────
 
-
-    # ─────────────────────────── public API: warstwy ───────────────────────────
+    def set_composite(self, image: Any) -> None:
+        """Ustaw kompozyt sceny jako jedną warstwę do renderu."""
+        pil = self._to_pil(image)
+        if pil is None:
+            return
+        self.set_layers([pil], names=["Composite"])
 
     def set_layers(self, images: List[Any], names: Optional[List[str]] = None) -> None:
+        """Ustaw komplet warstw (PIL/ndarray) i odrysuj."""
         self._layers.clear()
         names = names or [f"Layer {i+1}" for i in range(len(images))]
         for img, nm in zip(images, names):
@@ -118,9 +93,10 @@ class LayerCanvas(ttk.Frame):
         self._active = 0 if self._layers else None
         self._rebuild_photos()
         self._render_all()
-        self._emit("ui.layers.changed", {})
-        if self._active is not None:
-            self._emit("ui.layer.active_changed", {"index": self._active})
+        if not self._did_first_fit and self._layers:
+            self.after_idle(self.zoom_fit)
+            self.after_idle(self.center)
+            self._did_first_fit = True
 
     def add_layer(self, image: Any, name: str = "Layer") -> int:
         pil = self._to_pil(image)
@@ -131,8 +107,6 @@ class LayerCanvas(ttk.Frame):
         self._active = idx
         self._rebuild_photos([idx])
         self._render_all()
-        self._emit("ui.layers.changed", {})
-        self._emit("ui.layer.active_changed", {"index": idx})
         return idx
 
     def remove_layer(self, index: int) -> None:
@@ -141,20 +115,20 @@ class LayerCanvas(ttk.Frame):
         del self._layers[index]
         if not self._layers:
             self._active = None
-            self._cv_img.delete("all")
+            self._cv.delete("all")
+            # odtwórz crosshair placeholdery (mogły zostać skasowane przez delete("all"))
+            self._cross_h = self._cv.create_line(0, 0, 0, 0, fill=self.CROSS_FG, width=1, tags=("__cross__",))
+            self._cross_v = self._cv.create_line(0, 0, 0, 0, fill=self.CROSS_FG, width=1, tags=("__cross__",))
         else:
             if self._active is None or self._active >= len(self._layers):
                 self._active = max(0, len(self._layers) - 1)
         self._render_all()
-        self._emit("ui.layers.changed", {})
-        if self._active is not None:
-            self._emit("ui.layer.active_changed", {"index": self._active})
 
     def reorder_layer(self, src: int, dst: int) -> None:
         if src == dst or min(src, dst) < 0 or max(src, dst) >= len(self._layers):
             return
-        layer = self._layers.pop(src)
-        self._layers.insert(dst, layer)
+        lyr = self._layers.pop(src)
+        self._layers.insert(dst, lyr)
         if self._active == src:
             self._active = dst
         elif self._active is not None:
@@ -163,34 +137,23 @@ class LayerCanvas(ttk.Frame):
             elif dst <= self._active < src:
                 self._active += 1
         self._render_all()
-        self._emit("ui.layers.changed", {})
-        if self._active is not None:
-            self._emit("ui.layer.active_changed", {"index": self._active})
 
     def set_active_layer(self, index: int) -> None:
-        if index < 0 or index >= len(self._layers):
-            return
-        if self._active == index:
-            return
-        self._active = index
-        self._emit("ui.layer.active_changed", {"index": index})
+        if 0 <= index < len(self._layers):
+            self._active = index
 
     def get_active_layer(self) -> Optional[int]:
         return self._active
 
     def set_layer_visible(self, index: int, visible: bool) -> None:
-        if index < 0 or index >= len(self._layers):
-            return
-        self._layers[index].visible = bool(visible)
-        self._render_all()
-        self._emit("ui.layers.changed", {})
+        if 0 <= index < len(self._layers):
+            self._layers[index].visible = bool(visible)
+            self._render_all()
 
     def set_layer_offset(self, index: int, dx: int, dy: int) -> None:
-        if index < 0 or index >= len(self._layers):
-            return
-        self._layers[index].offset = (int(dx), int(dy))
-        self._render_all()
-        self._emit("ui.layers.changed", {})
+        if 0 <= index < len(self._layers):
+            self._layers[index].offset = (int(dx), int(dy))
+            self._render_all()
 
     # ─────────────────────────── public API: widok ─────────────────────────────
 
@@ -201,7 +164,7 @@ class LayerCanvas(ttk.Frame):
         z = max(self._min_zoom, min(self._max_zoom, float(z)))
         if abs(z - self._zoom) < 1e-12:
             return
-        cw, ch = self._cv_img.winfo_width(), self._cv_img.winfo_height()
+        cw, ch = self._cv.winfo_width(), self._cv.winfo_height()
         self._zoom_around((cw / 2.0, ch / 2.0), z / (self._zoom if self._zoom else 1.0))
 
     def zoom_fit(self) -> None:
@@ -209,8 +172,8 @@ class LayerCanvas(ttk.Frame):
         if base is None:
             return
         iw, ih = base.size
-        cw = max(1, self._cv_img.winfo_width())
-        ch = max(1, self._cv_img.winfo_height())
+        cw = max(1, self._cv.winfo_width())
+        ch = max(1, self._cv.winfo_height())
         scale = min(cw / iw, ch / ih) * 0.985
         scale = max(self._min_zoom, min(self._max_zoom, scale))
         self._zoom = scale
@@ -221,7 +184,7 @@ class LayerCanvas(ttk.Frame):
         if base is None:
             return
         iw, ih = base.size
-        cw, ch = self._cv_img.winfo_width(), self._cv_img.winfo_height()
+        cw, ch = self._cv.winfo_width(), self._cv.winfo_height()
         self._pan = ((cw - iw * self._zoom) / 2.0, (ch - ih * self._zoom) / 2.0)
         self._render_all()
 
@@ -232,7 +195,7 @@ class LayerCanvas(ttk.Frame):
         iw, ih = base.size
         x_img = max(0.0, min(float(iw), float(x_img)))
         y_img = max(0.0, min(float(ih), float(y_img)))
-        cw, ch = self._cv_img.winfo_width(), self._cv_img.winfo_height()
+        cw, ch = self._cv.winfo_width(), self._cv.winfo_height()
         self._pan = (cw / 2.0 - x_img * self._zoom, ch / 2.0 - y_img * self._zoom)
         self._render_all()
 
@@ -251,40 +214,45 @@ class LayerCanvas(ttk.Frame):
     def set_crosshair(self, flag: bool) -> None:
         self._cross_enabled = bool(flag)
         if not flag:
-            self._cv_ovr.coords(self._cross_h, 0, 0, 0, 0)
-            self._cv_ovr.coords(self._cross_v, 0, 0, 0, 0)
+            self._cv.coords(self._cross_h, 0, 0, 0, 0)
+            self._cv.coords(self._cross_v, 0, 0, 0, 0)
 
     # ─────────────────────────── internals: eventy ─────────────────────────────
 
     def _wire_events(self) -> None:
-        # rozmiar / overlay follow
-        self.bind("<Configure>", lambda _e: self._sync_overlay_size())
+        # rozmiar
+        self.bind("<Configure>", lambda _e: self._render_all())
         # mysz
-        self._cv_ovr.bind("<Motion>", self._on_motion)
-        self._cv_ovr.bind("<Leave>", self._on_leave)
+        self._cv.bind("<Motion>", self._on_motion)
+        self._cv.bind("<Leave>", self._on_leave)
         # pan
-        self._cv_ovr.bind("<ButtonPress-1>", self._on_btn1)
-        self._cv_ovr.bind("<B1-Motion>", self._on_drag)
-        self._cv_ovr.bind("<ButtonRelease-1>", self._on_release)
-        # wheel zoom (platformy)
-        self._cv_ovr.bind("<MouseWheel>", self._on_wheel)     # Win/mac
-        self._cv_ovr.bind("<Button-4>", self._on_wheel_up)    # X11 up
-        self._cv_ovr.bind("<Button-5>", self._on_wheel_down)  # X11 down
+        self._cv.bind("<ButtonPress-1>", self._on_btn1)
+        self._cv.bind("<B1-Motion>", self._on_drag)
+        self._cv.bind("<ButtonRelease-1>", self._on_release)
+        # wheel zoom
+        self._cv.bind("<MouseWheel>", self._on_wheel)     # Win/mac
+        self._cv.bind("<Button-4>", self._on_wheel_up)    # X11 up
+        self._cv.bind("<Button-5>", self._on_wheel_down)  # X11 down
 
     def _on_motion(self, e: tk.Event) -> None:  # type: ignore[override]
         sx, sy = int(e.x), int(e.y)
         if self._cross_enabled:
-            cw, ch = self._cv_ovr.winfo_width(), self._cv_ovr.winfo_height()
-            self._cv_ovr.coords(self._cross_h, 0, sy, cw, sy)
-            self._cv_ovr.coords(self._cross_v, sx, 0, sx, ch)
+            cw, ch = self._cv.winfo_width(), self._cv.winfo_height()
+            self._cv.coords(self._cross_h, 0, sy, cw, sy)
+            self._cv.coords(self._cross_v, sx, 0, sx, ch)
+            # upewnij się, że krzyż jest nad obrazami
+            try:
+                self._cv.tag_raise("__cross__")
+            except Exception:
+                pass
         self._emit("ui.image.crosshair.moved", {"sx": sx, "sy": sy})
         ix, iy = self.screen_to_image(sx, sy)
         self._emit("ui.cursor.pos", {"x": ix, "y": iy})
 
     def _on_leave(self, _e=None) -> None:
         if self._cross_enabled:
-            self._cv_ovr.coords(self._cross_h, 0, 0, 0, 0)
-            self._cv_ovr.coords(self._cross_v, 0, 0, 0, 0)
+            self._cv.coords(self._cross_h, 0, 0, 0, 0)
+            self._cv.coords(self._cross_v, 0, 0, 0, 0)
 
     def _on_btn1(self, e: tk.Event) -> None:  # type: ignore[override]
         self._panning = True
@@ -317,9 +285,18 @@ class LayerCanvas(ttk.Frame):
     # ─────────────────────────── internals: render ─────────────────────────────
 
     def _render_all(self) -> None:
-        self._cv_img.delete("all")
+        # nie czyść __cross__ przed pobraniem jego geometrii – odtworzymy po rysowaniu
+        # Zapamiętaj istniejące współrzędne krzyża
+        ch_coords = (self._cv.coords(self._cross_h), self._cv.coords(self._cross_v))
+        self._cv.delete("all")
+
+        # odtwórz crosshair linie (po delete("all") też znikają)
+        self._cross_h = self._cv.create_line(*((ch_coords[0] + [0, 0, 0, 0])[:4]), fill=self.CROSS_FG, width=1, tags=("__cross__",))
+        self._cross_v = self._cv.create_line(*((ch_coords[1] + [0, 0, 0, 0])[:4]), fill=self.CROSS_FG, width=1, tags=("__cross__",))
+
         if not self._layers:
             return
+
         ox, oy = self._pan
         for layer in self._layers:
             if not layer.visible:
@@ -331,13 +308,22 @@ class LayerCanvas(ttk.Frame):
                 if Image is not None and ImageTk is not None:
                     pil = layer.image if (disp_w, disp_h) == layer.image.size else layer.image.resize((disp_w, disp_h), Image.LANCZOS)
                     layer.photo = ImageTk.PhotoImage(pil)
+                else:
+                    layer.photo = None
             except Exception:
                 layer.photo = None
                 continue
             dx, dy = layer.offset
             sx = int(round(ox + dx * self._zoom))
             sy = int(round(oy + dy * self._zoom))
-            self._cv_img.create_image(sx, sy, anchor="nw", image=layer.photo)
+            if layer.photo is not None:
+                self._cv.create_image(sx, sy, anchor="nw", image=layer.photo)
+
+        # crosshair zawsze na wierzchu
+        try:
+            self._cv.tag_raise("__cross__")
+        except Exception:
+            pass
 
     def _rebuild_photos(self, indexes: Optional[List[int]] = None) -> None:
         if ImageTk is None:
@@ -368,15 +354,9 @@ class LayerCanvas(ttk.Frame):
         self._zoom = new_zoom
         self._render_all()
 
-    def _sync_overlay_size(self) -> None:
-        w = max(1, self._cv_img.winfo_width())
-        h = max(1, self._cv_img.winfo_height())
-        self._cv_ovr.place(x=0, y=0, width=w, height=h)
-
     # ─────────────────────────── helpers ─────────────────────────────
 
     def _emit(self, topic: str, payload: dict) -> None:
-        """Bezpieczna publikacja eventu przez bus (jeśli dostępny)."""
         if self.bus and hasattr(self.bus, "publish"):
             try:
                 self.bus.publish(topic, payload)

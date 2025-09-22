@@ -1,103 +1,97 @@
-"""
-event_bus.py
-================
-
-This module implements a simple publish/subscribe mechanism for the GUI.
-
-It is a lightweight event bus inspired by the planned refactoring in
-``gui/REFACTORING.md``.  Views and services can publish events on
-string topics and subscribe callbacks to those topics.  All callbacks
-are executed in the Tkinter mainloop via the ``after`` mechanism to
-avoid thread‐safety issues.  The bus does not enforce any
-thread‐safety on its own; the UI code should schedule messages on the
-bus using the master widget's ``after`` method if they originate from
-background threads.
-
-Example usage::
-
-    from glitchlab.gui.event_bus import EventBus
-    bus = EventBus(master=root)
-
-    def on_run_done(payload: dict) -> None:
-        print("pipeline finished", payload)
-
-    bus.subscribe("run.done", on_run_done)
-    bus.publish("run.done", {"result": "ok"})
-
-Topics are hierarchical: subscribing to ``"run.*"`` will receive
-events published on any topic that starts with ``"run."``.  Callbacks
-must accept a single ``dict`` payload.
-"""
-
 # glitchlab/gui/event_bus.py
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import threading
+import traceback
+from typing import Any, Callable, DefaultDict, Dict, List, Optional
+import tkinter as tk
 from collections import defaultdict
-from typing import Any, Callable, DefaultDict, Dict, List, Tuple
-
-Subscriber = Tuple[Callable[[str, Dict[str, Any]], None], bool]  # (fn, on_ui)
 
 
 class EventBus:
     """
-    Lekki event bus dla GUI.
-    - subscribe(topic, fn, on_ui=False): rejestracja subskrypcji
-    - publish(topic, payload): publikacja zdarzenia
-    Jeśli on_ui=True i podano master w konstruktorze, wywołanie fn trafia przez Tk.after(0).
+    Prosty event bus z odpornością na reentrancję:
+      • subscribe(topic, cb) – rejestruje callback: (topic:str, payload:dict) -> None
+      • publish(topic, payload) – ASYNCHRONICZNIE (tk.after_idle) emituje do subskrybentów
+      • request(topic, payload) – SYNCHRONICZNE zapytanie: wywołuje pierwszą odpowiedź i zwraca wynik
+
+    Uwagi:
+      - Asynchroniczne publish() rozcina łańcuchy „publish w publish”, co eliminuje wieszki
+        po otwieraniu pliku (np. ui.layers.changed -> snapshot -> ui.layers.changed ...).
+      - request() jest używane oszczędnie (np. panel prosi o snapshot); ma pozostać synchroniczne.
+      - Dodatkowe, nieformalne pole `last_layers_snapshot` może być nadawane przez aplikację
+        (App._publish_layers_snapshot), panel sobie je odczyta (best-effort).
     """
 
-    def __init__(self, master: Any | None = None) -> None:
-        self._master = master  # Tk root lub Frame; może być None (tryb headless)
-        self._subs: DefaultDict[str, List[Subscriber]] = defaultdict(list)
-        self._lock = threading.RLock()
+    def __init__(self, root: tk.Misc) -> None:
+        self._root = root
+        self._subs: DefaultDict[str, List[Callable[[str, Dict[str, Any]], None]]] = defaultdict(list)
+        # prosty bufor kolejkowanych publikacji (opcjonalnie do debugu)
+        self._queue_len = 0
 
-    # --- API ---
-
-    def subscribe(self, topic: str,
-                  fn: Callable[[str, Dict[str, Any]], None],
-                  on_ui: bool = False) -> None:
-        """Zapisz callback dla topic. Jeśli on_ui=True, dispatch przez Tk.after."""
-        if not callable(fn):
+    # ───────────────── subscribe ─────────────────
+    def subscribe(self, topic: str, cb: Callable[[str, Dict[str, Any]], None]) -> None:
+        if not callable(cb):
             return
-        with self._lock:
-            self._subs[topic].append((fn, bool(on_ui)))
+        self._subs[topic].append(cb)
 
-    def unsubscribe(self, topic: str,
-                    fn: Callable[[str, Dict[str, Any]], None]) -> None:
-        with self._lock:
-            self._subs[topic] = [(f, ui) for (f, ui) in self._subs.get(topic, []) if f is not fn]
-            if not self._subs[topic]:
-                self._subs.pop(topic, None)
-
-    def publish(self, topic: str, payload: Dict[str, Any] | None = None) -> None:
-        """Publikuj zdarzenie do wszystkich subskrybentów danego topicu."""
+    # ───────────────── publish (async) ─────────────────
+    def publish(self, topic: str, payload: Optional[Dict[str, Any]] = None) -> None:
+        """Asynchroniczna publikacja – każdy subscriber wywołany przez after_idle."""
         data = dict(payload or {})
-        with self._lock:
-            subs = list(self._subs.get(topic, []))
-        for fn, on_ui in subs:
-            self._dispatch(fn, topic, data, on_ui)
+        cbs = list(self._subs.get(topic, []))
 
-    # --- wewnętrzne ---
-
-    def _dispatch(self, fn: Callable[[str, Dict[str, Any]], None],
-                  topic: str, data: Dict[str, Any], on_ui: bool) -> None:
-        if on_ui and self._master is not None:
-            try:
-                # bezpieczny powrót na wątek Tk
-                self._master.after(0, lambda: self._safe_call(fn, topic, data))
-                return
-            except Exception:
-                # w razie braku .after – fallback do synchronicznego
-                pass
-        self._safe_call(fn, topic, data)
-
-    @staticmethod
-    def _safe_call(fn: Callable[[str, Dict[str, Any]], None],
-                   topic: str, data: Dict[str, Any]) -> None:
+        # DEBUG: ograniczony ślad tego, co publikujemy (można podejrzeć w konsoli)
         try:
-            fn(topic, data)
+            if topic == "ui.layers.changed":
+                src = data.get("source")
+                print(f"[BUS] publish ui.layers.changed (source={src}) -> {len(cbs)} subs")
+            elif topic.startswith("ui.files.") or topic in ("run.start", "run.done", "run.error"):
+                print(f"[BUS] publish {topic} -> {len(cbs)} subs")
         except Exception:
-            # celowo „połykamy” wyjątki GUI, żeby nie wysypać całej aplikacji
             pass
+
+        def _dispatch_one(cb: Callable[[str, Dict[str, Any]], None]) -> None:
+            try:
+                cb(topic, data)
+            except Exception:
+                traceback.print_exc()
+
+        # Kolejkujemy każde wywołanie osobno – minimalizuje czas jednego idle-callbacku
+        for cb in cbs:
+            try:
+                self._queue_len += 1
+                self._root.after_idle(self._wrap_dispatch(cb, topic, data))
+            except Exception:
+                # Jeśli after_idle niedostępne – awaryjnie synchronicznie (lepiej niż zamilknąć)
+                _dispatch_one(cb)
+
+    def _wrap_dispatch(self, cb: Callable[[str, Dict[str, Any]], None], topic: str, data: Dict[str, Any]):
+        def _runner():
+            try:
+                cb(topic, data)
+            except Exception:
+                traceback.print_exc()
+            finally:
+                try:
+                    self._queue_len -= 1
+                except Exception:
+                    pass
+        return _runner
+
+    # ───────────────── request (sync) ─────────────────
+    def request(self, topic: str, payload: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Syntetyczne „zapytanie” – jeśli ktoś się zasubskrybował pod dany topic jako handler requestów,
+        wywołujemy PIERWSZEGO subskrybenta synchronicznie i zwracamy jego wynik.
+        UWAGA: używać oszczędnie; publish() i tak robi robotę asynchronicznie.
+        """
+        cbs = self._subs.get(topic, [])
+        if not cbs:
+            return None
+        cb = cbs[0]
+        try:
+            return cb(topic, dict(payload or {}))  # type: ignore[return-value]
+        except Exception:
+            traceback.print_exc()
+            return None

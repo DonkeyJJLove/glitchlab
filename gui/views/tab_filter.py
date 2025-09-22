@@ -1,4 +1,4 @@
-# glitchlab/gui/views/tab_filters.py
+# glitchlab/gui/views/tab_filter.py
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import importlib, importlib.util, pkgutil, sys, traceback
@@ -19,6 +19,12 @@ except Exception:
     def registry_get(name: str): raise KeyError(name)
     def canonical(name: str) -> str: return str(name or "")
     def meta(name: str) -> Dict[str, Any]: return {"defaults": {}, "doc": ""}
+
+# --- Panel loader (dedykowane panele filtrów) -------------------------------
+try:
+    from glitchlab.gui.panel_loader import instantiate_panel  # type: ignore
+except Exception:
+    instantiate_panel = None  # type: ignore
 
 # --- PanelContext ------------------------------------------------------------
 try:
@@ -43,12 +49,12 @@ class TabFilter(ttk.Frame):
     """
     Zakładka „Filters”:
       • wybór filtra (Combobox),
-      • załadowanie panelu dedykowanego (obsługa dwóch konwencji nazw modułów),
-      • fallback do ParamForm,
+      • próba załadowania dedykowanego panelu (panel_loader),
+      • fallback do ParamForm (jeśli brak panelu),
       • Apply,
       • narzędzia: Load Filters / Rescan / Probe / Reload,
       • auto-disable kontrolek na czas wykonywania,
-      • bogate logowanie przez EventBus (diag.log).
+      • logowanie przez EventBus (diag.log).
     """
 
     def __init__(
@@ -70,16 +76,16 @@ class TabFilter(ttk.Frame):
         self._last_loaded_module: Optional[str] = None
 
         # do auto-disable
-        self._disable_nodes: list[tk.Widget] = []
+        self._disable_nodes: List[tk.Widget] = []
 
         self._build_ui()
 
-        # Spróbuj od razu zaimportować filtry
+        # >>> WAŻNE: metoda musi istnieć – wcześniej jej brak powodował AttributeError
         self._ensure_filters_imported()
         self._refresh_filter_list()
         self._mount_panel(self.cmb_filter.get() or "")
 
-        # podłączenie busa
+        # bus
         self._wire_bus()
 
     # ------------------------------------------------------------------ UI ---
@@ -197,16 +203,40 @@ class TabFilter(ttk.Frame):
             return
 
         self._log(f"Mounting panel for filter='{filter_name}'", "DEBUG")
-        panel = self._try_load_panel(filter_name)
-        if panel is None:
-            self._log(f"Falling back to ParamForm for '{filter_name}'", "WARN")
-            panel = self._fallback_panel(filter_name)
 
-        panel.pack(fill="x")
-        self._panel = panel
+        # 1) próbujemy dedykowany panel (panel_loader)
+        panel_widget: Optional[tk.Widget] = None
+        if instantiate_panel is not None:
+            try:
+                # Defaults z registry (jak dostępne)
+                try:
+                    dflt = dict(meta(self._canon(filter_name)).get("defaults", {}))
+                except Exception:
+                    dflt = {}
+                ctx = PanelContext(
+                    filter_name=self._canon(filter_name),
+                    defaults=dflt,
+                    params={},
+                    on_change=self._on_filter_params_changed,
+                    cache_ref=getattr(self.ctx_ref, "cache", None) if self.ctx_ref else None,
+                    get_mask_keys=(lambda: list(getattr(self.ctx_ref, "masks", {}).keys()))
+                        if self.ctx_ref and hasattr(self.ctx_ref, "masks") else None,
+                )
+                panel_widget = instantiate_panel(self.panel_host, self._canon(filter_name), ctx=ctx)
+            except Exception as ex:
+                self._log(f"instantiate_panel failed: {ex}", "ERROR")
+                self._log(traceback.format_exc(), "DEBUG")
+
+        # 2) fallback do ParamForm (jeśli brak panelu)
+        if panel_widget is None:
+            self._log(f"Falling back to ParamForm for '{filter_name}'", "WARN")
+            panel_widget = self._fallback_panel(filter_name)
+
+        panel_widget.pack(fill="x")
+        self._panel = panel_widget
 
         # zbierz kontrolki do disable_nodes
-        self.after_idle(lambda: self._collect_disable_nodes(panel))
+        self.after_idle(lambda: self._collect_disable_nodes(panel_widget))
 
         self._publish("ui.filter.select", {"name": filter_name})
 
@@ -426,8 +456,7 @@ class TabFilter(ttk.Frame):
     def _ensure_filters_imported(self) -> None:
         """
         Wymuś import pakietu `glitchlab.filters`, żeby rejestr filtrów nie był pusty.
-        Jeśli import się nie powiedzie, logujemy, ale nie przerywamy działania —
-        nadal możemy skanować katalog paneli.
+        Jeśli import się nie powiedzie, logujemy, ale kontynuujemy (będzie skan paneli).
         """
         try:
             if "glitchlab.filters" not in sys.modules:
@@ -439,7 +468,7 @@ class TabFilter(ttk.Frame):
 
     def _scan_panels_dir(self) -> List[str]:
         """
-        Gdy registry jest puste: spróbuj odczytać listę filtrów po samych plikach paneli.
+        Gdy registry puste: spróbuj odczytać listę filtrów po samych plikach paneli.
         Szukamy:
           - glitchlab.gui.panels.panel_<name>.py  → <name>
           - glitchlab.gui.panels.<name>_panel.py  → <name>
@@ -452,7 +481,7 @@ class TabFilter(ttk.Frame):
             return []
         try:
             if hasattr(pkg, "__path__"):
-                for finder, mod_name, ispkg in pkgutil.iter_modules(pkg.__path__):
+                for _finder, mod_name, ispkg in pkgutil.iter_modules(pkg.__path__):
                     if ispkg:
                         continue
                     n = mod_name

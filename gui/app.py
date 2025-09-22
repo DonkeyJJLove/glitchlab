@@ -4,12 +4,30 @@ from __future__ import annotations
 
 import os
 import sys
+
+# DPI awareness (Windows)
+if sys.platform.startswith("win"):
+    try:
+        import ctypes
+        try:
+            ctypes.windll.user32.SetProcessDpiAwarenessContext(-4)  # PER_MONITOR_AWARE_V2
+        except Exception:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+    except Exception:
+        pass
+
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-from typing import Any, Dict, Optional, List
+from tkinter import ttk, messagebox
+from typing import Any, Dict, Optional, List, Tuple
 
-from glitchlab.gui.views.bottom_area import init_styles
+# styles
+try:
+    from glitchlab.gui.views.bottom_area import init_styles
+except Exception:
+    def init_styles(_root): ...
+    pass
 
+# sys.path bootstrap (when run as script)
 if __package__ in (None, ""):
     PROJ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if PROJ not in sys.path:
@@ -17,11 +35,11 @@ if __package__ in (None, ""):
 
 # third-party
 try:
-    from PIL import Image, ImageOps  # pillow
+    from PIL import Image, ImageOps
 except Exception:
     Image = ImageOps = None  # type: ignore
 try:
-    import numpy as np  # numpy
+    import numpy as np
 except Exception:
     np = None  # type: ignore
 
@@ -31,51 +49,46 @@ try:
 except Exception:
     build_ctx = apply_pipeline = None  # type: ignore
 
-# ensure filters
+# ensure filters discovered
 try:
     import glitchlab.filters  # noqa: F401
 except Exception:
     pass
 
-# GUI
+# GUI bits
 from glitchlab.gui.views.tab_general import GeneralTab, GeneralTabConfig
 from glitchlab.gui.views.tab_filter import TabFilter, FilterTabConfig
 from glitchlab.gui.views.tab_preset import PresetsTab
 from glitchlab.gui.widgets.canvas_container import CanvasContainer
 from glitchlab.gui.views.menu import MenuBar
-from glitchlab.gui.views.left_dummy import LeftDummy  # NEW: wąski lewy dock „in project”
+from glitchlab.gui.views.left_dummy import LeftDummy
+
+# Layers UI (floating)
+try:
+    from glitchlab.gui.views.layer_panel import LayersPanel  # type: ignore
+except Exception:
+    LayersPanel = None  # type: ignore
+
+# Floating layout helper
+try:
+    from glitchlab.gui.views.helper.dragging import FloatingLayoutManager
+except Exception:
+    FloatingLayoutManager = None  # type: ignore
 
 # services / fallbacks
 try:
     from glitchlab.gui.event_bus import EventBus
-except Exception:  # minimalny stub
+except Exception:  # minimal stub
     class EventBus:
         def __init__(self, *_a, **_k): ...
-        def publish(self, t, p): print(t, p)
+        def publish(self, t, p=None): print("[bus.publish]", t, p)
         def subscribe(self, *_a, **_k): ...
+        def request(self, *_a, **_k): return None
 
 try:
     from glitchlab.gui.services.pipeline_runner import PipelineRunner
 except Exception:
     PipelineRunner = None  # type: ignore
-
-try:
-    from glitchlab.gui.views.bottom_panel import BottomPanel
-except Exception:
-    BottomPanel = None  # type: ignore
-
-try:
-    from glitchlab.gui.docking import DockManager
-except Exception:
-    class DockManager:
-        def __init__(self, *_a, **_k): ...
-
-try:
-    from glitchlab.gui.services.presets import PresetService, PresetServiceConfig
-except Exception:
-    class PresetService:
-        def __init__(self, *_a, **_k): ...
-    PresetServiceConfig = object  # type: ignore
 
 try:
     from glitchlab.gui.views.bottom_area import BottomArea
@@ -87,22 +100,19 @@ try:
 except Exception:
     ImageHistory = None  # type: ignore
 
-# >>> LAYERS <<<
 try:
     from glitchlab.gui.services.layer_manager import LayerManager
-    from glitchlab.gui.services.compositor import BlendMode
 except Exception:
     LayerManager = None  # type: ignore
-    BlendMode = str  # type: ignore
 
 
 class AppState:
     def __init__(self) -> None:
-        # single-image fallback (legacy)
+        # legacy single-image fallback
         self.image: Optional["Image.Image"] = None
 
-        # layers state (zarządzane przez LayerManager)
-        self.layers: List[Any] = []               # list[Layer]
+        # layers state (managed by LayerManager)
+        self.layers: List[Any] = []
         self.active_layer_id: Optional[str] = None
 
         self.masks: Dict[str, Any] = {}
@@ -115,7 +125,7 @@ class App(tk.Frame):
     def __init__(self, master: tk.Tk, **kw: Any) -> None:
         super().__init__(master, **kw)
 
-        # flagi widoków
+        # view flags
         self._leftdock_visible = True
         self._right_visible = True
         self._hud_visible = True
@@ -127,43 +137,80 @@ class App(tk.Frame):
         self.runner = PipelineRunner(self.bus, master) if PipelineRunner else None
         self.history = ImageHistory(bus=self.bus, max_len=50) if ImageHistory else None
 
-        # LAYERS service
         self.layer_mgr: Optional[LayerManager] = None
 
-        # referencje
+        # refs
         self.menubar: Optional[MenuBar] = None
         self.bottom: Optional[Any] = None
         self.status: Optional[Any] = None
 
-        # tryb narzędzia dla viewer’a (zsynchronizowany z menu Tools)
+        # toolbox/viewer
         self.tool_var = tk.StringVar(value="pan")
+
+        # debounce for layer snapshot
+        self._last_layers_sig: Optional[Tuple] = None
+
+        # floating manager
+        self.float_mgr: Optional[FloatingLayoutManager] = None
 
         # UI + BUS
         self._build_ui()
         self._wire_bus()
 
-    # ────────────── UI ──────────────
+    # ───────────────────────── UI ─────────────────────────
     def _build_ui(self) -> None:
         self.pack(fill="both", expand=True)
 
         # MENUBAR
         self.menubar = MenuBar(self.master, bus=self.bus)
 
-        # GŁÓWNY PODZIAŁ: [LeftDummy] | [Viewer] | [RightNotebook]
+        # MAIN PANED: [LeftDummy] | [Viewer] | [RightNotebook]
         self.main = ttk.Panedwindow(self, orient="horizontal")
         self.main.pack(fill="both", expand=True)
 
-        # (1) Wąski lewy dock – placeholder
+        # (1) Left thin dock
         self.left_dummy = LeftDummy(self.main)
         self.main.add(self.left_dummy, weight=0)
 
-        # (2) Viewer (CanvasContainer ma toolbox + rulers + LayerCanvas)
+        # (2) Viewer center
         self.center = ttk.Frame(self.main)
+        self.center.rowconfigure(0, weight=100)
+        self.center.columnconfigure(0, weight=100)
+
         self.viewer = CanvasContainer(self.center, bus=self.bus, tool_var=self.tool_var)
-        self.viewer.pack(fill="both", expand=True)
+        self.viewer.grid(row=0, column=0, sticky="nsew")
+
+        # layers panel as floating widget (inside center)
+        self.tab_layers = LayersPanel(self.center, bus=self.bus, bounds=self.center) if LayersPanel else None
+
+        # floating layout manager
+        if FloatingLayoutManager and self.tab_layers is not None:
+            try:
+                self.float_mgr = FloatingLayoutManager(self.center, bus=self.bus)
+                # Panel ma własny drag, więc make_draggable=False
+                self.float_mgr.add(
+                    key="layers",
+                    widget=self.tab_layers,
+                    relx=0.70, rely=0.70,
+                    w=480, h=300,
+                    visible=True,
+                    make_draggable=False,
+                )
+            except Exception:
+                # awaryjnie zwykłe place()
+                try:
+                    self.tab_layers.place(relx=0.7, rely=0.7, anchor="center", width=480, height=300)
+                except Exception:
+                    pass
+        elif self.tab_layers is not None:
+            try:
+                self.tab_layers.place(relx=0.7, rely=0.7, anchor="center", width=480, height=300)
+            except Exception:
+                pass
+
         self.main.add(self.center, weight=65)
 
-        # (3) Notebook
+        # (3) Right notebook (without Layers tab)
         self.right = ttk.Notebook(self.main)
         self.tab_general = GeneralTab(self.right, ctx_ref=self.state, cfg=GeneralTabConfig(preview_size=320), bus=self.bus)
         self.tab_filter = TabFilter(self.right, bus=self.bus, ctx_ref=self.state, cfg=FilterTabConfig(allow_apply=True))
@@ -173,7 +220,7 @@ class App(tk.Frame):
         self.right.add(self.tab_preset, text="Presets")
         self.main.add(self.right, weight=35)
 
-        # sash init
+        # init sash position
         def _init_sash():
             w = self.main.winfo_width()
             if w < 100:
@@ -186,7 +233,7 @@ class App(tk.Frame):
                 pass
         self.after_idle(_init_sash)
 
-        # BOTTOM (panel + status)
+        # bottom (HUD)
         if BottomArea:
             self.bottom_area = BottomArea(self, bus=self.bus, default="hud")
             self.bottom_area.pack(fill="x", side="bottom", anchor="s")
@@ -196,23 +243,9 @@ class App(tk.Frame):
             self.bottom = None
             self.status = None
 
-        # docking (best-effort)
-        try:
-            self.dock = DockManager(self.winfo_toplevel(),
-                                    {"bottom": self.bottom or ttk.Frame(self), "right": self.right})
-        except Exception:
-            self.dock = DockManager()  # type: ignore
-
-        # preset service
-        try:
-            self.svc_presets = PresetService(self.master, self.bus, PresetServiceConfig())
-        except Exception:
-            self.svc_presets = PresetService(self.master, self.bus)  # type: ignore[arg-type]
-
-        # initial Edit menu state
         self._update_edit_menu_state()
 
-    # ───────────── BUS wiring ──────────────
+    # ───────────────────────── BUS ─────────────────────────
     def _wire_bus(self) -> None:
         B = self.bus
 
@@ -226,10 +259,6 @@ class App(tk.Frame):
         B.subscribe("ui.files.open", lambda _t, d: self._load_image_path((d or {}).get("path")))
         B.subscribe("ui.files.save", lambda _t, d: self._save_image_path((d or {}).get("path")))
         B.subscribe("ui.app.quit", lambda *_: self.master.destroy())
-
-        # Presets (menu → PresetService)
-        B.subscribe("ui.preset.open", lambda *_t, _d: self.bus.publish("ui.preset.open", {}))
-        B.subscribe("ui.preset.save", lambda *_t, _d: self.bus.publish("ui.preset.save", {"cfg": self.state.preset_cfg or {}}))
 
         # Tools (menu → viewer/toolbox)
         B.subscribe("ui.tools.select", lambda _t, d: self.tool_var.set((d or {}).get("name", "pan")))
@@ -261,19 +290,28 @@ class App(tk.Frame):
         # preset_cfg – śledź
         B.subscribe("preset.parsed", lambda _t, d: self._on_preset_parsed(d))
 
-        # >>> Layers wiring <<<
-        B.subscribe("ui.layer.add", lambda _t, d: self._on_layer_add(d))
-        B.subscribe("ui.layer.remove", lambda _t, d: self._on_layer_remove(d))
+        # >>> LAYERS – wejścia z UI (LayersPanel / narzędzia) <<<
+        B.subscribe("ui.layer.add",        lambda _t, d: self._on_layer_add(d))
+        B.subscribe("ui.layer.remove",     lambda _t, d: self._on_layer_remove(d))
         B.subscribe("ui.layer.set_active", lambda _t, d: self._on_layer_set_active(d))
-        B.subscribe("ui.layer.update", lambda _t, d: self._on_layer_update(d))
-        B.subscribe("ui.layers.reorder", lambda _t, d: self._on_layers_reorder(d))
-        # „pull” z panelu Layers → odeślij snapshot bieżącego stanu
-        B.subscribe("ui.layers.pull", lambda *_: self._publish_layers_snapshot())
-        # Reakcja na wewnętrzne publikacje LayerManagera (przeliczenie podglądu)
-        B.subscribe("ui.layers.changed", lambda *_: self._refresh_composite())
+        B.subscribe("ui.layer.update",     lambda _t, d: self._on_layer_update(d))
+        B.subscribe("ui.layers.reorder",   lambda _t, d: self._on_layers_reorder(d))
 
-        # Move Layer – trwałe zapisanie przesunięcia
-        B.subscribe("ui.layer.commit_offset", lambda _t, d: self._on_layer_commit_offset(d))
+        # >>> LAYERS – zmiana stanu (od LayerManagera) → recomposite + snapshot <<<
+        B.subscribe(
+            "ui.layers.changed",
+            lambda _t, d: (self._on_layers_changed() if not d or d.get("source") != "app" else None)
+        )
+
+        # Panel może poprosić tylko o stan (publikacja snapshotu)
+        B.subscribe("ui.layers.pull", lambda *_: self._publish_layers_snapshot())
+
+        # (opcjonalnie) jeżeli EventBus ma respond()
+        try:
+            if hasattr(B, "respond"):
+                B.respond("ui.layers.dump", lambda _p=None: self._layers_snapshot())  # type: ignore[attr-defined]
+        except Exception:
+            pass
 
     def _on_preset_parsed(self, d: Dict[str, Any]) -> None:
         try:
@@ -283,7 +321,7 @@ class App(tk.Frame):
         except Exception:
             pass
 
-    # ───────────── File helpers ─────────────
+    # ───────────────────────── File helpers ─────────────────────────
     def _load_image_path(self, path: Optional[str]) -> None:
         if not path:
             return
@@ -293,25 +331,30 @@ class App(tk.Frame):
         try:
             img = ImageOps.exif_transpose(Image.open(path))  # type: ignore[arg-type]
             img = img.convert("RGB") if img.mode != "RGB" else img
+
             # layers bootstrap
             if LayerManager and self.layer_mgr is None:
                 self.layer_mgr = LayerManager(self.state, self.bus.publish)
+
             if self.layer_mgr:
                 self.state.layers.clear()
                 self.state.active_layer_id = None
-                self.layer_mgr.add_layer(img, name="Background", blend="normal", opacity=1.0, visible=True)  # type: ignore[arg-type]
-                self._layers_set_snapshot()
-                # composite → viewer
+                self._last_layers_sig = None  # reset debounce po „Open”
+
+                # dodaj „Background”
+                self.layer_mgr.add_layer(img, name="Background", visible=True, opacity=1.0, blend="normal")  # type: ignore[arg-type]
+
+                # Fallback: gdy LM sam nie wyśle sygnału – odśwież ręcznie
                 self._refresh_composite()
+                self._publish_layers_snapshot()
             else:
-                # fallback single image
+                # single-image fallback
                 self.state.image = img
                 self.viewer.set_image(img)
 
             if self.history is not None:
                 try:
-                    base = self._pil_to_u8(img)
-                    self.history.reset(base, cache={}, label="source")
+                    self.history.reset(self._pil_to_u8(img), cache={}, label="source")
                 except Exception:
                     pass
             self._update_edit_menu_state()
@@ -329,7 +372,6 @@ class App(tk.Frame):
     def _save_image_path(self, path: Optional[str]) -> None:
         if not path:
             return
-        # zapisujemy kompozyt
         comp = self._get_composite_np()
         if comp is None:
             messagebox.showwarning("Save Image", "No image to save.")
@@ -344,7 +386,7 @@ class App(tk.Frame):
         except Exception as ex:
             messagebox.showerror("Save Image", str(ex))
 
-    # ───────────── helpers ─────────────
+    # ───────────────────────── helpers ─────────────────────────
     @staticmethod
     def _pil_to_u8(img: "Image.Image"):
         if np is None:
@@ -372,10 +414,8 @@ class App(tk.Frame):
         except Exception:
             return None
 
-    # ───────────── RUN: single step ─────────────
+    # ───────────────────────── RUN: single step ─────────────────────────
     def run_step(self, step: Dict[str, Any]) -> None:
-        # Źródłem dla filtra jest obraz AKTYWNEJ WARSTWY (jeśli mamy layer_mgr),
-        # w przeciwnym razie single-image fallback.
         img_input_pil = self._get_active_layer_pil() or self.state.image
         if not img_input_pil:
             messagebox.showwarning("Run", "No image loaded.")
@@ -411,7 +451,7 @@ class App(tk.Frame):
         except Exception as e:
             self.bus.publish("run.error", {"error": str(e)})
 
-    # ───────────── RUN: preset ─────────────
+    # ───────────────────────── RUN: preset ─────────────────────────
     def run_preset(self, cfg: Optional[Dict[str, Any]] = None) -> None:
         img_input_pil = self._get_active_layer_pil() or self.state.image
         if not img_input_pil:
@@ -461,7 +501,7 @@ class App(tk.Frame):
         except Exception as e:
             self.bus.publish("run.error", {"error": str(e)})
 
-    # ───────────── BUS handlers ─────────────
+    # ───────────────────────── BUS handlers ─────────────────────────
     def _on_progress(self, d: Dict[str, Any]) -> None:
         val = float(d.get("value", 0.0) or 0.0)
         try:
@@ -484,18 +524,16 @@ class App(tk.Frame):
             except Exception:
                 pass
 
-        # Aktualizacja aktywnej warstwy lub fallback single-image
         updated_pil = self._array_to_pil(out)
         if updated_pil is not None:
             if self.layer_mgr and self.state.active_layer_id:
                 try:
-                    # zamień obraz aktywnej warstwy
                     self.layer_mgr.update_layer(self.state.active_layer_id, image=self._pil_to_u8(updated_pil))
                 except Exception:
-                    # awaryjnie: single-image fallback
                     self.state.image = updated_pil
-                self._layers_set_snapshot()
+                # LayerManager wyemituje ui.layers.changed (albo poniżej fallback)
                 self._refresh_composite()
+                self._publish_layers_snapshot()
             else:
                 self.state.image = updated_pil
                 try:
@@ -526,7 +564,7 @@ class App(tk.Frame):
             except Exception:
                 pass
 
-    # ───────────── Bottom helpers ─────────────
+    # ───────────────────────── Bottom helpers ─────────────────────────
     def _update_bottom_from_cache(self, cache: Dict[str, Any]) -> None:
         try:
             if self.bottom is not None and hasattr(self.bottom, "set_ctx"):
@@ -534,7 +572,7 @@ class App(tk.Frame):
         except Exception:
             pass
 
-    # ───────────── Undo/Redo ─────────────
+    # ───────────────────────── Undo/Redo ─────────────────────────
     def _update_edit_menu_state(self) -> None:
         if not self.history or not self.menubar:
             return
@@ -554,11 +592,11 @@ class App(tk.Frame):
             if self.layer_mgr and self.state.active_layer_id:
                 try:
                     self.layer_mgr.update_layer(self.state.active_layer_id, image=self._pil_to_u8(pil))
-                    self._layers_set_snapshot()
-                    self._refresh_composite()
                 except Exception:
                     self.state.image = pil
                     self.viewer.set_image(pil)
+                self._refresh_composite()
+                self._publish_layers_snapshot()
             else:
                 self.state.image = pil
                 self.viewer.set_image(pil)
@@ -583,11 +621,11 @@ class App(tk.Frame):
             if self.layer_mgr and self.state.active_layer_id:
                 try:
                     self.layer_mgr.update_layer(self.state.active_layer_id, image=self._pil_to_u8(pil))
-                    self._layers_set_snapshot()
-                    self._refresh_composite()
                 except Exception:
                     self.state.image = pil
                     self.viewer.set_image(pil)
+                self._refresh_composite()
+                self._publish_layers_snapshot()
             else:
                 self.state.image = pil
                 self.viewer.set_image(pil)
@@ -601,9 +639,8 @@ class App(tk.Frame):
         if self.status is not None:
             self.status.set_text("Redo")
 
-    # ───────────── View helpers ─────────────
+    # ───────────────────────── View helpers ─────────────────────────
     def _toggle_left(self) -> None:
-        """Przełącz wąski lewy dock (dummy). Viewer i prawa strona są nienaruszone."""
         try:
             panes = self.main.panes()
             if self._leftdock_visible:
@@ -668,9 +705,8 @@ class App(tk.Frame):
             except Exception:
                 pass
 
-    # ───────────── Layers helpers ─────────────
+    # ───────────────────────── Layers helpers ─────────────────────────
     def _get_active_layer_pil(self) -> Optional["Image.Image"]:
-        """Zwraca obraz aktywnej warstwy (PIL) jeśli dostępny."""
         if not (self.layer_mgr and self.state.active_layer_id):
             return None
         try:
@@ -693,7 +729,6 @@ class App(tk.Frame):
         return None
 
     def _get_composite_np(self) -> Optional["np.ndarray"]:
-        """Zwraca skomponowany podgląd sceny (RGB uint8) lub None."""
         if self.layer_mgr:
             try:
                 comp = self.layer_mgr.get_composite_for_viewport()
@@ -701,7 +736,6 @@ class App(tk.Frame):
                     return comp
             except Exception:
                 pass
-        # fallback
         if self.state.image is not None and np is not None:
             try:
                 return self._pil_to_u8(self.state.image)
@@ -710,7 +744,6 @@ class App(tk.Frame):
         return None
 
     def _refresh_composite(self) -> None:
-        """Przelicza kompozyt i aktualizuje viewer."""
         comp = self._get_composite_np()
         if comp is None:
             return
@@ -722,202 +755,153 @@ class App(tk.Frame):
         except Exception:
             pass
 
-    # ───────────── Layers BUS handlers ─────────────
+    # ── SNAPSHOT build/publish (with debounce) ──
+    def _layers_snapshot(self) -> Dict[str, Any]:
+        layers = []
+        try:
+            for l in getattr(self.state, "layers", []):
+                layers.append({
+                    "id": getattr(l, "id", ""),
+                    "name": getattr(l, "name", "Layer"),
+                    "visible": bool(getattr(l, "visible", True)),
+                    "opacity": float(getattr(l, "opacity", 1.0)),
+                    "blend": getattr(l, "blend", "normal"),
+                })
+        except Exception:
+            pass
+        return {"layers": layers, "active": self.state.active_layer_id}
+
+    def _calc_layers_sig(self, snap: Dict[str, Any]) -> Tuple:
+        layers = snap.get("layers") or []
+        active = snap.get("active")
+        sig_layers = tuple(
+            (l.get("id"), bool(l.get("visible", True)), float(l.get("opacity", 1.0)), str(l.get("blend", "normal")))
+            for l in layers
+        )
+        return (sig_layers, active)
+
+    def _publish_layers_snapshot(self) -> None:
+        snap = self._layers_snapshot()
+        sig = self._calc_layers_sig(snap)
+        if sig == self._last_layers_sig:
+            setattr(self.bus, "last_layers_snapshot", snap)
+            return
+        self._last_layers_sig = sig
+        setattr(self.bus, "last_layers_snapshot", snap)
+        try:
+            self.bus.publish("ui.layers.changed", {"source": "app"})
+        except Exception:
+            pass
+
+    def _on_layers_changed(self) -> None:
+        """Wywoływane zawsze, gdy LayerManager zmienił state.layers."""
+        self._refresh_composite()
+        self._publish_layers_snapshot()
+
+    # ───────────────────────── Layers BUS handlers (from UI) ─────────────────
     def _on_layer_add(self, d: Dict[str, Any]) -> None:
         if not LayerManager:
             messagebox.showwarning("Layers", "LayerManager unavailable.")
             return
         if self.layer_mgr is None:
             self.layer_mgr = LayerManager(self.state, self.bus.publish)
-        # źródło: path | pil | np | duplicate_active
-        src_path = d.get("path")
-        name = d.get("name") or "Layer"
-        blend = d.get("blend") or "normal"
-        opacity = float(d.get("opacity", 1.0))
-        visible = bool(d.get("visible", True))
+
+        src_path = (d or {}).get("path")
+        name = (d or {}).get("name") or "Layer"
+        blend = (d or {}).get("blend") or "normal"
+        opacity = float((d or {}).get("opacity", 1.0))
+        visible = bool((d or {}).get("visible", True))
         try:
             if src_path and Image:
                 pil = Image.open(src_path).convert("RGB")
                 self.layer_mgr.add_layer(pil, name=name, blend=blend, opacity=opacity, visible=visible)
-            elif d.get("duplicate_active"):
+            elif (d or {}).get("duplicate_active"):
                 pil = self._get_active_layer_pil() or self.state.image
                 if pil is not None:
                     self.layer_mgr.add_layer(pil, name=name, blend=blend, opacity=opacity, visible=visible)
             else:
-                # pusty layer (czarny)
                 base = self._get_active_layer_pil() or self.state.image
                 if base is None or Image is None:
                     return
                 w, h = base.size
                 self.layer_mgr.add_layer(Image.new("RGB", (w, h), (0, 0, 0)), name=name,
                                          blend=blend, opacity=opacity, visible=visible)
-        finally:
-            self._layers_set_snapshot()
+            # odśwież/fallback
             self._refresh_composite()
+            self._publish_layers_snapshot()
+        except Exception as ex:
+            messagebox.showerror("Layers", str(ex))
 
     def _on_layer_remove(self, d: Dict[str, Any]) -> None:
-        lid = d.get("id")
+        lid = (d or {}).get("id")
         if not (lid and self.layer_mgr):
             return
         try:
             self.layer_mgr.remove_layer(str(lid))
-        finally:
-            self._layers_set_snapshot()
             self._refresh_composite()
+            self._publish_layers_snapshot()
+        except Exception as ex:
+            messagebox.showerror("Layers", str(ex))
 
     def _on_layer_set_active(self, d: Dict[str, Any]) -> None:
-        lid = d.get("id")
+        lid = (d or {}).get("id")
         if not lid:
             return
+        if self.state.active_layer_id == str(lid):
+            return
         self.state.active_layer_id = str(lid)
-        self._layers_set_snapshot()
-        self._refresh_composite()
+        self._publish_layers_snapshot()
 
     def _on_layer_update(self, d: Dict[str, Any]) -> None:
-        """Patch layer fields: visible/opacity/blend/mask/image."""
-        lid = d.get("id")
+        lid = (d or {}).get("id")
         if not (lid and self.layer_mgr):
             return
         patch = {}
-        for k in ("visible", "opacity", "blend", "mask", "name", "image"):
-            if k in d:
-                patch[k] = d[k]
-        if patch:
-            try:
-                self.layer_mgr.update_layer(str(lid), **patch)
-            finally:
-                self._layers_set_snapshot()
-                self._refresh_composite()
+        for k in ("visible", "opacity", "blend", "mask", "name", "image", "offset"):
+            if k in (d or {}):
+                patch[k] = (d or {})[k]
+        if not patch:
+            return
+        try:
+            self.layer_mgr.update_layer(str(lid), **patch)
+            self._refresh_composite()
+            self._publish_layers_snapshot()
+        except Exception as ex:
+            messagebox.showerror("Layers", str(ex))
 
     def _on_layers_reorder(self, d: Dict[str, Any]) -> None:
-        """Reorder wymaga prostego przepisania listy w state.layers."""
-        order = d.get("order")  # list of layer ids top→bottom
+        order = (d or {}).get("order")  # list of ids (TOP→BOTTOM)
         if not (order and isinstance(order, list)):
+            return
+        current = [getattr(l, "id", None) for l in self.state.layers]
+        if order == current:
             return
         try:
             id_to_layer = {getattr(l, "id", None): l for l in self.state.layers}
             new_list = [id_to_layer.get(i) for i in order if i in id_to_layer]
             self.state.layers = [l for l in new_list if l is not None]
-            self.bus.publish("ui.layers.changed", {})
-        except Exception:
-            pass
-        finally:
-            self._layers_set_snapshot()
+            if self.state.active_layer_id not in order:
+                self.state.active_layer_id = getattr(self.state.layers[0], "id", None) if self.state.layers else None
+            self._publish_layers_snapshot()
             self._refresh_composite()
+        except Exception as ex:
+            messagebox.showerror("Layers", str(ex))
 
-    # ───────────── Move Layer: commit przesunięcia ─────────────
-    def _on_layer_commit_offset(self, d: Dict[str, Any]) -> None:
-        """Trwale przesuwa piksele aktywnej warstwy o (dx, dy)."""
-        if not (self.layer_mgr and self.state.active_layer_id and np is not None):
-            return
-        dx = int(d.get("dx", 0) or 0)
-        dy = int(d.get("dy", 0) or 0)
-        if dx == 0 and dy == 0:
-            return
 
-        # znajdź aktywną warstwę
-        lid = self.state.active_layer_id
-        target = None
-        for l in self.state.layers:
-            if getattr(l, "id", None) == lid:
-                target = l
-                break
-        if target is None:
-            return
-
-        # pobierz obraz jako uint8 RGB ndarray
-        src = getattr(target, "image", None)
-        if src is None:
-            return
-        try:
-            if Image is not None and isinstance(src, Image.Image):
-                src_u8 = self._pil_to_u8(src)
-            else:
-                src_u8 = np.asarray(src)
-                if src_u8.ndim == 2:
-                    src_u8 = np.stack([src_u8, src_u8, src_u8], axis=-1)
-                if src_u8.dtype != np.uint8:
-                    src_u8 = np.clip(src_u8, 0, 255).astype(np.uint8)
-        except Exception:
-            return
-
-        H, W, C = src_u8.shape
-        if abs(dx) >= W or abs(dy) >= H:
-            dst = np.zeros_like(src_u8)
-        else:
-            dst = np.zeros_like(src_u8)
-            # oblicz okna kopiowania
-            if dx >= 0:
-                sx0, sx1 = 0, W - dx
-                dx0, dx1 = dx, W
-            else:
-                sx0, sx1 = -dx, W
-                dx0, dx1 = 0, W + dx
-
-            if dy >= 0:
-                sy0, sy1 = 0, H - dy
-                dy0, dy1 = dy, H
-            else:
-                sy0, sy1 = -dy, H
-                dy0, dy1 = 0, H + dy
-
-            if sx1 > sx0 and sy1 > sy0 and dx1 > dx0 and dy1 > dy0:
-                dst[dy0:dy1, dx0:dx1, :] = src_u8[sy0:sy1, sx0:sx1, :]
-
-        # aktualizuj warstwę
-        try:
-            self.layer_mgr.update_layer(lid, image=dst)
-        finally:
-            # zaktualizuj snapshot + odśwież podgląd
-            self._layers_set_snapshot()
-            self._refresh_composite()
-            # (CanvasContainer wyczyści overlay po commit przez własną subskrypcję)
-
-    # ───────────── Layers snapshots (dla panelu Layers) ─────────────
-    def _layers_snapshot(self) -> Dict[str, Any]:
-        """Zwraca {layers:[...], active:<id>} do panelu Layers."""
-        layers_desc: List[Dict[str, Any]] = []
-        for l in self.state.layers:
-            try:
-                layers_desc.append({
-                    "id": getattr(l, "id", ""),
-                    "name": getattr(l, "name", "Layer"),
-                    "visible": bool(getattr(l, "visible", True)),
-                    "opacity": float(getattr(l, "opacity", 1.0)),
-                    "blend": str(getattr(l, "blend", "normal")),
-                })
-            except Exception:
-                continue
-        return {"layers": layers_desc, "active": self.state.active_layer_id}
-
-    def _layers_set_snapshot(self) -> None:
-        """Aktualizuje cache snapshotu u busa (best-effort; bez emisji)."""
-        try:
-            setattr(self.bus, "last_layers_snapshot", self._layers_snapshot())
-        except Exception:
-            pass
-
-    def _publish_layers_snapshot(self) -> None:
-        """Publikuje 'ui.layers.changed' z pełnym snapshotem (na żądanie ui.layers.pull)."""
-        snap = self._layers_snapshot()
-        try:
-            setattr(self.bus, "last_layers_snapshot", snap)
-        except Exception:
-            pass
-        try:
-            self.bus.publish("ui.layers.changed", snap)
-        except Exception:
-            pass
-
-# ───────────── entrypoint ─────────────
+# ───────────────────────── entrypoint ─────────────────────────
 def main() -> None:
     root = tk.Tk()
+    try:
+        import ctypes
+        hdc = ctypes.windll.user32.GetDC(0)
+        dpi = ctypes.windll.gdi32.GetDeviceCaps(hdc, 88)  # LOGPIXELSX
+        ctypes.windll.user32.ReleaseDC(0, hdc)
+        root.tk.call("tk", "scaling", dpi / 72.0)
+    except Exception:
+        pass
+
     init_styles(root)
     root.title("GlitchLab GUI v4.5")
-    try:
-        root.state("zoomed")
-    except Exception:
-        root.geometry("1280x800")
     App(root)
     root.mainloop()
 

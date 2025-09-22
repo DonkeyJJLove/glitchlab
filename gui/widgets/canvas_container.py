@@ -7,6 +7,9 @@ CanvasContainer – kontener widoku obrazu:
 • LayerCanvas (dwuwarstwowy viewer: obraz + overlay crosshair)
 • Pan/Zoom przez LayerCanvas (overlay zawsze nad obrazem)
 • Publikacja pozycji kursora w image-space: "ui.cursor.pos"
+
+Wersja DIAG: intensywne logowanie sekwencji przy pierwszym wczytaniu obrazu
+oraz bezpieczne odroczenie zoom_fit na first-paint, by uniknąć rozmiaru 0×0.
 """
 
 from __future__ import annotations
@@ -36,6 +39,7 @@ if LayerCanvas is None:
         def __init__(self, master: tk.Misc, *, bus: Optional[Any] = None) -> None:
             super().__init__(master, text="(LayerCanvas unavailable)")
             self._photo = None
+            self.bus = bus
 
         def set_layers(self, images, names=None) -> None:
             if Image and ImageTk and images:
@@ -50,6 +54,8 @@ if LayerCanvas is None:
                 except Exception:
                     pass
 
+        # API zgodne, ale nieaktywne w fallbacku
+        def set_composite(self, image): self.set_layers([image], names=["Composite"])
         def add_layer(self, image, name="Layer") -> int: return -1
         def remove_layer(self, index: int) -> None: ...
         def reorder_layer(self, src: int, dst: int) -> None: ...
@@ -80,7 +86,8 @@ class CanvasContainer(ttk.Frame):
     FG_CROSS = "#66aaff"
     FG_DISABLED = "#444444"
 
-    _ICON_DIR = Path(__file__).resolve().parents[2] / "resources" / "icons"
+    # UWAGA: w repo katalog to „resources/ikons”, nie „icons”.
+    _ICON_DIR = Path(__file__).resolve().parents[2] / "resources" / "ikons"
     _ICON_FILES = {
         "pan": "icon_pan.png",
         "zoom": "icon_zoom.png",
@@ -118,6 +125,16 @@ class CanvasContainer(ttk.Frame):
         self._build_viewport()
         self._wire_events()
         self._wire_bus()
+
+    # ---------- helpers: diag ----------
+    def _diag(self, msg: str) -> None:
+        if self.bus and hasattr(self.bus, "publish"):
+            try:
+                self.bus.publish("diag.log", {"msg": f"[Canvas] {msg}", "level": "DEBUG"})
+                return
+            except Exception:
+                pass
+        print(f"[Canvas][DEBUG] {msg}")
 
     # ---------- budowanie pod-UI ----------
     def _build_toolbox(self) -> None:
@@ -167,6 +184,7 @@ class CanvasContainer(ttk.Frame):
         chk.grid(row=len(radios)+1, column=0, pady=2)
 
     def _build_rulers(self) -> None:
+        # zaślepki rogów
         tk.Canvas(
             self,
             width=self.TOOLBOX_W,
@@ -202,17 +220,42 @@ class CanvasContainer(ttk.Frame):
         self._viewer = LayerCanvas(wrap, bus=self.bus)  # overlay crosshair nad obrazem
         self._viewer.grid(row=0, column=0, sticky="nsew")
 
-        # UWAGA: rezygnujemy z osobnego Canvas dla „disabled overlay”
-        # (bg="" wywala się na niektórych Tk). Kurtynę rysujemy jako elementy
-        # na _viewer._cv_img z unikalnym tagiem self._disabled_tag.
+        # Kurtynę rysujemy jako elementy na _viewer._cv_img (tag self._disabled_tag).
 
     # ---------- publiczne API ----------
     def set_image(self, pil_img: "Image.Image") -> None:
-        """Ustaw pojedynczy obraz jako jedyną warstwę (Background)."""
+        """
+        Ustaw obraz kompozytu do podglądu.
+        DIAG: logujemy geometrię i odraczamy zoom_fit do chwili, gdy Canvas będzie miał realny rozmiar.
+        """
+        self._diag("set_image: start")
         self._img_orig = pil_img if (not Image or getattr(pil_img, "mode", "") == "RGB") else pil_img.convert("RGB")
-        self._viewer.set_layers([self._img_orig], names=["Background"])
-        self.fit_to_window()
-        self._redraw_rulers()
+
+        # Preferencja trybu kompozytu (jeśli LayerCanvas ma taką metodę)
+        if hasattr(self._viewer, "set_composite"):
+            self._viewer.set_composite(self._img_orig)  # type: ignore[attr-defined]
+            self._diag("set_image: viewer.set_composite OK")
+        else:
+            self._viewer.set_layers([self._img_orig], names=["Background"])
+            self._diag("set_image: viewer.set_layers([Background]) OK")
+
+        # >>> KLUCZ: odroczyć fit_to_window do czasu aż geometry manager policzy wymiary
+        def _after_layout_fit():
+            try:
+                cw = self._viewer._cv_img.winfo_width()  # type: ignore[attr-defined]
+                ch = self._viewer._cv_img.winfo_height()  # type: ignore[attr-defined]
+            except Exception:
+                cw = ch = 0
+            self._diag(f"after_idle: canvas size = {cw}x{ch}")
+            if cw <= 1 or ch <= 1:
+                # Jeszcze za wcześnie – spróbuj ponownie
+                self.after(16, _after_layout_fit)
+                return
+            self.fit_to_window()
+            self._diag("after_idle: fit_to_window() done")
+
+        # Zamiast natychmiastowego fitu — po idle
+        self.after_idle(_after_layout_fit)
 
     def fit_to_window(self) -> None:
         self._viewer.zoom_fit()
@@ -233,7 +276,6 @@ class CanvasContainer(ttk.Frame):
             if not self._enabled:
                 w = max(1, cv.winfo_width())
                 h = max(1, cv.winfo_height())
-                # półprzezroczysta „kurtyna” przez stipple (symulacja alfa)
                 cv.create_rectangle(
                     0, 0, w, h,
                     fill="#000000",
@@ -241,7 +283,6 @@ class CanvasContainer(ttk.Frame):
                     width=0,
                     tags=(self._disabled_tag,),
                 )
-                # kursor „zajęty”
                 cv.configure(cursor="watch")
             else:
                 cv.configure(cursor="")
