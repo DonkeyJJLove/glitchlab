@@ -1,0 +1,25 @@
+{
+  "id": "t37_staircase",
+  "entrypoint": "staircase",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        3
+      ],
+      "expect": [
+        "#",
+        "##",
+        "###"
+      ]
+    },
+    {
+      "args": [
+        1
+      ],
+      "expect": [
+        "#"
+      ]
+    }
+  ]
+}

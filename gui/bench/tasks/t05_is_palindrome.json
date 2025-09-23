@@ -1,0 +1,25 @@
+{
+  "id": "t05_is_palindrome",
+  "entrypoint": "is_palindrome",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "A man, a plan, a canal: Panama"
+      ],
+      "expect": true
+    },
+    {
+      "args": [
+        "abc"
+      ],
+      "expect": false
+    },
+    {
+      "args": [
+        ""
+      ],
+      "expect": true
+    }
+  ]
+}

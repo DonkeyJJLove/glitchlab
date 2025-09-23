@@ -1,0 +1,29 @@
+{
+  "id": "t38_merge_sorted_lists",
+  "entrypoint": "merge_sorted_lists",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          2,
+          4
+        ],
+        [
+          1,
+          3,
+          4
+        ]
+      ],
+      "expect": [
+        1,
+        1,
+        2,
+        3,
+        4,
+        4
+      ]
+    }
+  ]
+}

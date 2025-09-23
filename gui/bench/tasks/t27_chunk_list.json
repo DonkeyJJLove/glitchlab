@@ -1,0 +1,32 @@
+{
+  "id": "t27_chunk_list",
+  "entrypoint": "chunk_list",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        2
+      ],
+      "expect": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          5
+        ]
+      ]
+    }
+  ]
+}

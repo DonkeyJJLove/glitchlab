@@ -1,0 +1,26 @@
+{
+  "id": "t21_rotate_list",
+  "entrypoint": "rotate_list",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        2
+      ],
+      "expect": [
+        4,
+        5,
+        1,
+        2,
+        3
+      ]
+    }
+  ]
+}

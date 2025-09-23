@@ -1,0 +1,19 @@
+{
+  "id": "t19_rle_compress",
+  "entrypoint": "rle_compress",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "aaabbc"
+      ],
+      "expect": "a3b2c1"
+    },
+    {
+      "args": [
+        ""
+      ],
+      "expect": ""
+    }
+  ]
+}

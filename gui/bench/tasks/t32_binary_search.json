@@ -1,0 +1,33 @@
+{
+  "id": "t32_binary_search",
+  "entrypoint": "binary_search",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        4
+      ],
+      "expect": 3
+    },
+    {
+      "args": [
+        [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        6
+      ],
+      "expect": -1
+    }
+  ]
+}

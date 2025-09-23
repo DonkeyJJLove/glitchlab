@@ -1,0 +1,21 @@
+{
+  "id": "t35_hamming_distance",
+  "entrypoint": "hamming_distance",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "karolin",
+        "kathrin"
+      ],
+      "expect": 3
+    },
+    {
+      "args": [
+        "1011101",
+        "1001001"
+      ],
+      "expect": 2
+    }
+  ]
+}

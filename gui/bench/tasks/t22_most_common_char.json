@@ -1,0 +1,19 @@
+{
+  "id": "t22_most_common_char",
+  "entrypoint": "most_common_char",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "abbbccdde"
+      ],
+      "expect": "b"
+    },
+    {
+      "args": [
+        "aabb"
+      ],
+      "expect": "a"
+    }
+  ]
+}

@@ -605,11 +605,11 @@ def _pretty_table(rows: List[Dict[str, float]]) -> str:
 
 
 def cmd_run(args):
-    lam = args.lmbd;
-    de = args.delta;
-    r = args.rows;
+    lam = args.lmbd
+    de = args.delta
+    r = args.rows
     c = args.cols
-    thr = args.edge_thr;
+    thr = args.edge_thr
     kind = args.mosaic
     res = run_once(lam, de, r, c, thr, mosaic_kind=kind, kappa_ab=args.kappa_ab)
     print(json.dumps({

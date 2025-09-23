@@ -1,0 +1,21 @@
+{
+  "id": "t12_gcd",
+  "entrypoint": "gcd",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        54,
+        24
+      ],
+      "expect": 6
+    },
+    {
+      "args": [
+        7,
+        13
+      ],
+      "expect": 1
+    }
+  ]
+}

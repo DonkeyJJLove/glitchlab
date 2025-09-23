@@ -1,0 +1,28 @@
+{
+  "id": "t25_median_of_list",
+  "entrypoint": "median_of_list",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          3,
+          2,
+          1
+        ]
+      ],
+      "expect": 2
+    },
+    {
+      "args": [
+        [
+          1,
+          2,
+          3,
+          4
+        ]
+      ],
+      "expect": 2.5
+    }
+  ]
+}

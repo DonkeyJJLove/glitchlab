@@ -1,0 +1,21 @@
+{
+  "id": "t33_prefix_sums",
+  "entrypoint": "prefix_sums",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          2,
+          3
+        ]
+      ],
+      "expect": [
+        1,
+        3,
+        6
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "t06_count_vowels",
+  "entrypoint": "count_vowels",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "abcde"
+      ],
+      "expect": 2
+    },
+    {
+      "args": [
+        "xyz"
+      ],
+      "expect": 0
+    },
+    {
+      "args": [
+        ""
+      ],
+      "expect": 0
+    }
+  ]
+}

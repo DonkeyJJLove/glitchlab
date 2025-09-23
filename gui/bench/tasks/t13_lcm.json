@@ -1,0 +1,21 @@
+{
+  "id": "t13_lcm",
+  "entrypoint": "lcm",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        4,
+        6
+      ],
+      "expect": 12
+    },
+    {
+      "args": [
+        0,
+        5
+      ],
+      "expect": 0
+    }
+  ]
+}

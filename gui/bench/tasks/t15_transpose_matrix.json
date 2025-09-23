@@ -1,0 +1,37 @@
+{
+  "id": "t15_transpose_matrix",
+  "entrypoint": "transpose",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            4,
+            5,
+            6
+          ]
+        ]
+      ],
+      "expect": [
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          3,
+          6
+        ]
+      ]
+    }
+  ]
+}
