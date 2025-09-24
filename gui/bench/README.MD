@@ -253,7 +253,7 @@ python -m glitchlab.gui.bench.utils.plot_results \
 
 ## Ograniczenia i zagrożenia dla rzetelności
 
-* **Brak pełnego pokrycia szablonami** w baseline B (wiele zadań kończy fallbackiem) → `pass_at_1` = 0 nie oznacza „zła metody”, tylko „metoda baseline jest minimalna”.
+* **Brak pełnego pokrycia szablonami** w baseline B (wiele zadań kończy fallbackiem) → `pass_at_1` = 0 nie oznacza „złej metody”, tylko „metoda baseline jest minimalna”.
 * **Metryki `align`, `cr_ast`** są **wewnętrzne** dla A1/A2 (A/B nieporównywalne 1:1) — służą do **porównania A1 vs. A2**, nie do konfrontacji z B.
 * **Zbiór zadań**: część zadań może wymagać logiki poza zakresem szablonów/heurystyk — to naturalnie zaniża `pass_at_1`.
 * **Brak kosztów inference LLM**: nie korzystamy z modeli zewnętrznych; badamy **czyste protokoły generacji** (szablon/heurystyka vs. mozaika+AST).
