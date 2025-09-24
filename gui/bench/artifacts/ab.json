@@ -1,0 +1,29 @@
+{
+  "A1": {
+    "pass_at_1": 0,
+    "total": 79,
+    "mean_time": 0.2699759602546692,
+    "mean_align": null,
+    "mean_j_phi2": null,
+    "mean_cr_to": null,
+    "mean_cr_ast": null
+  },
+  "A2": {
+    "pass_at_1": 0,
+    "total": 79,
+    "mean_time": 0.25585065484046937,
+    "mean_align": null,
+    "mean_j_phi2": null,
+    "mean_cr_to": null,
+    "mean_cr_ast": null
+  },
+  "B": {
+    "pass_at_1": 0,
+    "total": 79,
+    "mean_time": 0.0,
+    "mean_align": null,
+    "mean_j_phi2": null,
+    "mean_cr_to": null,
+    "mean_cr_ast": null
+  }
+}
