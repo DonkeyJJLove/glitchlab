@@ -1,0 +1,22 @@
+=== Comparative Analysis Report ===
+
+This report compares Microsoft baseline protocols (B) against hybrid_ast_mosaic (A1/A2).
+
+Agent A1:
+  - Pass@1: 0/79
+  - Mean Time: 0.2603502869606018 s
+  - Mean Align: 0.600024179254398
+  - Mean J_phi2: 80.95457993820953
+
+Agent A2:
+  - Pass@1: 0/79
+  - Mean Time: 0.2555749475955963 s
+  - Mean Align: 0.7433325087941238
+  - Mean J_phi2: 80.95457993820953
+
+Agent B:
+  - Pass@1: 0/79
+  - Mean Time: 0.0 s
+
+Hybrid (A1) and Microsoft baseline (B) tied.
+Reason: both solved the same set of tasks with similar accuracy.

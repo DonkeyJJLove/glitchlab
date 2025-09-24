@@ -17,7 +17,6 @@ def _align_metrics(lmbd: float, delta: float, rows: int, cols: int, thr: float,
     res = hma.run_once(lmbd, delta, rows, cols, thr, mosaic_kind="grid", kappa_ab=kappa_ab)
     return dict(Align=res["Align"], J_phi2=res["J_phi2"], CR_TO=res["CR_TO"], CR_AST=res["CR_AST"])
 
-
 # ─────────────────────────────────────────────────────────────
 # 2) TEMPLATE KODU – PRODUKCYJNE IMPLEMENTACJE DLA WSZYSTKICH 40 ZADAŃ
 # ─────────────────────────────────────────────────────────────
