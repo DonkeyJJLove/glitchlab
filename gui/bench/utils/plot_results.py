@@ -1,92 +1,170 @@
-# glitchlab/gui/bench/stats.py
+# -*- coding: utf-8 -*-
 from __future__ import annotations
-import statistics
-import math
-from typing import Dict, Any, List
+import argparse
+import json
+import os
+from typing import Dict, Any
+
+# Backend bez wyświetlacza (ważne pod pytest/CI)
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
-def _safe_mean(xs: List[float]) -> float | None:
-    return statistics.mean(xs) if xs else None
+def _safe_get(d: Dict[str, Any], key: str, default: float = 0.0) -> float:
+    v = d.get(key, default)
+    try:
+        return float(v) if v is not None else default
+    except Exception:
+        return default
 
 
-def _aggregate(agent_results: Dict[str, Any]) -> Dict[str, Any]:
-    """Agreguje wyniki pojedynczego agenta (A1, A2, B)."""
-    pass_counts, totals, times = [], [], []
-    aligns, j_phi2s, cr_tos, cr_asts = [], [], [], []
-
-    for _, tres in agent_results.items():
-        if not isinstance(tres, dict):
-            continue
-
-        if "pass_at_1" in tres:
-            pass_counts.append(tres["pass_at_1"])
-        if "total" in tres:
-            totals.append(tres["total"])
-        if "time_s" in tres:
-            times.append(tres["time_s"])
-
-        # Obsługa obu wariantów kluczy (małe/wielkie litery)
-        aligns.extend([tres[k]] for k in ("align", "Align") if k in tres and tres[k] is not None)
-        j_phi2s.extend([tres[k]] for k in ("j_phi2", "J_phi2") if k in tres and tres[k] is not None)
-        cr_tos.extend([tres[k]] for k in ("cr_to", "CR_TO") if k in tres and tres[k] is not None)
-        cr_asts.extend([tres[k]] for k in ("cr_ast", "CR_AST") if k in tres and tres[k] is not None)
-
-    return {
-        "pass_at_1": sum(pass_counts),
-        "total": sum(totals),
-        "mean_time": _safe_mean(times),
-        "mean_align": _safe_mean(aligns),
-        "mean_j_phi2": _safe_mean(j_phi2s),
-        "mean_cr_to": _safe_mean(cr_tos),
-        "mean_cr_ast": _safe_mean(cr_asts),
-    }
+def _ratio(pass_at_1: float, total: float) -> float:
+    if total and total > 0:
+        return pass_at_1 / float(total)
+    return 0.0
 
 
-def cliffs_delta(xs: List[float], ys: List[float]) -> float:
-    """Cliff’s delta effect size."""
-    nx, ny = len(xs), len(ys)
-    if nx == 0 or ny == 0:
-        return 0.0
-    gt = sum(1 for x in xs for y in ys if x > y)
-    lt = sum(1 for x in xs for y in ys if x < y)
-    return (gt - lt) / (nx * ny)
+def plot_results(json_path: str, out_dir: str) -> None:
+    """
+    Czyta artefakt ab.json i zapisuje:
+      - accuracy.png       (Pass@1 / Total)
+      - timings.png        (Mean time)
+      - align_vs_ast.png   (Mean align vs. mean_cr_ast)
+      - comparison.txt     (krótki werdykt tekstowy)
+    """
+    # --- I/O
+    with open(json_path, "r", encoding="utf-8") as f:
+        data: Dict[str, Dict[str, Any]] = json.load(f)
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    # --- Przygotowanie danych
+    agents = ["A1", "A2", "B"]
+    # Upewnijmy się, że brakujące sekcje nie wywalą importu
+    for a in agents:
+        data.setdefault(a, {})
+
+    acc_vals = []
+    t_vals = []
+    align_vals = []
+    cr_ast_vals = []
+
+    for a in agents:
+        d = data[a]
+        acc = _ratio(_safe_get(d, "pass_at_1", 0.0), _safe_get(d, "total", 0.0))
+        acc_vals.append(acc)
+        t_vals.append(_safe_get(d, "mean_time", 0.0))
+        align_vals.append(_safe_get(d, "mean_align", 0.0))
+        cr_ast_vals.append(_safe_get(d, "mean_cr_ast", 0.0))
+
+    # --- 1) accuracy.png
+    plt.figure()
+    plt.bar(agents, acc_vals)
+    plt.ylim(0, 1)
+    plt.ylabel("Accuracy (Pass@1 / Total)")
+    plt.title("Accuracy by Agent")
+    for i, v in enumerate(acc_vals):
+        plt.text(i, v + 0.02, f"{v:.2f}", ha="center", va="bottom")
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, "accuracy.png"))
+    plt.close()
+
+    # --- 2) timings.png
+    plt.figure()
+    plt.bar(agents, t_vals)
+    plt.ylabel("Mean time [s]")
+    plt.title("Mean runtime by Agent")
+    for i, v in enumerate(t_vals):
+        plt.text(i, v, f"{v:.3f}s", ha="center", va="bottom", rotation=90)
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, "timings.png"))
+    plt.close()
+
+    # --- 3) align_vs_ast.png (tworzymy ZAWSZE, nawet jeśli 0 lub brak danych)
+    x = range(len(agents))
+    width = 0.35
+
+    plt.figure()
+    plt.bar([i - width/2 for i in x], align_vals, width=width, label="mean_align")
+    plt.bar([i + width/2 for i in x], cr_ast_vals, width=width, label="mean_cr_ast")
+    plt.xticks(list(x), agents)
+    plt.ylabel("Score")
+    plt.title("Alignment vs. AST compression (mean)")
+    plt.legend()
+    # adnotacje
+    for i, v in enumerate(align_vals):
+        plt.text(i - width/2, v, f"{v:.3f}", ha="center", va="bottom", rotation=90)
+    for i, v in enumerate(cr_ast_vals):
+        plt.text(i + width/2, v, f"{v:.3f}", ha="center", va="bottom", rotation=90)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, "align_vs_ast.png"))
+    plt.close()
+
+    # --- 4) comparison.txt (krótki, deterministyczny werdykt)
+    # Reguła werdyktu (jak w README):
+    # 1) max accuracy, 2) wyższy align + cr_ast bliżej 1, 3) krótszy czas
+    def distance_to_one(v: float) -> float:
+        return abs(1.0 - v)
+
+    scores = []
+    for i, a in enumerate(agents):
+        acc = acc_vals[i]
+        align = align_vals[i]
+        crast = cr_ast_vals[i]
+        t = t_vals[i]
+        score = (
+            acc * 1000.0                        # priorytet 1: mocno ważymy accuracy
+            + align * 10.0                      # priorytet 2a
+            - distance_to_one(crast) * 10.0     # priorytet 2b (bliżej 1 lepiej)
+            - t                                  # priorytet 3 (krótszy czas)
+        )
+        scores.append((score, a))
+
+    scores_sorted = sorted(scores, reverse=True)
+    winner = scores_sorted[0][1]
+
+    # zapis raportu
+    lines = []
+    lines.append("=== Comparison summary ===")
+    lines.append(f"Agents: {', '.join(agents)}")
+    lines.append("")
+    lines.append("Accuracy (Pass@1/Total):")
+    for a, v in zip(agents, acc_vals):
+        lines.append(f"  {a}: {v:.3f}")
+    lines.append("")
+    lines.append("Mean time [s]:")
+    for a, v in zip(agents, t_vals):
+        lines.append(f"  {a}: {v:.3f}")
+    lines.append("")
+    lines.append("mean_align:")
+    for a, v in zip(agents, align_vals):
+        lines.append(f"  {a}: {v:.3f}")
+    lines.append("")
+    lines.append("mean_cr_ast:")
+    for a, v in zip(agents, cr_ast_vals):
+        lines.append(f"  {a}: {v:.3f}")
+    lines.append("")
+    lines.append(f"Winner (rule-based): {winner}")
+
+    rep_path = os.path.join(out_dir, "comparison.txt")
+    with open(rep_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(f"[INFO] Report written to {rep_path}")
 
 
-def binomial_sign_test_p(wins: int, losses: int) -> float:
-    """Dwustronny test znaku (p-value)."""
-    n = wins + losses
-    if n == 0:
-        return 1.0
-    k = max(wins, losses)
-    return sum(math.comb(n, i) for i in range(k, n + 1)) / (2 ** n)
+def _make_argparser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser()
+    p.add_argument("--json", required=True, help="Path to artifacts/ab.json")
+    p.add_argument("--out", required=True, help="Output directory for plots")
+    return p
 
 
-def summarize(A1: Dict[str, Any], A2: Dict[str, Any], B: Dict[str, Any]) -> Dict[str, Any]:
-    """Zbiorczy raport z wyników wszystkich agentów."""
-    agg_A1 = _aggregate(A1)
-    agg_A2 = _aggregate(A2)
-    agg_B = _aggregate(B)
-
-    return {
-        "A1": agg_A1,
-        "A2": agg_A2,
-        "B": agg_B,
-        # Rozszerzona analiza porównawcza
-        "A2_vs_A1": _compare(agg_A2, agg_A1),
-        "A2_vs_B": _compare(agg_A2, agg_B),
-    }
+def main() -> None:
+    args = _make_argparser().parse_args()
+    plot_results(json_path=args.json, out_dir=args.out)
 
 
-def _compare(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
-    """Porównanie dwóch agentów na podstawie pass@1 (sign test + effect size)."""
-    wins = 1 if a["pass_at_1"] > b["pass_at_1"] else 0
-    losses = 1 if a["pass_at_1"] < b["pass_at_1"] else 0
-    ties = 1 if a["pass_at_1"] == b["pass_at_1"] else 0
-
-    return {
-        "wins": wins,
-        "losses": losses,
-        "ties": ties,
-        "p_sign": binomial_sign_test_p(wins, losses),
-        "cliffs_delta": cliffs_delta([a["pass_at_1"]], [b["pass_at_1"]]),
-    }
+if __name__ == "__main__":
+    main()
