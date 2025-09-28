@@ -1,6 +1,5 @@
 # glitchlab/analysis/diff.py
 """
----
 version: 2
 kind: module
 id: "analysis-diff"
