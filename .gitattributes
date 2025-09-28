@@ -1,0 +1,35 @@
+# Domyślnie Git wykrywa tekst, ale wymuszamy profile per rozszerzenie
+*           text=auto
+
+# --- LF dla kodu i docs ---
+*.py        text eol=lf
+*.pyi       text eol=lf
+*.sh        text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.json      text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.toml      text eol=lf
+*.ini       text eol=lf
+*.cfg       text eol=lf
+*.patch     text eol=lf
+*.diff      text eol=lf
+
+# --- CRLF tylko dla skryptów Windows ---
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+*.ps1       text eol=crlf
+
+# --- Binaria (bez konwersji linii) ---
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.zip       binary
+*.7z        binary
+*.pdf       binary
+*.pdfx      binary
+*.exe       binary
+*.dll       binary
