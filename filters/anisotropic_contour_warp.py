@@ -2,6 +2,7 @@
 """
 Anisotropic Contour Warp (ACW)
 ------------------------------
+
 Popycha piksele wzdłuż konturów (tangencjalnie do ∇I), dając wrażenie falowania.
 Wspiera maski ROI i amplitude. Zapisuje diagnostyki do HUD: diag/acw/mag, /tx, /ty.
 
