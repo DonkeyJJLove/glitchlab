@@ -86,8 +86,8 @@ class CanvasContainer(ttk.Frame):
     FG_CROSS = "#66aaff"
     FG_DISABLED = "#444444"
 
-    # UWAGA: w repo katalog to „resources/ikons”, nie „icons”.
-    _ICON_DIR = Path(__file__).resolve().parents[2] / "resources" / "ikons"
+    # UWAGA: w repo katalog to „resources/icons”, nie „icons”.
+    _ICON_DIR = Path(__file__).resolve().parents[2] / "resources" / "icons"
     _ICON_FILES = {
         "pan": "icon_pan.png",
         "zoom": "icon_zoom.png",

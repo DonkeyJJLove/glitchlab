@@ -4,9 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
+
 @dataclass
 class UiState:
-    image: Any | None = None            # PIL.Image
+    image: Any | None = None  # PIL.Image
     preset_cfg: Dict[str, Any] | None = None
     single_filter: str | None = None
     filter_params: Dict[str, Any] = field(default_factory=dict)
