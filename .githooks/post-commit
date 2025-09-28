@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# wybór Pythona (py na Windows, inaczej python)
+if command -v py >/dev/null 2>&1; then PY=py; else PY=python; fi
+
+# uruchom Twoją logikę
+"$PY" scripts/send_patch.py || true
