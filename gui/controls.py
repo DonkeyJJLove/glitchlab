@@ -1,5 +1,4 @@
 # glitchlab/gui/controls.py
-# DODAM SPACJE BY Zrobić coma
 from tkinter import ttk
 
 
