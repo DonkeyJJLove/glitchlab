@@ -1,0 +1,29 @@
+{
+  "id": "t09_flatten_once",
+  "entrypoint": "flatten_once",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          [
+            2,
+            3
+          ],
+          4,
+          [
+            5
+          ]
+        ]
+      ],
+      "expect": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  ]
+}

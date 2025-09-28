@@ -1,0 +1,28 @@
+{
+  "id": "t11_anagrams",
+  "entrypoint": "anagrams",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "listen",
+        "silent"
+      ],
+      "expect": true
+    },
+    {
+      "args": [
+        "rat",
+        "car"
+      ],
+      "expect": false
+    },
+    {
+      "args": [
+        "Dormitory",
+        "Dirty room"
+      ],
+      "expect": true
+    }
+  ]
+}

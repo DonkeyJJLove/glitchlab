@@ -1,0 +1,27 @@
+{
+  "id": "t34_longest_common_prefix",
+  "entrypoint": "longest_common_prefix",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          "flower",
+          "flow",
+          "flight"
+        ]
+      ],
+      "expect": "fl"
+    },
+    {
+      "args": [
+        [
+          "dog",
+          "racecar",
+          "car"
+        ]
+      ],
+      "expect": ""
+    }
+  ]
+}

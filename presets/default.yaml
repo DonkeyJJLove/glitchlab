@@ -1,0 +1,7 @@
+version: 2
+name: default
+amplitude: { kind: none, strength: 1.0 }
+edge_mask: { thresh: 60, dilate: 0, ksize: 3 }
+steps:
+  - name: default_identity
+    params: { mode: edges, strength: 1.0, use_amp: 1.0, clamp: true }

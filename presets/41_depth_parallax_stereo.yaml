@@ -1,0 +1,17 @@
+version: 2
+name: "41_depth_parallax_stereo"
+seed: 7
+amplitude: {kind: radial, strength: 1.0}
+edge_mask: {thresh: 60, dilate: 0, ksize: 3}
+steps:
+  - name: depth_displace
+    params:
+      depth_map: "noise_fractal"
+      scale: 48.0
+      freq: 88.0
+      octaves: 5
+      vertical: 0.12
+      stereo: true
+      stereo_px: 2
+      shading: true
+      shade_gain: 0.25

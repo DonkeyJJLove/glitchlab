@@ -1,0 +1,31 @@
+{
+  "id": "t31_is_prime",
+  "entrypoint": "is_prime",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        2
+      ],
+      "expect": true
+    },
+    {
+      "args": [
+        15
+      ],
+      "expect": false
+    },
+    {
+      "args": [
+        17
+      ],
+      "expect": true
+    },
+    {
+      "args": [
+        1
+      ],
+      "expect": false
+    }
+  ]
+}

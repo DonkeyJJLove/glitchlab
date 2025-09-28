@@ -1,0 +1,39 @@
+{
+  "id": "t40_sum_diagonal",
+  "entrypoint": "sum_diagonal",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            4,
+            5,
+            6
+          ],
+          [
+            7,
+            8,
+            9
+          ]
+        ]
+      ],
+      "expect": 15
+    },
+    {
+      "args": [
+        [
+          [
+            5
+          ]
+        ]
+      ],
+      "expect": 5
+    }
+  ]
+}

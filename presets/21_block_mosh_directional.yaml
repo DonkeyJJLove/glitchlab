@@ -1,0 +1,20 @@
+version: 2
+name: "21_block_mosh_directional"
+seed: 7
+amplitude: {kind: linear_y, strength: 1.0}
+edge_mask: {thresh: 60, dilate: 0, ksize: 3}
+steps:
+  - name: spectral_shaper
+    params: {mode: direction, low: 0.05, high: 0.9, angle_deg: 30.0, ang_width: 18.0, boost: 0.8, soft: 0.08, blend: 0.0}
+  - name: block_mosh_grid
+    params:
+      size: 24
+      p: 0.28
+      max_shift: 18
+      mode: "shift"
+      wrap: true
+      rot_p: 0.15
+      channel_jitter: 1.0
+      mix: 0.85
+      use_amp: 1.0
+      clamp: true

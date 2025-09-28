@@ -1,0 +1,25 @@
+{
+  "id": "t24_balanced_brackets",
+  "entrypoint": "balanced_brackets",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "()[]{}"
+      ],
+      "expect": true
+    },
+    {
+      "args": [
+        "(]"
+      ],
+      "expect": false
+    },
+    {
+      "args": [
+        "([{}])"
+      ],
+      "expect": true
+    }
+  ]
+}

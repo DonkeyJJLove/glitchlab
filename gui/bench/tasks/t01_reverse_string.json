@@ -1,0 +1,25 @@
+{
+  "id": "t01_reverse_string",
+  "entrypoint": "reverse_str",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "abc"
+      ],
+      "expect": "cba"
+    },
+    {
+      "args": [
+        ""
+      ],
+      "expect": ""
+    },
+    {
+      "args": [
+        "kayak"
+      ],
+      "expect": "kayak"
+    }
+  ]
+}

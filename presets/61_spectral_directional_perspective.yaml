@@ -1,0 +1,10 @@
+version: 2
+name: "61_spectral_directional_perspective"
+seed: 7
+amplitude: {kind: linear_y, strength: 1.0}
+edge_mask: {thresh: 60, dilate: 0, ksize: 3}
+steps:
+  - name: spectral_shaper
+    params: {mode: direction, low: 0.06, high: 0.9, angle_deg: 35.0, ang_width: 22.0, boost: 0.9, soft: 0.06, blend: 0.0}
+  - name: anisotropic_contour_warp
+    params: {strength: 1.2, iters: 1, ksize: 3, smooth: 0.2, edge_bias: 0.1, use_amp: 1.0, clamp: true}

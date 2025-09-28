@@ -1,0 +1,22 @@
+{
+  "id": "t08_unique_sorted",
+  "entrypoint": "unique_sorted",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          3,
+          1,
+          2,
+          2
+        ]
+      ],
+      "expect": [
+        1,
+        2,
+        3
+      ]
+    }
+  ]
+}

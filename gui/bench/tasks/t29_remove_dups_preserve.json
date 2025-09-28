@@ -1,0 +1,23 @@
+{
+  "id": "t29_remove_dups_preserve",
+  "entrypoint": "remove_dups_preserve",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          2,
+          2,
+          3,
+          1
+        ]
+      ],
+      "expect": [
+        1,
+        2,
+        3
+      ]
+    }
+  ]
+}

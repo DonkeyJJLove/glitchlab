@@ -1,0 +1,33 @@
+{
+  "id": "t10_dot_product",
+  "entrypoint": "dot_product",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          4,
+          5,
+          6
+        ]
+      ],
+      "expect": 32
+    },
+    {
+      "args": [
+        [
+          1
+        ],
+        [
+          7
+        ]
+      ],
+      "expect": 7
+    }
+  ]
+}

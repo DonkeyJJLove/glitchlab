@@ -1,0 +1,19 @@
+{
+  "id": "t03_sum_csv_numbers",
+  "entrypoint": "sum_csv_numbers",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "1,2,3"
+      ],
+      "expect": 6
+    },
+    {
+      "args": [
+        " 10 , 20 "
+      ],
+      "expect": 30
+    }
+  ]
+}

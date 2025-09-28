@@ -1,0 +1,23 @@
+{
+  "id": "t18_to_camel_case",
+  "entrypoint": "to_camel_case",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "snake_case_example"
+      ],
+      "expect": "snakeCaseExample"
+    },
+    {
+      "args": [
+        [
+          "snake",
+          "case",
+          "example"
+        ]
+      ],
+      "expect": "snakeCaseExample"
+    }
+  ]
+}

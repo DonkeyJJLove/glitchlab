@@ -1,0 +1,19 @@
+{
+  "id": "t30_sum_of_primes",
+  "entrypoint": "sum_of_primes",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        10
+      ],
+      "expect": 17
+    },
+    {
+      "args": [
+        2
+      ],
+      "expect": 2
+    }
+  ]
+}

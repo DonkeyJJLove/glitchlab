@@ -1,0 +1,25 @@
+{
+  "id": "t02_fib",
+  "entrypoint": "fib",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        0
+      ],
+      "expect": 0
+    },
+    {
+      "args": [
+        1
+      ],
+      "expect": 1
+    },
+    {
+      "args": [
+        7
+      ],
+      "expect": 13
+    }
+  ]
+}

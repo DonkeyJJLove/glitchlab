@@ -1,0 +1,25 @@
+{
+  "id": "t39_parse_kv_pairs",
+  "entrypoint": "parse_kv_pairs",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "a=1; b=2"
+      ],
+      "expect": {
+        "a": 1,
+        "b": 2
+      }
+    },
+    {
+      "args": [
+        "x=007; y=foo"
+      ],
+      "expect": {
+        "x": 7,
+        "y": "foo"
+      }
+    }
+  ]
+}

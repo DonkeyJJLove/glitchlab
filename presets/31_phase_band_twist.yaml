@@ -1,0 +1,10 @@
+version: 2
+name: "31_phase_band_twist"
+seed: 7
+amplitude: {kind: linear_y, strength: 1.0}
+edge_mask: {thresh: 60, dilate: 0, ksize: 3}
+steps:
+  - name: phase_glitch
+    params: {low: 0.18, high: 0.6, strength: 0.62, preserve_dc: true, blend: 0.0}
+  - name: block_mosh_grid
+    params: {size: 16, p: 0.22, max_shift: 10, mode: "shift", mix: 0.8}

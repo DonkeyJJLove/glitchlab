@@ -1,0 +1,18 @@
+{
+  "id": "t28_count_words",
+  "entrypoint": "count_words",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "To be, or not to be"
+      ],
+      "expect": {
+        "to": 2,
+        "be": 2,
+        "or": 1,
+        "not": 1
+      }
+    }
+  ]
+}

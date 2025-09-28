@@ -1,0 +1,19 @@
+{
+  "id": "t20_rle_decompress",
+  "entrypoint": "rle_decompress",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        "a3b2c1"
+      ],
+      "expect": "aaabbc"
+    },
+    {
+      "args": [
+        ""
+      ],
+      "expect": ""
+    }
+  ]
+}

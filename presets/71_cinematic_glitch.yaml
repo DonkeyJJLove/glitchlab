@@ -1,0 +1,12 @@
+version: 2
+name: "71_cinematic_glitch"
+seed: 7
+amplitude: {kind: linear_y, strength: 1.0}
+edge_mask: {thresh: 60, dilate: 0, ksize: 3}
+steps:
+  - name: anisotropic_contour_warp
+    params: {strength: 1.0, iters: 1, ksize: 3, smooth: 0.4, edge_bias: 0.2}
+  - name: spectral_shaper
+    params: {mode: ring, low: 0.05, high: 0.18, boost: 0.7, soft: 0.08, blend: 0.15}
+  - name: block_mosh_grid
+    params: {size: 20, p: 0.18, max_shift: 10, mode: "shift", mix: 0.7}

@@ -1,0 +1,25 @@
+{
+  "id": "t07_factorial",
+  "entrypoint": "factorial",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        0
+      ],
+      "expect": 1
+    },
+    {
+      "args": [
+        5
+      ],
+      "expect": 120
+    },
+    {
+      "args": [
+        1
+      ],
+      "expect": 1
+    }
+  ]
+}

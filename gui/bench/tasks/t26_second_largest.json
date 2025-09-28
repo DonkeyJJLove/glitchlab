@@ -1,0 +1,26 @@
+{
+  "id": "t26_second_largest",
+  "entrypoint": "second_largest",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          2,
+          3
+        ]
+      ],
+      "expect": 2
+    },
+    {
+      "args": [
+        [
+          5,
+          5
+        ]
+      ],
+      "expect": null
+    }
+  ]
+}

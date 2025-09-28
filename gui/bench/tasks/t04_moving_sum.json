@@ -1,0 +1,36 @@
+{
+  "id": "t04_moving_sum",
+  "entrypoint": "moving_sum",
+  "timeout_s": 2.0,
+  "tests": [
+    {
+      "args": [
+        [
+          1,
+          2,
+          3,
+          4
+        ],
+        2
+      ],
+      "expect": [
+        3,
+        5,
+        7
+      ]
+    },
+    {
+      "args": [
+        [
+          5,
+          5,
+          5
+        ],
+        3
+      ],
+      "expect": [
+        15
+      ]
+    }
+  ]
+}
