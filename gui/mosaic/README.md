@@ -1,323 +1,236 @@
-# Mozaika – Protokół Kontekstu i Generacji kodu (MPK-G - system agentowy AI)
+# GlitchLab · AST ⇄ Mozaika (Φ/Ψ)
 
-**Wersja specyfikacji:** 1.0 (dla `hybrid_ast_mosaic.py` + `hybrid_stats.py` + `hybrid_schema_builder.py`)
-**Zakres:** formalny opis sposobu mapowania AST⇄Mozaika (Φ/Ψ), oceny jakości (Align, Jφ), sprzężenia z metaprzestrzenią oraz procedur testowych i kryteriów akceptacji.
+**Protokół kontekstu i generacji kodu + wizualizacja „latawców”**
 
----
-
-## 1. Cel i model pojęciowy
-
-### 1.1. Cel
-
-MPK-G definiuje ustandaryzowany sposób:
-
-* (a) **mapowania kontekstu**: przyporządkowanie elementów AST do regionów mozaiki (Φ),
-* (b) **aktualizacji semantyki**: sprzężenie zwrotne z mozaiki do AST (Ψ),
-* (c) **oceny**: pomiar zgodności i kosztów (Align, Jφ, CR\_AST, CR\_TO),
-* (d) **generacji/transformacji kodu**: sterowanej przez metaprzestrzeń wielokryterialną.
-
-### 1.2. Artefakty
-
-* **AST**: drzewo kodu Pythona oraz jego zagregowane statystyki:
-  `S` – złożoność strukturalna, `H` – entropia/heterogeniczność, `Z` – głębokość/warstwowość,
-  `α = S/(S+H)`, `β = H/(S+H)`, `α+β=1`.
-* **Mozaika**: raster (grid/hex) z polami `edge∈[0,1]`, `roi∈{0,1}` i geometrią.
-* **Metaprzestrzeń**: układ współrzędnych metryk globalnych: `Align`, `J_phi`, `CR_AST`, `CR_TO` oraz parametry sterujące `λ` (kompresja), `Δ` (siła Ψ), `κ_ab` (sprzężenie α/β).
+> Ten README zastępuje poprzednie „PRZEDAWNIONE README.MD”.
+> Spina algorytm `hybrid_ast_mosaic.py`, wizualizacje `vis_ast_kites_all.py` i praktyki sterowania generacją kodu.
+> Nacisk: **działanie w łańcuchu** (lekka telemetria per-node), **modalność** płaszczyzn/latawców i **miary**.
 
 ---
 
-## 2. Model danych (kontrakty)
+## Spis treści
 
-### 2.1. Struktury bazowe
-
-**AstSummary**
-
-```
-S: int; H: int; Z: int; maxZ: int;
-alpha: float; beta: float;  # alpha+beta=1
-nodes: { id -> AstNode }; labels: [str]
-```
-
-**AstNode**
-
-```
-id: int; label: str; depth: int; parent: Optional[int]; children: [int];
-meta: [L, S, Sel, Stab, Cau, H]  # float[6], 0..1
-```
-
-**Mosaic**
-
-```
-rows: int; cols: int; kind: "grid"|"hex";
-edge: float[N]; ssim: float[N]; roi: float[N];
-hex_centers?: [(x: float, y: float)]; hex_R?: float
-```
-
-### 2.2. Parametry protokołu
-
-```
-EDGE_THR ∈ [0,1]            # próg krawędzi do budowy regionów
-SOFT_LABELS ∈ {true,false}  # miękkie etykiety p(edge|val)
-TAU > 0                      # temperatura sigmoidy soft-labeli
-λ ∈ [0,1]                    # kompresja AST
-Δ ∈ [0,1]                    # siła Ψ-feedback
-κ_ab ∈ [0,1]                 # sprzężenie α/β z profilem mozaiki
-W: {wS,wH,wZ}                # wagi w Align
-```
-
-### 2.3. Interfejs wyniku przebiegu (`run_once`)
-
-```
-{
-  J_phi1, J_phi2, J_phi3: float,     # koszty Φ-variantów (↓ = lepiej)
-  Align: float in [0,1],             # zgodność AST↔Mozaika (↑ = lepiej)
-  CR_AST: float > 0,                 # współczynnik kompresji AST
-  CR_TO: float ≥ 0,                  # higiena progu (dystrybucja edge)
-  S,H,Z, alpha,beta: scalary
-}
-```
+* [1. O co chodzi (w 3 zdaniach)](#1-o-co-chodzi-w-3-zdaniach)
+* [2. Model relacji (najważniejsza różnica vs. stary opis)](#2-model-relacji-najważniejsza-różnica-vs-stary-opis)
+* [3. Artefakty i dane](#3-artefakty-i-dane)
+* [4. Parametry i „cięgna” sterujące](#4-parametry-i-cięgna-sterujące)
+* [5. Przepływ Φ/Ψ (łańcuch)](#5-przepływ-φψ-łańcuch)
+* [6. Latawce (modalne płaszczyzny polityk)](#6-latawce-modalne-płaszczyzny-polityk)
+* [7. Miary i ocena](#7-miary-i-ocena)
+* [8. Pozytywne/negatywne meta-tagi (kontrola generacji)](#8-pozytywnenegatywne-meta-tagi-kontrola-generacji)
+* [9. Przepisy (recipes): wstrzymanie i wymuszenie wzorca](#9-przepisy-recipes-wstrzymanie-i-wymuszenie-wzorca)
+* [10. Uruchomienia i CLI](#10-uruchomienia-i-cli)
+* [11. Wstawki do GitHuba (obrazy i struktura)](#11-wstawki-do-githuba-obrazy-i-struktura)
+* [12. Najczęstsze pytania](#12-najczęstsze-pytania)
 
 ---
 
-## 3. Operacje protokołu
+## 1. O co chodzi (w 3 zdaniach)
 
-### 3.1. Kompresja AST (λ)
-
-```
-compress_ast(summary, λ):
-  leaf_ratio ← (#Name + #Constant)/N_labels
-  S' = S - round(λ * 0.35 * leaf_ratio * S)
-  H' = H - round(λ * 0.35 * leaf_ratio * H)
-  Z' = (1-λ)*Z + λ*ceil(maxZ/2)
-  α' = S'/(S'+H'); β' = 1-α'
-```
-
-### 3.2. Regiony Φ (mapowanie)
-
-* `phi_region_for`, `phi_region_for_balanced`, `phi_region_for_entropy`
-* `region_ids(M, kind, thr)` gdzie `kind∈{edges,~edges,roi,all}`.
-
-**Koszt segmentacji Φ** dla węzła `n`:
-
-```
-ids = region_ids(M, selector(n.label), thr)
-alt = region_ids(M, complement(selector), thr)
-cost_n = D_M(ids, alt, M, thr)           # Earth-Mover-lite + kara długości
-J_phi = mean_n cost_n
-```
-
-### 3.3. Ψ-feedback (Δ)
-
-Aktualizacja meta-wektorów węzłów na podstawie rozkładu `edge` w przypisanym regionie:
-
-```
-psi = [
-  1 - mean(edge),                 # L
-  0.5 + 0.5 * std(edge),          # S
-  min(1, 0.5 + mean(edge)),       # Sel
-  1 - std(edge),                  # Stab
-  min(1, 0.3 + 0.7 * mean(edge)), # Cau
-  0.4 + 0.5 * std(edge)           # H
-]
-meta' = (1-Δ)*meta + Δ*psi
-```
-
-### 3.4. Sprzężenie α/β (κ\_ab)
-
-```
-S_M, H_M, Z_M, aM, bM = mosaic_profile(M, thr)
-uncert = clip(std(M.edge), 0, 1)
-w = clip(κ_ab * Δ * (0.5+0.5*uncert), 0, 1)
-alpha' = (1-w)*alpha + w*aM; beta' = 1 - alpha'
-```
-
-### 3.5. Zgodność (Align) i odległość
-
-```
-distance_ast_mosaic(ast, M, thr) =
-  wS*|alpha - aM| + wH*|beta - bM| + wZ*|Z/maxZ - 0|
-Align = 1 - min(1, distance)
-```
+1. Z kodu powstaje **AST**; każdym węzłem steruje meta-wektor `[L,S,Sel,Stab,Cau,H]`.
+2. **Mozaika** (grid/hex) daje tło kontekstowe: pola **edge** (żywotność/krawędzie) i **roi** (rdzeń).
+3. **Φ (phi)** dobiera region mozaiki dla węzła, **Ψ (psi)** koryguje meta zgodnie z regionem; globalne **α/β** balansu-struktura/materia dopasowujemy do profilu mozaiki.
+   Wynik: można **mierzyć** i **sterować** generacją/transformacją kodu.
 
 ---
 
-## 4. Inwarianty i poprawność
+## 2. Model relacji (najważniejsza różnica vs. stary opis)
 
-* **I1 (normalizacja):** `α+β = 1` (przed i po sprzężeniu).
-* **I2 (własności D\_M):** `D_M(A,A)=0`, symetria i nieujemność z karą długości dla rozmiarów zbiorów.
-* **I3 (monotonia kompresji):** `S'+H'+max(1,Z') ≤ S+H+max(1,Z)`.
+Poprzednio relacja AST↔Mozaika bywała opisywana „warstwowo”. W nowym modelu **relacja jest modalna i per-węzeł**:
 
----
+* Każdy węzeł ma **dominantę meta** (np. `Sel` dla `Call`, `Stab` dla `Assign` itd.).
+* Na tej podstawie tworzymy **latawiec**: trójkąt **O–A–R**
 
-## 5. Metryki, cele i decyzje
-
-* **J\_phi** *(↓)* — średni koszt separacji regionów (jakość mapowania Φ).
-* **Align** *(↑)* — zgodność globalna AST↔Mozaika w metaprzestrzeni.
-* **CR\_AST** *(↑ pożądane do granicy utraty informacji)* — kompresja struktury AST.
-* **CR\_TO** *(higiena progu)* — penalizuje skrajne rozkłady `edge`; używany jako ograniczenie (np. `≤ 20`).
-
-**Decyzja wielokryterialna (przykład):**
-wybieramy punkt na **Pareto-froncie** (maks. Align, min. J\_phi2) pod ograniczeniem `CR_TO ≤ τ`.
+  * **O** — origin `(0,0,0)`
+  * **A(node)** — pozycja węzła: `(depth, id, meta[dominanta])`
+  * **R(region)** — centroid regionu mozaiki wskazanego przez Φ + średni `edge`
+* Latawiec to **płaszczyzna polityki**: lokalny ster mówiący „jak ma działać ten node w danym kontekście mozaiki”.
+* **Nie potrzebujemy wielu grubych warstw** – starczy lekka telemetria i łańcuchowe korekty Φ/Ψ.
 
 ---
 
-## 6. Proces referencyjny (pseudokod)
+## 3. Artefakty i dane
 
-```
-procedure HYBRID_RUN(src, rows, cols, kind, thr, λ, Δ, κ_ab, W):
-  ast_raw  ← ast_deltas(src)
-  ast_l    ← compress_ast(ast_raw, λ)
-  M        ← build_mosaic(rows, cols, kind, thr)
-  J1 ← phi_cost(ast_l, M, thr, selector=Φ1)
-  J2 ← phi_cost(ast_l, M, thr, selector=Φ2)   # balanced
-  J3 ← phi_cost(ast_l, M, thr, selector=Φ3)   # entropy
-  ast_ψ    ← psi_feedback(ast_l, M, Δ, thr)
-  ast_αβ   ← couple_alpha_beta(ast_ψ, M, thr, Δ, κ_ab)
-  Align    ← 1 - min(1, distance_ast_mosaic(ast_αβ, M, thr, W))
-  CR_AST   ← (S_raw+H_raw+max(1,Z_raw)) / (S_l+H_l+max(1,Z_l))
-  p_edge   ← mean(M.edge>thr); CR_TO ← 1/min(p_edge,1-p_edge) - 1
-  return {J_phi1:J1, J_phi2:J2, J_phi3:J3, Align, CR_AST, CR_TO, ...}
-```
+### AST
 
----
+* `AstNode.meta = [L, S, Sel, Stab, Cau, H] ∈ [0,1]^6`
+* **Dominanta** jest inferowana z etykiety (reguły w kodzie).
 
-## 7. Procedury testowe i kryteria akceptacji (na podstawie **wykonanego** benchmarku)
+### Mozaika
 
-### 7.1. Konfiguracja testu Φ2 vs Φ1 (sign test)
+* `edge ∈ [0,1]` (gęstość krawędzi/żywotność), `roi ∈ {0,1}` (centralny obszar).
+* Hex lub grid. Próg `edge_thr` wyznacza regiony: `edges`, `~edges`, `roi`, `all`.
 
-```
-rows=12, cols=12, kind=grid, thr=0.55, λ=0.6, seeds=100, κ_ab=0.35
-dla seed ∈ {0..99}:
-  d_seed = J_phi1 - J_phi2
-zlicz: wins=(d>0), losses=(d<0), ties=(d=0)
-p_sign = exact_binomial(max(wins, losses), n=wins+losses, p=0.5, two-sided)
-bootstrap 95% CI: mean(d), median(d)
-Cliff’s δ: interpretacja siły efektu
-```
+### Metaprzestrzeń globalna
 
-**Wyniki referencyjne (Twoje uruchomienie):**
-`wins=70, losses=30, ties=0, p≈3.93e-05`
-`mean ΔJ=2.3139 [1.2091, 3.3765]`
-`median ΔJ=2.8732 [1.5334, 3.7805]`
-`Cliff's δ=0.400 (~medium)`
-
-**Kryteria akceptacji protokołu (Φ2 względem Φ1):**
-
-* **A1 (istotność):** `p_sign ≤ 0.001` ✔︎ *(uzyskano \~3.93e-05)*
-* **A2 (efekt):** `median ΔJ ≥ 1.5` ✔︎ *(2.87)*
-* **A3 (spójność):** `Cliff’s |δ| ≥ 0.33` (≥ *small/medium*) ✔︎ *(0.40)*
-
-> Interpretacja: **Φ2 (balanced)** jest statystycznie i praktycznie lepsze od Φ1 – protokół preferuje zbalansowane reguły selekcji regionów w mapowaniu kontekstu.
-
-### 7.2. Pareto (Align↑, J\_phi2↓) z ograniczeniem `CR_TO ≤ 20`
-
-Konfiguracja zgodna z raportem; wybór punktów niezdominowanych.
-
-**Wynik referencyjny – front Pareto (fragment):**
-`λ=0.00, Δ=0.50 → Align=0.7433 | J_phi2=80.9546 | CR_TO=11.00 | α≈0.282 | β≈0.718`
-
-**Kryteria akceptacji protokołu (Pareto):**
-
-* **P1 (istnienie):** istnieje punkt z `CR_TO ≤ 20` i `Align ≥ 0.72`. ✔︎ *(0.7433)*
-* **P2 (monotonia Δ):** dla stałego λ=0.0, `Align(Δ=0.0) < Align(Δ=0.25) < Align(Δ=0.5)`. ✔︎
-* **P3 (stabilność α/β):** po sprzężeniu: `|α'-α| ≤ 0.02` przy rosnącym Δ dla tej konfiguracji (w obserwacji mieści się w typowej fluktuacji). ✔︎
-
-> Interpretacja: najlepsze punkty uzyskujemy **bez kompresji λ** i z **mocnym Ψ-feedback Δ**, co potwierdza rolę metaprzestrzeni jako regulatora kontekstu (nie — redukcji struktury).
+* `α = S/(S+H)`, `β = 1−α` (udziały struktura/materia), `Z` (warstwowość).
+* W porównaniu do mozaiki: `aM, bM` z jej profilu.
 
 ---
 
-## 8. Zastosowanie protokołu do generacji kodu (normatywne)
+## 4. Parametry i „cięgna” sterujące
 
-### 8.1. Sterowanie stylem generacji
-
-* Zdefiniuj **profil metaprzestrzeni** (wagi i ograniczenia): np. *czytelność/zgodność* (Align) vs. *koszt separacji* (J\_phi2).
-* Uruchom `sweep_pareto` i wybierz punkt frontu zgodny z polityką (`CR_TO` higiena).
-* Generuj/transformuj kod, uwzględniając meta-wektory węzłów (`meta` po Ψ) jako *priorytety edycyjne* (np. stabilność vs. selektywność).
-
-### 8.2. Reguły
-
-* **R1:** nie obniżaj λ, jeśli celem jest zachowanie informacji kontekstowej (preferuj λ≈0).
-* **R2:** jeśli Align rośnie wraz z Δ i `CR_TO` stabilny, zwiększ Δ do poziomu brzegowego.
-* **R3:** używaj Φ2 (balanced) jako domyślnego selektora regionów.
+* **λ** – kompresja AST (redukcja liści i spłaszczenie Z) – zwykle **nisko** (by nie tracić kontekstu).
+* **Δ** – siła Ψ-feedback (jak mocno meta ma się dostroić do regionu) – **główne pokrętło**.
+* **κ_ab** – sprzężenie `(α,β)` do profilu mozaiki (zależne od niepewności `std(edge)`).
+* **TAU** – temperatura miękkich etykiet (stabilność progów).
+* **W** – wagi dla Align (istotność składowych w dopasowaniu globalnym).
 
 ---
 
-## 9. Zgodność i poziomy implementacji
+## 5. Przepływ Φ/Ψ (łańcuch)
 
-* **L0 (Ocena):** implementuje `ast_deltas`, `build_mosaic`, `phi_cost`, `distance_ast_mosaic`, **inwarianty I1–I3**, `hybrid_stats` (Φ-test, Pareto).
-* **L1 (Sprzężenie):** dodatkowo `psi_feedback` (Δ) i `couple_alpha_beta` (κ\_ab).
-* **L2 (Generacja):** wykorzystuje meta-wektory po Ψ do sterowania generatorami/transformerami kodu.
+1. **AST + meta** → `ast_deltas(src)`
+2. **Kompresja** (opcjonalnie) → `compress_ast(ast, λ)`
+3. **Region Φ** per węzeł → `phi_region_for_balanced` (używa kwartyli edge dla stabilizacji)
+4. **Koszt Φ** → `J_φ` z `D_M` (miękkie etykiety + kara długości)
+5. **Ψ-feedback** → miękka aktualizacja meta wektorów (`Δ`)
+6. **Sprzężenie α/β** → blend z profilem mozaiki (`κ_ab · Δ`)
+7. **Decyzja** → kryteria (Pareto: Align↑, J_φ↓, `CR_TO` higiena progu)
 
-Minimalne wymagania zgodności z wyników referencyjnych: **L1**.
-
----
-
-## 10. Odporność, ryzyka, zalecenia
-
-* **Higiena progu:** monitoruj `CR_TO` (odrzuć warianty z `CR_TO` zbyt wysokim).
-* **Stabilność mapowania:** używaj miękkich etykiet (soft-labels) i Φ2.
-* **Generalizacja:** wyniki mają charakter syntetyczny (mozaika proceduralna); przy danych realnych kalibruj `thr`, `TAU`, `κ_ab`.
+To działa **iteracyjnie**; najczęściej wystarcza 1–2 kroki, bo zależy nam na **łańcuchowym, celowym** dociąganiu, nie na „przemieleniu” wszystkiego.
 
 ---
 
-## 11. Reprezentacje wymiany (JSON)
+## 6. Latawce (modalne płaszczyzny polityk)
 
-### 11.1. Raport porównawczy Φ (fragment)
+Wizualizacja: `vis_ast_kites_all.py` (produkcja).
+Kolory regionów: `edges` (czerwony), `~edges` (niebieski), `roi` (fiolet), `all` (pomarańcz).
+**Każdy node** ma swoją płaszczyznę **O–A–R**. To:
 
-```
-{
-  "phi_compare": {
-    "summary": {
-      "wins": int, "losses": int, "ties": int,
-      "p_sign": float,
-      "mean_diff": float, "mean_ci_low": float, "mean_ci_high": float,
-      "median_diff": float, "median_ci_low": float, "median_ci_high": float,
-      "cliffs_delta": float
-    },
-    "by_seed": [
-      {"seed": int, "J_phi1": float, "J_phi2": float, "diff": float}, ...
-    ]
-  }
-}
+* **czytelny ster** dla węzła (gdzie i w jakim aspekcie meta ma pracować),
+* **miarodajny** — z liczb (meta, centroidy, mean edge),
+* **relatywny** — zależny od aktualnej mozaiki (zmienisz rozkład `edge` → zmienią się latawce).
+
+---
+
+## 7. Miary i ocena
+
+* **J_φ** *(↓)* — średni koszt dopasowania regionów (symetryczny Earth-Mover-lite + kara długości + miękkie etykiety).
+* **Align(AST↔M)** *(↑)* — zbieżność `(α,β,Z)` z profilem mozaiki `(aM,bM, …)` z wagami `W`.
+* **CR_AST** *(↑ w granicach rozsądku)* — kompresja struktury po `λ`.
+* **CR_TO** *(higiena progu)* — kara za skrajny rozkład `edge` względem `edge_thr`.
+* **Inwarianty**: I1 (`α+β=1`), I2 (własności `D_M`), I3 (monotonia kompresji).
+
+> Praktyka: **Φ=balanced** jako domyślny selektor, **Δ** kręci Align, **λ** trzymać nisko, **CR_TO** pilnować.
+
+---
+
+## 8. Pozytywne/negatywne meta-tagi (kontrola generacji)
+
+Meta-tag = lekki **sygnał polityki** przypięty do węzła/fragmentu, który Ψ interpretuje przy aktualizacji meta i wyborze Φ.
+**Pozytywny** — „dodaj, zintensyfikuj”; **Negatywny** — „wytnij/odrzuć/nie rozbudowuj”.
+
+Przykłady (skróty; pod spodem działa zwykłe Φ/Ψ):
+
+* `+STAB` – podbij **Stab**; preferuj `~edges`, generuj/utrwalaj inicjalizacje, wyprowadzaj side-effecty z ROI.
+* `-SEL` – zbij **Sel**; ogranicz `Call/Expr` w ROI; przenieś I/O do edges.
+* `+CAU` – wzmocnij **Cau**; preferuj `FunctionDef/Return` w ROI (czysty przepływ wartości).
+* `-H` – redukuj **H**; minimalizuj heterogeniczność gałęzi (prostsze poddrzewa).
+
+**Jak to działa praktycznie?**
+Tag → modyfikuje lokalne `psi` i/lub wybór Φ → zmienia wektor meta po Ψ → **generator** widzi preferencje (np. wstrzymanie, przestawienie regionu, przekształcenie do wzorca).
+
+---
+
+## 9. Przepisy (recipes): wstrzymanie i wymuszenie wzorca
+
+### 9.1. Wstrzymanie generacji
+
+**Warunek:** meta + region dają ryzyko (np. `Sel>0.85` w `edges` przy braku wiedzy).
+**Działanie:** Φ oznacza węzeł jako **stub** i blokuje rozwijanie poddrzewa (zachowujesz hak, nie generujesz fikcji).
+
+```python
+# zamiast budować zewnętrzny efekt:
+result = external_api(x)  # TODO: stub – wymaga realnego systemu
 ```
 
-### 11.2. Pareto (fragment)
+### 9.2. Wymuszenie wzorca **Fabryka (Factory)** – „maksymalny realizm”
 
+**Detekcja:** powtarzalne `Assign(X = Class())` + `Call` instancjonujące w ROI/edges.
+**Akcja:** Φ przełącza region do `roi`, Ψ podbija `Cau/Stab` → generator tworzy **Factory**.
+
+```python
+class DatabaseFactory:
+    @staticmethod
+    def create() -> Database:
+        return Database()
+
+def get_user():
+    db = DatabaseFactory.create()
+    return db.query("SELECT * FROM users")
 ```
-{
-  "pareto": {
-    "points": [
-      {"lambda_": float, "delta_": float, "Align": float,
-       "J_phi2": float, "CR_TO": float, "CR_AST": float, "alpha": float, "beta": float}
-    ],
-    "pareto": [ ...subset niezdominowany... ]
-  }
-}
+
+Efekt: minimalizacja `Sel` w rdzeniu, centralizacja przyczynowości (`Cau`) i utrwalenia (`Stab`), czystsze ROI.
+
+---
+
+## 10. Uruchomienia i CLI
+
+### Wizualizacja latawców
+
+```bash
+python vis_ast_kites_all.py --rows 6 --cols 6 --edge-thr 0.55 --seed 7 --out out.png
 ```
 
----
+### Pojedynczy przebieg metryk
 
-## 12. Wnioski normatywne
+```bash
+python hybrid_ast_mosaic.py run --rows 6 --cols 6 --edge-thr 0.55 --lmbd 0.25 --delta 0.5
+```
 
-1. **Φ2 > Φ1** (istotnie i praktycznie): protokół powinien domyślnie używać **Φ2 (balanced)**.
-2. **Δ jako regulator**: zwiększanie Ψ-feedback **poprawia Align** bez degradacji higieny progu (`CR_TO`).
-3. **λ→0**: zachowanie bogatej struktury AST + silne sprzężenie z metaprzestrzenią daje najlepszy kompromis (Pareto).
-4. **Metaprzestrzeń** pełni rolę *mapy sterowania generacją*; wyniki testów uzasadniają jej użycie jako **protokołu kontekstu** i **protokołu generacji** w Pythonie.
+### Sweep i Pareto
 
----
+```bash
+python hybrid_ast_mosaic.py sweep --rows 6 --cols 6 --edge-thr 0.55 --json
+```
 
-### Załącznik A — Kryteria „gotowości produkcyjnej”
+### Testy spójności/inwariantów
 
-* Test Φ (A1–A3) — **spełnione** na danych referencyjnych.
-* Pareto (P1–P3) — **spełnione**.
-* Inwarianty I1–I3 — **spełnione** przez implementację referencyjną.
+```bash
+python hybrid_ast_mosaic.py test --rows 6 --cols 6 --edge-thr 0.55 --lmbd 0.6 --runs 100
+```
 
-### Załącznik B — Minimalny profil wdrożenia
-
-* Parametry: `thr=0.55`, `λ∈{0.0,0.25,0.5,0.75}`, `Δ∈{0.0,0.25,0.5}`, `κ_ab=0.35`, `W={1,1,0.4}`.
-* Selektor: **Φ2 (balanced)**, soft-labels włączone (`TAU≈0.08`).
-* Akceptacja: `p_sign ≤ 1e-3`, `median ΔJ ≥ 1.5`, `Align ≥ 0.72` przy `CR_TO ≤ 20`.
+**Domyślne, które działają dobrze:**
+Φ=`balanced`, `Δ∈{0.25,0.5}`, `λ≈0…0.25`, `κ_ab=0.35`, `TAU≈0.08`, `W={wS=1,wH=1,wZ=0.4}`.
 
 ---
 
-**Konkluzja:** MPK-G formalizuje „geometryczne” sprzężenie **kodu (AST)** i **kontekstu (Mozaika)** w metaprzestrzeni wielokryterialnej. Na bazie wykonanych testów dostarcza **empirycznie potwierdzony** protokół, który nie tylko **ocenia**, lecz także **prowadzi generację/transformację** kodu Pythona w środowisku human-AI.
+## 11. Wstawki do GitHuba (obrazy i struktura)
+
+W repo trzymaj obrazy względnie, np.:
+
+```md
+# AST ⇄ Mozaika — latawce
+![Model – schemat](resources/img/model.png)
+
+# Pełna scena (per-node)
+![AST ⇄ Mozaika – latawce](resources/img/out.png)
+```
+
+> **Nie używaj** linków `blob/master?...raw=1`. Lokalne ścieżki względne są stabilniejsze dla GitHub Pages i README.
+
+---
+
+## 12. Najczęstsze pytania
+
+**Czy muszę używać tylu warstw na wizualizacji?**
+Nie. To **przegląd**. W praktyce wystarcza lekki podgląd (kilka adnotacji) + miary (Align, J_φ).
+
+**Co realnie steruje generacją?**
+Tagi meta (+/−), **Δ** (Ψ-feedback), wybór Φ (region), oraz reguły wzorców (np. Fabryka). To 4 „cięgna”.
+
+**Czy to deterministyczne?**
+Mapa meta w trybie `det` jest deterministyczna; mozaika ma seed; miękkie etykiety stabilizują decyzje progu.
+
+**Czemu Align czasem nie rośnie mimo dużego Δ?**
+Sprawdź `CR_TO` (higiena progu). Jeśli rozkład `edge` jest skrajny, Φ/Ψ będą „przeciągać linę” bez realnej poprawy.
+
+---
+
+### TL;DR
+
+* **Relacja** jest **per-węzeł, modalna** (płaszczyzny O–A–R).
+* **Łańcuch Φ/Ψ** to lekkie, iteracyjne dociąganie meta do kontekstu mozaiki.
+* **Miary** (Align, J_φ, CR_TO) pozwalają **mierzyć i sterować** generacją.
+* **Meta-tagi** i **przepisy** (wstrzymanie, Fabryka) dają praktyczny uchwyt na ontologię kodu.
