@@ -21,8 +21,7 @@
 * [8. Pozytywne/negatywne meta-tagi (kontrola generacji)](#8-pozytywnenegatywne-meta-tagi-kontrola-generacji)
 * [9. Przepisy (recipes): wstrzymanie i wymuszenie wzorca](#9-przepisy-recipes-wstrzymanie-i-wymuszenie-wzorca)
 * [10. Uruchomienia i CLI](#10-uruchomienia-i-cli)
-* [11. Wstawki do GitHuba (obrazy i struktura)](#11-wstawki-do-githuba-obrazy-i-struktura)
-* [12. Najczęstsze pytania](#12-najczęstsze-pytania)
+* [11. Najczęstsze pytania](#12-najczęstsze-pytania)
 
 ---
 
