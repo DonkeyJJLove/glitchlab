@@ -13,6 +13,7 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional, Callable
 import numpy as np
+from collections import Counter
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 0) PARAMS / PUBLIC API
@@ -26,6 +27,9 @@ SOFT_LABELS_TAU: float = 0.08  # temperatura sigmoidy dla soft-etykiety
 
 # sprzężenie Ψ→(α,β) (wpływ Δ na Align)
 KAPPA_AB_DEFAULT: float = 0.35  # siła mieszania α/β z profilem mozaiki
+
+# tryb metadanych dla węzłów AST (deterministyczny domyślnie)
+META_MODE: str = "det"  # "det" | "rng"
 
 __all__ = [
     # dataclasses
@@ -49,6 +53,8 @@ __all__ = [
     # Example & params
     "EXAMPLE_SRC", "EDGE_THR_DEFAULT", "W_DEFAULT",
     "SOFT_LABELS_DEFAULT", "SOFT_LABELS_TAU", "KAPPA_AB_DEFAULT",
+    # Selektory i meta
+    "SELECTORS", "get_selector", "set_meta_mode", "META_MODE",
 ]
 
 EXAMPLE_SRC = r"""
@@ -100,23 +106,28 @@ class AstSummary:
     labels: List[str]
 
 
+# ── Meta: deterministyczne vs RNG (do testów)
+def set_meta_mode(mode: str) -> None:
+    """Ustaw tryb generacji meta: 'det' (domyślnie) lub 'rng'."""
+    global META_MODE
+    META_MODE = "rng" if str(mode).lower().startswith("rng") else "det"
+
+
 def _rng_for_meta(label: str, depth: int) -> np.random.Generator:
-    """Deterministyczny RNG niezależny od PYTHONHASHSEED (md5(label|depth))."""
+    """Deterministyczne ziarno dla RNG (md5(label|depth)) – tylko dla trybu 'rng'."""
     key = f"{label}|{depth}".encode("utf-8")
     h = hashlib.md5(key).digest()
     seed = int.from_bytes(h[:8], "little", signed=False)
     return np.random.default_rng(seed)
 
 
-def _meta_for(label: str, depth: int) -> np.ndarray:
+def _meta_random(label: str, depth: int) -> np.ndarray:
     rng = _rng_for_meta(label, depth)
     L, S, Sel, Stab, Cau, H = rng.uniform(0.35, 0.85, size=6)
     if label in ("FunctionDef", "ClassDef"):
-        Stab = max(Stab, 0.8);
-        Sel = max(Sel, 0.6)
+        Stab = max(Stab, 0.8); Sel = max(Sel, 0.6)
     if label in ("If", "While", "For", "With", "Try"):
-        Sel = max(Sel, 0.75);
-        Cau = max(Cau, 0.7)
+        Sel = max(Sel, 0.75); Cau = max(Cau, 0.7)
     if label in ("Call", "Expr"):
         L = max(L, 0.6)
     if label in ("Assign",):
@@ -124,62 +135,155 @@ def _meta_for(label: str, depth: int) -> np.ndarray:
     return np.array([L, S, Sel, Stab, Cau, H], dtype=float)
 
 
+def _clamp(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
+    return float(min(hi, max(lo, x)))
+
+
+def _is_ctrl(lbl: str) -> bool:
+    return lbl in ("If", "While", "For", "With", "Try")
+
+
+def _is_def(lbl: str) -> bool:
+    return lbl in ("FunctionDef", "AsyncFunctionDef", "ClassDef")
+
+
+def _is_call(lbl: str) -> bool:
+    return lbl in ("Call", "Expr")
+
+
+def _is_assign(lbl: str) -> bool:
+    return lbl == "Assign"
+
+
+def _meta_deterministic(label: str, depth: int, n_children: int,
+                        subtree_size: int, uniq_labels: int) -> np.ndarray:
+    """
+    Deterministyczne meta z cech strukturalnych:
+    - L (linearity): maleje z rozgałęzieniem i wzrostem głębokości,
+    - S (structural): rośnie z rozmiarem poddrzewa,
+    - Sel (selectivity): wysoka dla węzłów sterujących, średnia dla Call/Expr,
+    - Stab (stability): wysoka dla Def/Assign, lekko maleje z głębokością,
+    - Cau (causality): wysoka dla sterujących i Return/Call,
+    - H (hetero): różnorodność etykiet w poddrzewie.
+    """
+    # L
+    L = 0.85 / (1.0 + 0.7 * n_children) * (1.0 / (1.0 + 0.05 * depth))
+    L = _clamp(0.35 + 0.65 * L)
+
+    # S
+    S = math.log1p(subtree_size) / math.log1p(64.0)
+    S = _clamp(0.35 + 0.65 * S)
+
+    # Sel
+    if _is_ctrl(label):
+        Sel = 0.85
+    elif _is_call(label):
+        Sel = 0.70
+    elif _is_assign(label):
+        Sel = 0.55
+    else:
+        Sel = 0.50
+    Sel = _clamp(Sel - 0.02 * max(0, depth - 8))
+
+    # Stab
+    if _is_def(label) or _is_assign(label):
+        Stab = 0.85
+    else:
+        Stab = 0.55
+    Stab = _clamp(Stab - 0.015 * depth)
+
+    # Cau
+    if _is_ctrl(label):
+        Cau = 0.80
+    elif _is_call(label):
+        Cau = 0.65
+    elif label in ("Return", "Raise",):
+        Cau = 0.75
+    else:
+        Cau = 0.50
+    Cau = _clamp(Cau + 0.03 * min(5, n_children))
+
+    # H (heterogeniczność)
+    if subtree_size <= 1:
+        Hh = 0.40
+    else:
+        div = _clamp(uniq_labels / float(subtree_size), 0.0, 1.0)
+        Hh = 0.40 + 0.5 * div
+    Hh = _clamp(Hh)
+
+    return np.array([L, S, Sel, Stab, Cau, Hh], dtype=float)
+
+
 def ast_deltas(src: str) -> AstSummary:
-    """Parsuje źródło Pythona i liczy przybliżone ΔS/ΔH/ΔZ wg prostych reguł."""
+    """Parsuje źródło Pythona i liczy ΔS/ΔH/ΔZ + meta (deterministyczne)."""
     tree = ast.parse(src)
     nodes: Dict[int, AstNode] = {}
+    labels_all: List[str] = []
     S = H = Z = 0
     maxZ = 0
     nid = 0
 
-    def add(a: ast.AST, depth: int, parent: Optional[int]) -> int:
+    def visit(a: ast.AST, depth: int, parent: Optional[int]) -> Tuple[int, int, Counter]:
+        """
+        Zwraca (node_id, subtree_size, counter_etykiet_subdrzewa).
+        Meta wyznaczamy PO przejściu dzieci (zależność od subtree_size/uniq).
+        """
         nonlocal nid, S, H, Z, maxZ
-        i = nid;
-        nid += 1
-        lab = a.__class__.__name__
-        n = AstNode(i, lab, depth, parent)
-        n.meta = _meta_for(lab, depth)
-        nodes[i] = n
-        if parent is not None:
-            nodes[parent].children.append(i)
 
-        # Δ-reguły (skrót)
-        if isinstance(a, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            S += 1;
-            H += 1;
-            Z += 1
-        elif isinstance(a, (ast.If, ast.For, ast.While, ast.With, ast.Try)):
-            S += 1;
-            Z += 1
-        elif isinstance(a, ast.Assign):
-            S += 1;
-            H += 1
-        elif isinstance(a, ast.Call):
-            S += 1;
-            H += 2
-        elif isinstance(a, (ast.Import, ast.ImportFrom)):
-            S += 1;
-            H += len(a.names)
-        elif isinstance(a, ast.Name):
-            H += 1
+        # alokacja węzła
+        my_id = nid; nid += 1
+        lab = a.__class__.__name__
+        node = AstNode(my_id, lab, depth, parent)
+        nodes[my_id] = node
+        labels_all.append(lab)
+        if parent is not None:
+            nodes[parent].children.append(my_id)
 
         maxZ = max(maxZ, depth)
 
+        # odwiedź dzieci
+        sub_size = 1
+        counter = Counter([lab])
         for ch in ast.iter_child_nodes(a):
-            add(ch, depth + 1, i)
+            ch_id, ch_size, ch_cnt = visit(ch, depth + 1, my_id)
+            sub_size += ch_size
+            counter.update(ch_cnt)
 
+        # Δ-reguły agregatów (jak wcześniej – zachowujemy stabilność S/H/Z)
+        if isinstance(a, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            S += 1; H += 1; Z += 1
+        elif isinstance(a, (ast.If, ast.For, ast.While, ast.With, ast.Try)):
+            S += 1; Z += 1
+        elif isinstance(a, ast.Assign):
+            S += 1; H += 1
+        elif isinstance(a, ast.Call):
+            S += 1; H += 2
+        elif isinstance(a, (ast.Import, ast.ImportFrom)):
+            S += 1; H += len(a.names)
+        elif isinstance(a, ast.Name):
+            H += 1
+
+        # meta (det lub rng)
+        n_children = len(node.children)
+        if META_MODE == "rng":
+            node.meta = _meta_random(lab, depth)
+        else:
+            node.meta = _meta_deterministic(
+                lab, depth, n_children, sub_size, uniq_labels=len(counter)
+            )
+
+        # domknięcie bloku kontrolnego
         if isinstance(a, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
                           ast.If, ast.For, ast.While, ast.With, ast.Try)):
             Z -= 1
-        return i
 
-    add(tree, 0, None)
-    S = int(S);
-    H = int(H);
-    Z = int(max(Z, 0))
+        return my_id, sub_size, counter
+
+    visit(tree, 0, None)
+    S = int(S); H = int(H); Z = int(max(Z, 0))
     tot = max(1, S + H)
     return AstSummary(S, H, Z, maxZ=maxZ, alpha=S / tot, beta=H / tot,
-                      nodes=nodes, labels=[n.label for n in nodes.values()])
+                      nodes=nodes, labels=labels_all)
 
 
 def compress_ast(summary: AstSummary, lam: float) -> AstSummary:
@@ -363,14 +467,14 @@ def D_M(S: List[int], T: List[int], M: Mosaic, thr: float, max_match: int = 12) 
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3) Φ / Ψ
+# 3) Φ / Ψ (+ rejestr selektorów)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def phi_region_for(label: str, M: Mosaic, thr: float) -> str:
-    if label in ("Call", "Expr"):                        return "edges"
-    if label in ("Assign",):                             return "~edges"
+    if label in ("Call", "Expr"):                         return "edges"
+    if label in ("Assign",):                              return "~edges"
     if label in ("If", "For", "While", "With", "Return"): return "all"
-    if label in ("FunctionDef", "ClassDef"):             return "roi"
+    if label in ("FunctionDef", "ClassDef"):              return "roi"
     return "~edges"
 
 
@@ -388,13 +492,22 @@ def phi_region_for_balanced(label: str, M: Mosaic, thr: float) -> str:
 
 def phi_region_for_entropy(label: str, M: Mosaic, thr: float) -> str:
     def near_thr(x): return abs(x - thr) <= 0.05
-
     fuzzy = float(np.mean([near_thr(v) for v in M.edge])) > 0.25
     if fuzzy: return "all"
     return phi_region_for(label, M, thr)
 
 
 Selector = Callable[[str, Mosaic, float], str]
+
+SELECTORS: Dict[str, Selector] = {
+    "basic": phi_region_for,
+    "balanced": phi_region_for_balanced,
+    "entropy": phi_region_for_entropy,
+}
+
+def get_selector(name: str) -> Selector:
+    """Pobierz selektor Φ po nazwie (fallback: 'basic')."""
+    return SELECTORS.get(str(name).lower(), phi_region_for)
 
 
 def centroid(ids: List[int], M: Mosaic) -> Tuple[float, float]:
@@ -436,12 +549,12 @@ def psi_feedback(ast: AstSummary, M: Mosaic, delta: float, thr: float) -> AstSum
         if not ids: continue
         ed = np.array([M.edge[i] for i in ids], float)
         psi = np.array([
-            float(1.0 - ed.mean()),  # L
-            float(0.5 + 0.5 * ed.std()),  # S
-            float(min(1.0, 0.5 + ed.mean())),  # Sel
-            float(1.0 - ed.std()),  # Stab
+            float(1.0 - ed.mean()),           # L
+            float(0.5 + 0.5 * ed.std()),      # S
+            float(min(1.0, 0.5 + ed.mean())), # Sel
+            float(1.0 - ed.std()),            # Stab
             float(min(1.0, 0.3 + 0.7 * ed.mean())),  # Cau
-            float(0.4 + 0.5 * ed.std())  # H
+            float(0.4 + 0.5 * ed.std())       # H
         ], dtype=float)
         n.meta = (1.0 - delta) * n.meta + delta * psi
     S, H, Z = ast.S, ast.H, ast.Z
@@ -516,11 +629,13 @@ def invariants_check(astA: AstSummary, astB: AstSummary, M: Mosaic, thr: float) 
 
 def run_once(lam: float, delta: float, rows: int, cols: int, thr: float,
              mosaic_kind: str = "grid",
-             kappa_ab: float = KAPPA_AB_DEFAULT) -> Dict[str, float]:
+             kappa_ab: float = KAPPA_AB_DEFAULT,
+             selector_name: str = "balanced") -> Dict[str, float]:
     ast_raw = ast_deltas(EXAMPLE_SRC)
     ast_l = compress_ast(ast_raw, lam)
     M = build_mosaic(rows, cols, seed=7, kind=mosaic_kind, edge_thr=thr)
-    # Φ – trzy warianty
+    sel = get_selector(selector_name)
+    # Φ – trzy warianty (zachowane dla porównań)
     J1, _ = phi_cost(ast_l, M, thr, selector=phi_region_for)
     J2, _ = phi_cost(ast_l, M, thr, selector=phi_region_for_balanced)
     J3, _ = phi_cost(ast_l, M, thr, selector=phi_region_for_entropy)
@@ -536,13 +651,13 @@ def run_once(lam: float, delta: float, rows: int, cols: int, thr: float,
 
 
 def sweep(rows: int, cols: int, thr: float, mosaic_kind: str = "grid",
-          kappa_ab: float = KAPPA_AB_DEFAULT) -> List[Dict[str, float]]:
+          kappa_ab: float = KAPPA_AB_DEFAULT, selector_name: str = "balanced") -> List[Dict[str, float]]:
     lams = [0.0, 0.25, 0.5, 0.75]
     dels = [0.0, 0.25, 0.5]
     out = []
     for lam in lams:
         for de in dels:
-            r = run_once(lam, de, rows, cols, thr, mosaic_kind, kappa_ab=kappa_ab)
+            r = run_once(lam, de, rows, cols, thr, mosaic_kind, kappa_ab=kappa_ab, selector_name=selector_name)
             r.update(dict(lambda_=lam, delta_=de))
             out.append(r)
     return out
@@ -605,26 +720,25 @@ def _pretty_table(rows: List[Dict[str, float]]) -> str:
 
 
 def cmd_run(args):
-    lam = args.lmbd
-    de = args.delta
-    r = args.rows
-    c = args.cols
-    thr = args.edge_thr
-    kind = args.mosaic
-    res = run_once(lam, de, r, c, thr, mosaic_kind=kind, kappa_ab=args.kappa_ab)
+    set_meta_mode(args.meta_mode)
+    res = run_once(args.lmbd, args.delta, args.rows, args.cols, args.edge_thr,
+                   mosaic_kind=args.mosaic, kappa_ab=args.kappa_ab, selector_name=args.selector)
     print(json.dumps({
-        "lambda": lam,
-        "delta": de,
-        "rows": r,
-        "cols": c,
-        "kind": kind,
-        "edge_thr": thr,
+        "lambda": args.lmbd,
+        "delta": args.delta,
+        "rows": args.rows,
+        "cols": args.cols,
+        "kind": args.mosaic,
+        "edge_thr": args.edge_thr,
+        "selector": args.selector,
         **res
     }, indent=2))
 
 
 def cmd_sweep(args):
-    rows = sweep(args.rows, args.cols, args.edge_thr, mosaic_kind=args.mosaic, kappa_ab=args.kappa_ab)
+    set_meta_mode(args.meta_mode)
+    rows = sweep(args.rows, args.cols, args.edge_thr, mosaic_kind=args.mosaic,
+                 kappa_ab=args.kappa_ab, selector_name=args.selector)
     print(_pretty_table(rows))
     if args.json:
         print("\n[JSON]")
@@ -632,6 +746,7 @@ def cmd_sweep(args):
 
 
 def cmd_test(args):
+    set_meta_mode(args.meta_mode)
     inv_astA = ast_deltas(EXAMPLE_SRC)
     inv_astB = compress_ast(inv_astA, args.lmbd)
     M = build_mosaic(args.rows, args.cols, seed=7, kind=args.mosaic, edge_thr=args.edge_thr)
@@ -652,6 +767,11 @@ def build_cli():
     p.add_argument("--cols", type=int, default=6, help="liczba kolumn mozaiki")
     p.add_argument("--edge-thr", type=float, default=EDGE_THR_DEFAULT, help="próg edge dla regionów")
     p.add_argument("--kappa-ab", type=float, default=KAPPA_AB_DEFAULT, help="siła sprzężenia Ψ→(α,β)")
+    p.add_argument("--selector", choices=list(SELECTORS.keys()), default="balanced",
+                   help="wybór wariantu Φ")
+    p.add_argument("--meta-mode", choices=["det", "rng"], default="det",
+                   help="tryb meta (deterministyczny / RNG do testów)")
+
     sub = p.add_subparsers(dest="cmd", required=True)
 
     q = sub.add_parser("run", help="pojedynczy przebieg (λ, Δ)")
