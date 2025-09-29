@@ -1,0 +1,66 @@
+{
+  "when": "2025-09-29 04:20:36Z",
+  "files": [
+    [
+      "M",
+      ".githooks/post-commit"
+    ],
+    [
+      "A",
+      ".githooks/pre-commit"
+    ],
+    [
+      "D",
+      "Path"
+    ],
+    [
+      "D",
+      "git rev-parse --show-toplevel/.glx/state.json"
+    ],
+    [
+      "A",
+      "scripts/ast_mosaic_analyzer.py"
+    ],
+    [
+      "D",
+      "str"
+    ]
+  ],
+  "py_results": [
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\scripts\\ast_mosaic_analyzer.py",
+      "ok": true,
+      "ast": {
+        "S": 108,
+        "H": 395,
+        "Z": 0,
+        "alpha": 0.2147117296222664,
+        "beta": 0.7852882703777336,
+        "maxZ": 12
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.42942345924453273
+      },
+      "meta": [
+        "#!/usr/bin/env python",
+        "# -*- coding: utf-8 -*-",
+        "# ── Heurystyki AST (S/H/Z + α/β) ──────────────────────────────────────────────",
+        "# \"Δ-reguły\"",
+        "# ── Prosta mozaika (grid 6x6) i Align ────────────────────────────────────────",
+        "# ── Metawarstwa: komentarze i adnotacje ──────────────────────────────────────",
+        "# skracamy i porządkujemy",
+        "# ── Analiza jednego pliku ────────────────────────────────────────────────────"
+      ]
+    }
+  ],
+  "aggregate": {
+    "files": 1,
+    "S": 108,
+    "H": 395,
+    "avg_align": 0.42942345924453273
+  },
+  "doc_decision": "NO-OP",
+  "commit": "eab9cb0e59069a21f7111a2ee40d7d6b658271bc",
+  "range": "c4e0703..eab9cb0"
+}

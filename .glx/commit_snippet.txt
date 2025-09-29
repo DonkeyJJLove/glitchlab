@@ -1,0 +1,17 @@
+4 file(s) staged: [Δ] Zakres
+- files: 4 (ast_delta.py, ast_index.py, git_io.py, phi_psi_bridge.py)
+- typ: auto (pre-diff)
+
+[Φ/Ψ] Mozaika (semantyka kodu)
+- Align(mean .py): 0.41
+- Hint: lokalne dopasowanie; sprawdź sekcje dotkniętych modułów
+
+[AST] Deltas (staged .py)
+- S: 829  H: 3158
+- uwagi: wartości przybliżone (heurystyki)
+
+[Dokumentacja]
+- decyzja: REVIEW
+
+Meta
+- Generated-by: pre-diff/AST-mosaic @ 2025-09-29 20:01:32Z
