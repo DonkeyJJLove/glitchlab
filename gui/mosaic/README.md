@@ -4,8 +4,9 @@
 
 > Ten README zastępuje poprzednie „PRZEDAWNIONE README.MD”.
 > Spina algorytm `hybrid_ast_mosaic.py`, wizualizacje `vis_ast_kites_all.py` i praktyki sterowania generacją kodu.
-> Nacisk: **działanie w łańcuchu** (lekka telemetria per-node), **modalność** płaszczyzn/latawców i **miary**.
+> Nacisk: **działanie w łańcuchu** (lekka telemetria per-node), **modalność** płaszczyzn/latawców i **miary**. 
 
+>[Struktura](structure.md) | [Case Study](cstudy.md)
 ---
 
 ## Spis treści
@@ -234,3 +235,7 @@ Sprawdź `CR_TO` (higiena progu). Jeśli rozkład `edge` jest skrajny, Φ/Ψ bę
 * **Łańcuch Φ/Ψ** to lekkie, iteracyjne dociąganie meta do kontekstu mozaiki.
 * **Miary** (Align, J_φ, CR_TO) pozwalają **mierzyć i sterować** generacją.
 * **Meta-tagi** i **przepisy** (wstrzymanie, Fabryka) dają praktyczny uchwyt na ontologię kodu.
+
+---
+
+

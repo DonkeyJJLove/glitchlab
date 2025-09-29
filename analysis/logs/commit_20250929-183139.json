@@ -1,0 +1,19 @@
+{
+  "when": "2025-09-29 18:31:38Z",
+  "files": [
+    [
+      "M",
+      "gui/mosaic/README.md"
+    ]
+  ],
+  "py_results": [],
+  "aggregate": {
+    "files": 0,
+    "S": 0,
+    "H": 0,
+    "avg_align": 0.0
+  },
+  "doc_decision": "NO-OP",
+  "commit": "a3b5791205bbe9c596f7ad02a813e495d73dd207",
+  "range": "3a5cebe..a3b5791"
+}

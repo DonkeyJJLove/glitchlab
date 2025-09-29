@@ -1,0 +1,50 @@
+{
+  "when": "2025-09-29 16:54:42Z",
+  "files": [
+    [
+      "M",
+      "gui/mosaic/hybrid_ast_mosaic.py"
+    ],
+    [
+      "M",
+      "structure.md"
+    ]
+  ],
+  "py_results": [
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\gui\\mosaic\\hybrid_ast_mosaic.py",
+      "ok": true,
+      "ast": {
+        "S": 696,
+        "H": 2699,
+        "Z": 0,
+        "alpha": 0.20500736377025036,
+        "beta": 0.7949926362297496,
+        "maxZ": 13
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.41001472754050083
+      },
+      "meta": [
+        "# glitchlab/mosaic/hybrid_ast_mosaic.py",
+        "# Hybrydowy algorytm AST ⇄ Mozaika (Φ/Ψ), ΔS/ΔH/ΔZ, λ-kompresja,",
+        "# warianty Φ, Ψ-feedback, metryki, inwarianty, sweep λ×Δ, CLI.",
+        "# Python 3.9+  (deps: numpy; stdlib: ast, math, json, argparse, itertools, hashlib)",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# 0) PARAMS / PUBLIC API",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# soft-labels dla krawędzi"
+      ]
+    }
+  ],
+  "aggregate": {
+    "files": 1,
+    "S": 696,
+    "H": 2699,
+    "avg_align": 0.41001472754050083
+  },
+  "doc_decision": "NO-OP",
+  "commit": "3a5cebedf6bc8cba076af54633a7935dd8712473",
+  "range": "6c0007c..3a5cebe"
+}
