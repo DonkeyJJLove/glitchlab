@@ -146,7 +146,7 @@ Tag → modyfikuje lokalne `psi` i/lub wybór Φ → zmienia wektor meta po Ψ �
 result = external_api(x)  # TODO: stub – wymaga realnego systemu
 ```
 
-### 9.2. Wymuszenie wzorca **Fabryka (Factory)** – „maksymalny realizm”
+### 9.2. Wymuszenie wzorca **Fabryka (Factory)**
 
 **Detekcja:** powtarzalne `Assign(X = Class())` + `Call` instancjonujące w ROI/edges.
 **Akcja:** Φ przełącza region do `roi`, Ψ podbija `Cau/Stab` → generator tworzy **Factory**.
@@ -196,24 +196,9 @@ python hybrid_ast_mosaic.py test --rows 6 --cols 6 --edge-thr 0.55 --lmbd 0.6 --
 Φ=`balanced`, `Δ∈{0.25,0.5}`, `λ≈0…0.25`, `κ_ab=0.35`, `TAU≈0.08`, `W={wS=1,wH=1,wZ=0.4}`.
 
 ---
-
-## 11. Wstawki do GitHuba (obrazy i struktura)
-
-W repo trzymaj obrazy względnie, np.:
-
-```md
-# AST ⇄ Mozaika — latawce
-![Model – schemat](resources/img/model.png)
-
-# Pełna scena (per-node)
-![AST ⇄ Mozaika – latawce](resources/img/out.png)
-```
-
-> **Nie używaj** linków `blob/master?...raw=1`. Lokalne ścieżki względne są stabilniejsze dla GitHub Pages i README.
-
 ---
 
-## 12. Najczęstsze pytania
+## 11. Najczęstsze pytania
 
 **Czy muszę używać tylu warstw na wizualizacji?**
 Nie. To **przegląd**. W praktyce wystarcza lekki podgląd (kilka adnotacji) + miary (Align, J_φ).
