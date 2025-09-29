@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-# wybór Pythona (py na Windows, inaczej python)
-if command -v py >/dev/null 2>&1; then PY=py; else PY=python; fi
+if command -v py >/dev/null 2>&1; then PY=(py -3); elif command -v python3 >/dev/null 2>&1; then PY=(python3); else PY=(python); fi
 
-# uruchom Twoją logikę
-"$PY" scripts/send_patch.py || true
+# 1) post-diff: wzbogacenie raportu o hash/zakres
+if [[ -f "scripts/post_diff.py" ]]; then
+  "${PY[@]}" scripts/post_diff.py || true
+fi
+
+# 2) mail GLX (BODY-FIRST + FILES + PATCH)
+if [[ -f "scripts/send_patch.py" ]]; then
+  "${PY[@]}" scripts/send_patch.py || true
+fi
+
+# 3) opcjonalny sync (gdy current_mail.txt istnieje)
+if [[ -f ".glx/current_mail.txt" && -f "scripts/glx_sync.py" ]]; then
+  "${PY[@]}" scripts/glx_sync.py || true
+fi
