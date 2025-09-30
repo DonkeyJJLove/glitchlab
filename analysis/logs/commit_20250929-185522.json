@@ -1,9 +1,9 @@
 {
-  "when": "2025-09-29 21:20:02Z",
+  "when": "2025-09-29 18:55:21Z",
   "files": [
     [
-      "D",
-      "bytes"
+      "M",
+      "gui/mosaic/README.md"
     ]
   ],
   "py_results": [],
@@ -14,6 +14,6 @@
     "avg_align": 0.0
   },
   "doc_decision": "NO-OP",
-  "commit": "7d174a196ad515290ce8b90c278ef0ff5f55644e",
-  "range": "f209ecd..7d174a1"
+  "commit": "5d99a6d7e584d92175bc42fc01947ede58ed7c90",
+  "range": "592886e..5d99a6d"
 }

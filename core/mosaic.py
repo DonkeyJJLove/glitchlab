@@ -1,7 +1,7 @@
 # glitchlab/core/mosaic.py
 """
 ---
-version: 2
+version: 3
 kind: module
 id: "core-mosaic"
 created_at: "2025-09-11"
@@ -10,8 +10,8 @@ author: "GlitchLab v2"
 role: "Mosaic Grid & Overlay Engine"
 description: >
   Generuje siatki mozaiki (square/hex), raster etykiet piksel→komórka, projekcję
-  metryk blokowych na kolory oraz prosty blend nakładki. Służy jako wspólna
-  „soczewka” wizualizacji struktur (entropia/krawędzie/średnia) w HUD/GUI.
+  metryk blokowych na kolory oraz prosty blend nakładki. Zapewnia deterministyczną
+  topologię (row-major id=j*nx+i) i sąsiedztwa dla square/hex (odd-r) spójne z analysis.
 inputs:
   shape_hw: {type: "(H,W)", desc: "rozmiar obrazu w pikselach"}
   mode: {type: "str", enum: ["square","hex"], default: "square"}
@@ -25,18 +25,21 @@ outputs:
     mode: "square|hex"
     cell_px: "int"
     size: "(H,W)"
+    grid_shape: "(ny, nx)"
     cells: "list[Cell{id, polygon[(x,y)], center(x,y), type, neighbors[]}]"
     raster: "int32 (H,W)  # -1 poza komórkami"
   overlay_rgb?: {dtype: "uint8", shape: "(H,W,3)", desc: "kolorowa projekcja lub blend"}
 interfaces:
-  exports: ["mosaic_map","mosaic_label_raster","mosaic_project_blocks","mosaic_overlay"]
-  depends_on: ["numpy","Pillow"]
-  used_by: ["glitchlab.core.pipeline","glitchlab.analysis.exporters","glitchlab.gui"]
+  exports: ["mosaic_map","mosaic_label_raster","mosaic_project_blocks","mosaic_overlay",
+            "mosaic_grid_shape","mosaic_centers","mosaic_neighbors"]
+  depends_on: ["numpy"]
+  used_by: ["glitchlab.core.pipeline","glitchlab.analysis.exporters","glitchlab.gui",
+            "glitchlab.analysis.mosaic_adapter"]
 policy:
   deterministic: true
   side_effects: false
 constraints:
-  - "no SciPy/OpenCV"
+  - "no SciPy/OpenCV/Pillow (runtime)"
   - "domyślna projekcja: R←entropy[0..8], G←edges[0..1], B←mean[0..1]"
 telemetry:
   legend_defaults: {R: "entropy", G: "edges", B: "mean"}
@@ -48,22 +51,26 @@ license: "Proprietary"
 ---
 """
 
-# glitchlab/core/mosaic.py
 from __future__ import annotations
 
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 import numpy as np
-from PIL import Image
 
 __all__ = [
     "mosaic_map",
     "mosaic_label_raster",
     "mosaic_project_blocks",
     "mosaic_overlay",
+    # new
+    "mosaic_grid_shape",
+    "mosaic_centers",
+    "mosaic_neighbors",
 ]
 
-Cell = Dict[str, Any]   # {"id": int, "polygon": [(x,y)], "center": (x,y), "type": "square|hex", "neighbors": [int]}
-Mosaic = Dict[str, Any] # {"mode": str, "cell_px": int, "size": (H,W), "cells": List[Cell], "raster": np.ndarray[int32]}
+Cell = Dict[str, Any]  # {"id": int, "polygon": [(x,y)], "center": (x,y), "type": "square|hex", "neighbors": [int]}
+Mosaic = Dict[
+    str, Any]  # {"mode": str, "cell_px": int, "size": (H,W), "grid_shape": (ny,nx), "cells": List[Cell], "raster":
+# np.ndarray[int32]}
 
 
 # --------------------------------------------------------------------------------------
@@ -79,19 +86,44 @@ def _ensure_hw(shape_hw: Tuple[int, int]) -> Tuple[int, int]:
     return H, W
 
 
-def _neighbors_grid(i: int, j: int, nx: int, ny: int) -> List[int]:
-    """4-neighborhood for square grid, flattened id = j*nx + i."""
+def _neighbors_grid_id(cid: int, nx: int, ny: int) -> List[int]:
+    """4-neighborhood for square grid with row-major id=j*nx+i."""
+    j, i = divmod(cid, nx)  # WRONG: Python divmod produces (q, r) for (cid, nx) -> (j, i)? NO.
+    # Correct mapping: cid = j*nx + i  => j = cid // nx, i = cid % nx
+    j = cid // nx
+    i = cid % nx
     n: List[int] = []
-    def idx(ii: int, jj: int) -> int: return jj * nx + ii
-    if i > 0:        n.append(idx(i-1, j))
-    if i+1 < nx:     n.append(idx(i+1, j))
-    if j > 0:        n.append(idx(i, j-1))
-    if j+1 < ny:     n.append(idx(i, j+1))
+
+    def idx(ii: int, jj: int) -> int:
+        return jj * nx + ii
+
+    if i > 0:        n.append(idx(i - 1, j))
+    if i + 1 < nx:     n.append(idx(i + 1, j))
+    if j > 0:        n.append(idx(i, j - 1))
+    if j + 1 < ny:     n.append(idx(i, j + 1))
     return n
 
 
-def _square_raster(H: int, W: int, cell_px: int) -> Tuple[np.ndarray, List[Cell]]:
-    """Buduje raster etykiet i metadane komórek dla siatki kwadratowej."""
+def _neighbors_hex_oddr_id(cid: int, nx: int, ny: int) -> List[int]:
+    """
+    6-neighborhood for hex grid in 'odd-r' offset (row-major id=j*nx+i).
+    Konsystentne z analysis._neighbors_hex_oddr.
+    """
+    j = cid // nx
+    i = cid % nx
+    if j % 2 == 0:
+        candidates = [(j - 1, i - 1), (j - 1, i), (j, i - 1), (j, i + 1), (j + 1, i - 1), (j + 1, i)]
+    else:
+        candidates = [(j - 1, i), (j - 1, i + 1), (j, i - 1), (j, i + 1), (j + 1, i), (j + 1, i + 1)]
+    n: List[int] = []
+    for jj, ii in candidates:
+        if 0 <= ii < nx and 0 <= jj < ny:
+            n.append(jj * nx + ii)
+    return n
+
+
+def _square_raster(H: int, W: int, cell_px: int) -> Tuple[np.ndarray, List[Cell], Tuple[int, int]]:
+    """Buduje raster etykiet i metadane komórek dla siatki kwadratowej. Zwraca też (ny, nx)."""
     nx = int(np.ceil(W / float(cell_px)))
     ny = int(np.ceil(H / float(cell_px)))
     ids = (np.arange(ny, dtype=np.int32)[:, None] * nx + np.arange(nx, dtype=np.int32)[None, :])
@@ -116,9 +148,12 @@ def _square_raster(H: int, W: int, cell_px: int) -> Tuple[np.ndarray, List[Cell]
                 "polygon": poly,
                 "center": (int(cx), int(cy)),
                 "type": "square",
-                "neighbors": _neighbors_grid(i, j, nx, ny),
+                "neighbors": [],  # uzupełnimy poniżej
             })
-    return raster.astype(np.int32, copy=False), cells
+    # wypełnij neighbors deterministycznie
+    for c in cells:
+        c["neighbors"] = _neighbors_grid_id(int(c["id"]), nx, ny)
+    return raster.astype(np.int32, copy=False), cells, (ny, nx)
 
 
 # --------------------------------------------------------------------------------------
@@ -130,23 +165,28 @@ def mosaic_map(shape_hw: Tuple[int, int], *, mode: str = "square", cell_px: int 
     Generuje definicję mozaiki: etykietowy raster (H,W) oraz listę komórek z geometrią i sąsiedztwami.
     Obsługiwane tryby:
       - "square": pełne wsparcie,
-      - "hex": fallback na siatkę kwadratową (spójny interfejs; docelowa rasteryzacja hex w warstwie analysis/HUD).
+      - "hex": raster/centra jak square, a typ+neighbors liczone wg geometrii heksów (odd-r).
     """
     H, W = _ensure_hw(shape_hw)
     cell_px = max(5, int(cell_px))
 
     mode_l = (mode or "square").lower()
-    if mode_l == "square":
-        raster, cells = _square_raster(H, W, cell_px)
-        return {"mode": "square", "cell_px": cell_px, "size": (H, W), "cells": cells, "raster": raster}
+    raster, cells_sq, (ny, nx) = _square_raster(H, W, cell_px)
 
-    # Fallback "hex" → generujemy identyczny raster jak square, zachowując typ = "hex" (geometry można narysować w HUD)
-    raster, cells_sq = _square_raster(H, W, cell_px)
-    cells: List[Cell] = []
+    if mode_l == "square":
+        return {
+            "mode": "square",
+            "cell_px": cell_px,
+            "size": (H, W),
+            "grid_shape": (ny, nx),
+            "cells": cells_sq,
+            "raster": raster,
+        }
+
+    # HEX: te same centra/ID i raster co square; zmieniamy typ i sąsiedztwa na odd-r
+    cells_hex: List[Cell] = []
     for c in cells_sq:
-        c_hex = dict(c)
-        c_hex["type"] = "hex"
-        # lekka aproksymacja sześciokąta na podstawie prostokąta komórki (GUI może nadpisać rysowanie)
+        cid = int(c["id"])
         x0, y0 = c["polygon"][0]
         x1, y1 = c["polygon"][2]
         w = x1 - x0
@@ -160,9 +200,22 @@ def mosaic_map(shape_hw: Tuple[int, int], *, mode: str = "square", cell_px: int 
             (x0 + dx, y1),
             (x0, y0 + h // 2),
         ]
-        c_hex["polygon"] = poly_hex
-        cells.append(c_hex)
-    return {"mode": "hex", "cell_px": cell_px, "size": (H, W), "cells": cells, "raster": raster}
+        cells_hex.append({
+            "id": cid,
+            "polygon": poly_hex,
+            "center": tuple(c["center"]),
+            "type": "hex",
+            "neighbors": _neighbors_hex_oddr_id(cid, nx, ny),
+        })
+
+    return {
+        "mode": "hex",
+        "cell_px": cell_px,
+        "size": (H, W),
+        "grid_shape": (ny, nx),
+        "cells": cells_hex,
+        "raster": raster,
+    }
 
 
 def mosaic_label_raster(mosaic: Mapping[str, Any]) -> np.ndarray:
@@ -173,11 +226,69 @@ def mosaic_label_raster(mosaic: Mapping[str, Any]) -> np.ndarray:
     return lab.astype(np.int32, copy=False)
 
 
+def mosaic_grid_shape(mosaic: Mapping[str, Any]) -> Tuple[int, int]:
+    """
+    Zwraca (ny, nx) – liczbę wierszy i kolumn siatki komórek. Preferuje pole 'grid_shape',
+    a jeśli go nie ma, oszacuje z liczby komórek i proporcji obrazu.
+    """
+    gs = mosaic.get("grid_shape")
+    if isinstance(gs, tuple) and len(gs) == 2:
+        ny, nx = int(gs[0]), int(gs[1])
+        if ny > 0 and nx > 0:
+            return (ny, nx)
+
+    cells = mosaic.get("cells", [])
+    if not isinstance(cells, list) or not cells:
+        return (0, 0)
+    n_cells = len(cells)
+    H, W = mosaic.get("size", (0, 0)) or (0, 0)
+    H = int(H) or 1
+    W = int(W) or 1
+    ratio = float(W) / float(H)
+    nx = max(1, int(round(np.sqrt(n_cells * ratio))))
+    ny = max(1, int(np.ceil(n_cells / max(1, nx))))
+    return (ny, nx)
+
+
+def mosaic_centers(mosaic: Mapping[str, Any]) -> np.ndarray:
+    """
+    Zwraca tablicę centrów (N, 2) w porządku ID (row-major). Zakłada poprawne ID = j*nx+i.
+    """
+    cells = mosaic.get("cells", [])
+    if not isinstance(cells, list) or not cells:
+        return np.zeros((0, 2), dtype=np.int32)
+    # posortuj po id, potem zwróć (cx, cy)
+    cells_sorted = sorted(cells, key=lambda c: int(c.get("id", 0)))
+    arr = np.array([c.get("center", (0, 0)) for c in cells_sorted], dtype=np.int32)
+    return arr
+
+
+def mosaic_neighbors(mosaic: Mapping[str, Any]) -> List[List[int]]:
+    """
+    Zwraca listę sąsiadów [ [nbrs_of_0], [nbrs_of_1], ... ] zgodną z topologią mozaiki:
+      - square: 4-neighborhood,
+      - hex: 6-neighborhood odd-r.
+    """
+    ny, nx = mosaic_grid_shape(mosaic)
+    N = ny * nx
+    if N == 0:
+        return []
+    mode = str(mosaic.get("mode", "square") or "square").lower()
+    out: List[List[int]] = [[] for _ in range(N)]
+    if mode == "hex":
+        for cid in range(N):
+            out[cid] = _neighbors_hex_oddr_id(cid, nx, ny)
+    else:
+        for cid in range(N):
+            out[cid] = _neighbors_grid_id(cid, nx, ny)
+    return out
+
+
 def mosaic_project_blocks(
-    block_stats: Mapping[Tuple[int, int], Mapping[str, float]],
-    mosaic: Mosaic,
-    *,
-    map_spec: Optional[Mapping[str, Tuple[str, Tuple[float, float]]]] = None,
+        block_stats: Mapping[Tuple[int, int], Mapping[str, float]],
+        mosaic: Mosaic,
+        *_,
+        map_spec: Optional[Mapping[str, Tuple[str, Tuple[float, float]]]] = None,
 ) -> np.ndarray:
     """
     Koloruje komórki mozaiki na podstawie metryk blokowych (np. z analysis.block_stats).
@@ -194,8 +305,6 @@ def mosaic_project_blocks(
         return overlay
 
     # rozmiar siatki bloków w block_stats
-    if not block_stats:
-        return overlay
     xs = [ij[0] for ij in block_stats.keys()]
     ys = [ij[1] for ij in block_stats.keys()]
     bx = (max(xs) + 1) if xs else 1
@@ -215,8 +324,8 @@ def mosaic_project_blocks(
     if map_spec is None:
         map_spec = {
             "R": ("entropy", (0.0, 0.0)),  # zakresy ustalimy poniżej
-            "G": ("edges",   (0.0, 0.0)),
-            "B": ("mean",    (0.0, 0.0)),
+            "G": ("edges", (0.0, 0.0)),
+            "B": ("mean", (0.0, 0.0)),
         }
 
     # policz globalne zakresy jeśli (0,0)
@@ -266,4 +375,3 @@ def mosaic_overlay(img_u8: np.ndarray, overlay_u8: np.ndarray, *, alpha: float =
     if clamp:
         y = np.clip(y, 0.0, 1.0)
     return (y * 255.0 + 0.5).astype(np.uint8)
-

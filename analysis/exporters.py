@@ -1,7 +1,7 @@
 # glitchlab/analysis/exporters.py
 """
 ---
-version: 2
+version: 3
 kind: module
 id: "analysis-exporters"
 created_at: "2025-09-11"
@@ -12,6 +12,9 @@ description: >
   Składa lekki DTO dla HUD/GUI na podstawie ctx.cache: metadane uruchomienia,
   graf AST (jeśli dostępny) i listę etapów pipeline z kluczami do miniatur/overlayów.
   Nie przenosi obrazów — tylko referencje do nich (cache keys). Zapewnia walidator struktury.
+  Wspiera overlay core na podstawie block_stats (R←entropy, G←edges, B←mean) przez:
+  - wykrycie istniejącego klucza overlay,
+  - przekazanie overlay_hint jeśli można go zbudować z block_stats + mozaiki.
 inputs:
   ctx_like:
     type: "Mapping|Ctx"
@@ -22,7 +25,7 @@ outputs:
   bundle:
     run:    {id: "str", seed: "int|None", source: "dict", versions: "dict"}
     ast:    {type: "dict", desc: "graf z klucza 'ast/json' lub {}"}
-    stages: "list[{i:int,name:str,t_ms:float|None,metrics_in:dict,metrics_out:dict,diff_stats:dict,keys:{in|out|diff|mosaic:str|None}}]"
+    stages: "list[{i:int,name:str,t_ms:float|None,metrics_in:dict,metrics_out:dict,diff_stats:dict,keys:{in|out|diff|mosaic|overlay:str|None},overlay_hint?:dict}]"
     format: {notes: "list[str]", has_grid: "bool"}
   validate_warnings: {type: "list[str]", desc: "ostrzeżenia z validate_hud_bundle()"}
 interfaces:
@@ -81,6 +84,24 @@ def _first_present(cache: Mapping[str, Any], keys: List[str], default: Any = Non
     return default
 
 
+def _overlay_key_for_stage(cache: Mapping[str, Any], i: int) -> Optional[str]:
+    """
+    Zwraca istniejący klucz z gotowym overlayem dla etapu i (jeśli jest w cache).
+    Szukamy pod kilkoma popularnymi nazwami.
+    """
+    prefix = f"stage/{i}"
+    candidates = [
+        f"{prefix}/overlay",
+        f"{prefix}/overlay_rgb",
+        f"{prefix}/mosaic_overlay",
+        f"{prefix}/overlay:rgb",
+    ]
+    for k in candidates:
+        if k in cache:
+            return k
+    return None
+
+
 def export_hud_bundle(ctx_like: Mapping[str, Any]) -> Dict[str, Any]:
     """
     Buduje lekki DTO dla HUD/GUI:
@@ -91,7 +112,8 @@ def export_hud_bundle(ctx_like: Mapping[str, Any]) -> Dict[str, Any]:
            {
              "i", "name", "t_ms",
              "metrics_in", "metrics_out", "diff_stats",
-             "keys": {"in","out","diff","mosaic"}
+             "keys": {"in","out","diff","mosaic","overlay"},
+             "overlay_hint"?: {...}
            }, ...
         ],
         "format": {"notes": [...], "has_grid": bool}
@@ -145,16 +167,44 @@ def export_hud_bundle(ctx_like: Mapping[str, Any]) -> Dict[str, Any]:
         k_out = f"{prefix}/out" if f"{prefix}/out" in cache else None
         k_diff = f"{prefix}/diff" if f"{prefix}/diff" in cache else None
         k_mosaic = f"{prefix}/mosaic" if f"{prefix}/mosaic" in cache else None
+        k_overlay = _overlay_key_for_stage(cache, i)
 
-        stages.append({
+        stage_entry: Dict[str, Any] = {
             "i": i,
             "name": name,
             "t_ms": float(t_ms) if isinstance(t_ms, (int, float)) else None,
             "metrics_in": metrics_in,
             "metrics_out": metrics_out,
             "diff_stats": diff_stats,
-            "keys": {"in": k_in, "out": k_out, "diff": k_diff, "mosaic": k_mosaic},
-        })
+            "keys": {"in": k_in, "out": k_out, "diff": k_diff, "mosaic": k_mosaic, "overlay": k_overlay},
+        }
+
+        # Overlay hint z block_stats → core overlay (bez efektów ubocznych)
+        has_block_stats = f"{prefix}/block_stats" in cache
+        # minimalna informacja mozaiki: raster/siatka lub cokolwiek co wskazuje, że mozaika istnieje
+        has_mosaic_info = (k_mosaic is not None) or (f"{prefix}/mosaic_meta" in cache) or (f"{prefix}/mosaic_map" in cache)
+        if k_overlay is None and has_block_stats and has_mosaic_info:
+            # przekazujemy HUD/pipeline parametry projekcji zgodne z core.mosaic.mosaic_project_blocks
+            stage_entry["overlay_hint"] = {
+                "can_build": True,
+                "source": "block_stats",
+                "map_spec": {
+                    "R": ["entropy", [0.0, 0.0]],  # [lo,hi] = auto, core ustali z danych
+                    "G": ["edges",   [0.0, 0.0]],
+                    "B": ["mean",    [0.0, 0.0]],
+                },
+                # Klucze wejściowe, które core może wykorzystać:
+                "inputs": {
+                    "block_stats_key": f"{prefix}/block_stats",
+                    "mosaic_key": k_mosaic or _first_present(cache, [f"{prefix}/mosaic_meta", f"{prefix}/mosaic_map"]),
+                    # opcjonalnie: podkład (wejściowy obraz), jeżeli GUI chce robić blend:
+                    "image_key": k_out or k_in,
+                },
+                # rekomendowana nazwa wyjścia (jeśli pipeline zdecyduje się zapisać overlay do cache):
+                "suggested_output_key": f"{prefix}/overlay_rgb",
+            }
+
+        stages.append(stage_entry)
 
     # Format forensics (opcjonalne)
     notes = []
@@ -224,6 +274,18 @@ def validate_hud_bundle(bundle: Mapping[str, Any]) -> List[str]:
                     warns.append(f"stage[{idx}]: missing '{k}'")
             if "keys" in st and not _is_mapping(st["keys"]):
                 warns.append(f"stage[{idx}].keys: must be a dict")
+            # overlay_hint format (jeśli obecny)
+            if "overlay_hint" in st:
+                oh = st["overlay_hint"]
+                if not _is_mapping(oh):
+                    warns.append(f"stage[{idx}].overlay_hint: must be a dict")
+                else:
+                    if "can_build" in oh and not isinstance(oh["can_build"], bool):
+                        warns.append(f"stage[{idx}].overlay_hint.can_build: must be a bool")
+                    if "map_spec" in oh and not _is_mapping(oh["map_spec"]):
+                        warns.append(f"stage[{idx}].overlay_hint.map_spec: must be a dict")
+                    if "inputs" in oh and not _is_mapping(oh["inputs"]):
+                        warns.append(f"stage[{idx}].overlay_hint.inputs: must be a dict")
     else:
         warns.append("stages: not a list")
 
