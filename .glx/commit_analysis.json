@@ -1,6 +1,10 @@
 {
-  "when": "2025-10-01 14:27:20Z",
+  "when": "2025-10-01 14:29:02Z",
   "files": [
+    [
+      "M",
+      ".githooks/post-commit"
+    ],
     [
       "M",
       ".glx/commit_analysis.json"
@@ -22,6 +26,6 @@
     "avg_align": 0.0
   },
   "doc_decision": "NO-OP",
-  "commit": "209b42fb2f9c964db3ff2f2e3a80e5952f865d4b",
-  "range": "cfd6de8..209b42f"
+  "commit": "f32eeb60758444c549c3c28debf54c6fdc16e3a4",
+  "range": "209b42f..f32eeb6"
 }
