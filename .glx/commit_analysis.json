@@ -1,6 +1,10 @@
 {
-  "when": "2025-09-30 19:13:08Z",
+  "when": "2025-10-01 14:17:51Z",
   "files": [
+    [
+      "M",
+      ".gitattributes"
+    ],
     [
       "M",
       ".glx/commit_analysis.json"
@@ -14,173 +18,176 @@
       ".glx/state.json"
     ],
     [
+      "M",
+      "analysis/__init__.py"
+    ],
+    [
       "A",
-      "analysis/analiza_progi.md"
+      "analysis/autonomy/__init__.py"
+    ],
+    [
+      "A",
+      "analysis/autonomy/gateway.py"
+    ],
+    [
+      "A",
+      "analysis/last/autonomy/pack.json"
+    ],
+    [
+      "A",
+      "analysis/last/autonomy/pack.md"
+    ],
+    [
+      "A",
+      "analysis/last/autonomy/prompt.json"
+    ],
+    [
+      "A",
+      "analysis/logs/commit_20250930-191309.json"
     ],
     [
       "M",
-      "analysis/exporters.py"
-    ],
-    [
-      "A",
-      "analysis/logs/commit_20250929-185522.json"
-    ],
-    [
-      "A",
-      "analysis/logs/commit_20250929-185559.json"
-    ],
-    [
-      "A",
-      "analysis/logs/commit_20250929-200133.json"
-    ],
-    [
-      "A",
-      "analysis/logs/commit_20250929-204015.json"
-    ],
-    [
-      "A",
-      "analysis/logs/commit_20250929-212003.json"
-    ],
-    [
-      "A",
-      "analysis/mosaic_adapter.py"
-    ],
-    [
-      "A",
-      "analysis/policy.json"
-    ],
-    [
-      "A",
-      "analysis/reporting.py"
+      "gui/__init__.py"
     ],
     [
       "M",
-      "core/mosaic.py"
+      "gui/mosaic/__init__.py"
     ],
     [
       "M",
       "gui/mosaic/hybrid_ast_mosaic.py"
+    ],
+    [
+      "A",
+      "tests/test_hybrid_ast_mosaic.py"
+    ],
+    [
+      "A",
+      "tests/test_integration_core_analysis.py"
+    ],
+    [
+      "A",
+      "tests/test_post_commit_e2e.py"
     ]
   ],
   "py_results": [
     {
-      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\analysis\\exporters.py",
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\analysis\\__init__.py",
       "ok": true,
       "ast": {
-        "S": 173,
-        "H": 573,
+        "S": 0,
+        "H": 0,
         "Z": 0,
-        "alpha": 0.23190348525469168,
-        "beta": 0.7680965147453083,
+        "alpha": 0.0,
+        "beta": 0.0,
+        "maxZ": 0
+      },
+      "mosaic": {
+        "edge_p": 0.0,
+        "align": 0.0
+      },
+      "meta": []
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\analysis\\autonomy\\__init__.py",
+      "ok": true,
+      "ast": {
+        "S": 0,
+        "H": 0,
+        "Z": 0,
+        "alpha": 0.0,
+        "beta": 0.0,
+        "maxZ": 0
+      },
+      "mosaic": {
+        "edge_p": 0.0,
+        "align": 0.0
+      },
+      "meta": []
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\analysis\\autonomy\\gateway.py",
+      "ok": true,
+      "ast": {
+        "S": 276,
+        "H": 895,
+        "Z": 0,
+        "alpha": 0.23569598633646455,
+        "beta": 0.7643040136635354,
         "maxZ": 13
       },
       "mosaic": {
         "edge_p": 1.0,
-        "align": 0.46380697050938346
+        "align": 0.4713919726729292
       },
       "meta": [
-        "# glitchlab/analysis/exporters.py",
-        "# wyciągnij cache",
-        "# Run meta",
-        "# spróbuj z ctx_like.meta",
-        "# jeśli brak seed, sprawdź też w cfg",
-        "# AST JSON",
-        "# Stages",
-        "# Klucze obrazów/overlay"
-      ]
-    },
-    {
-      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\analysis\\mosaic_adapter.py",
-      "ok": true,
-      "ast": {
-        "S": 188,
-        "H": 656,
-        "Z": 0,
-        "alpha": 0.22274881516587677,
-        "beta": 0.7772511848341233,
-        "maxZ": 10
-      },
-      "mosaic": {
-        "edge_p": 1.0,
-        "align": 0.4454976303317535
-      },
-      "meta": [
-        "# glitchlab/analysis/mosaic_adapter.py",
-        "# Adapter core ↔ analysis: CoreMosaic(dict) → AnalysisMosaic(dataclass)",
-        "# Python 3.9+",
-        "# Analiza/ΦΨ – dataclass Mosaic wykorzystywana przez hybrydę",
+        "# -*- coding: utf-8 -*-",
+        "# Python: 3.9  (ten kod uruchamia się tylko na 3.9.x)",
+        "# glitchlab/analysis/autonomy/gateway.py",
         "# ──────────────────────────────────────────────────────────────────────────────",
-        "# Helpers: wymiar siatki i mapowanie bloków → komórki",
+        "# Ścieżki bazowe i aliasy",
         "# ──────────────────────────────────────────────────────────────────────────────",
-        "# sanity – liczba komórek powinna się zgadzać"
-      ]
-    },
-    {
-      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\analysis\\reporting.py",
-      "ok": true,
-      "ast": {
-        "S": 284,
-        "H": 870,
-        "Z": 0,
-        "alpha": 0.24610051993067592,
-        "beta": 0.7538994800693241,
-        "maxZ": 11
-      },
-      "mosaic": {
-        "edge_p": 1.0,
-        "align": 0.4922010398613519
-      },
-      "meta": [
-        "# glitchlab/analysis/reporting.py",
-        "# Generacja artefaktów raportowych:",
-        "#  - analysis/last/report.json",
-        "#  - analysis/last/summary.md",
-        "#  - analysis/last/mosaic_map.json",
-        "#",
-        "# Python 3.9+",
+        "# fallback: trzy poziomy wyżej niż .../glitchlab/analysis/autonomy/gateway.py = root repo",
         "# ──────────────────────────────────────────────────────────────────────────────"
       ]
     },
     {
-      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\core\\mosaic.py",
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\gui\\__init__.py",
       "ok": true,
       "ast": {
-        "S": 287,
-        "H": 1112,
+        "S": 1,
+        "H": 2,
         "Z": 0,
-        "alpha": 0.20514653323802717,
-        "beta": 0.7948534667619729,
-        "maxZ": 12
+        "alpha": 0.3333333333333333,
+        "beta": 0.6666666666666666,
+        "maxZ": 3
       },
       "mosaic": {
         "edge_p": 1.0,
-        "align": 0.41029306647605424
+        "align": 0.6666666666666667
+      },
+      "meta": []
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\gui\\mosaic\\__init__.py",
+      "ok": true,
+      "ast": {
+        "S": 13,
+        "H": 37,
+        "Z": 0,
+        "alpha": 0.26,
+        "beta": 0.74,
+        "maxZ": 10
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.52
       },
       "meta": [
-        "# glitchlab/core/mosaic.py",
-        "# new",
-        "# np.ndarray[int32]}",
-        "# --------------------------------------------------------------------------------------",
-        "# Helpers",
-        "# --------------------------------------------------------------------------------------",
-        "# Correct mapping: cid = j*nx + i  => j = cid // nx, i = cid % nx",
-        "# upsample przez powtarzanie"
+        "# glitchlab/gui/mosaic/__init__.py",
+        "# Python 3.9 — lazy re-exports to avoid heavy import side effects.",
+        "# budowa mozaiki",
+        "# AST i kompresja",
+        "# Φ/Ψ i metryki",
+        "# narzędzia / run",
+        "# typy danych",
+        "# stałe"
       ]
     },
     {
       "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\gui\\mosaic\\hybrid_ast_mosaic.py",
       "ok": true,
       "ast": {
-        "S": 1003,
-        "H": 3724,
+        "S": 1047,
+        "H": 3851,
         "Z": 0,
-        "alpha": 0.2121853183837529,
-        "beta": 0.7878146816162471,
+        "alpha": 0.21376071866067783,
+        "beta": 0.7862392813393222,
         "maxZ": 15
       },
       "mosaic": {
         "edge_p": 1.0,
-        "align": 0.42437063676750575
+        "align": 0.4275214373213556
       },
       "meta": [
         "# glitchlab/mosaic/hybrid_ast_mosaic.py",
@@ -192,15 +199,92 @@
         "# ──────────────────────────────────────────────────────────────────────────────",
         "# soft-labels dla krawędzi"
       ]
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\tests\\test_hybrid_ast_mosaic.py",
+      "ok": true,
+      "ast": {
+        "S": 44,
+        "H": 137,
+        "Z": 0,
+        "alpha": 0.2430939226519337,
+        "beta": 0.7569060773480663,
+        "maxZ": 9
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.4861878453038675
+      },
+      "meta": [
+        "# tests/test_hybrid_ast_mosaic.py",
+        "# wynik musi zawierać kluczowe metryki",
+        "# sanity checks (wszystkie wartości są skończone i >=0)",
+        "# align musi być w [0,1]",
+        "# wszystkie inwarianty muszą przejść",
+        "# koszt Φ",
+        "# Ψ-feedback aktualizuje meta-wektory"
+      ]
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\tests\\test_integration_core_analysis.py",
+      "ok": true,
+      "ast": {
+        "S": 167,
+        "H": 594,
+        "Z": 0,
+        "alpha": 0.21944809461235218,
+        "beta": 0.7805519053876478,
+        "maxZ": 12
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.4388961892247043
+      },
+      "meta": [
+        "# tests/test_integration_core_analysis.py",
+        "# -*- coding: utf-8 -*-",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# Importy z łagodnym skipem (repo może być w trakcie wdrożeń etapami)",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# AnalysisMosaic (dataclass) + profil",
+        "# Adapter core → analysis",
+        "@pytest.mark.skipif"
+      ]
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\tests\\test_post_commit_e2e.py",
+      "ok": true,
+      "ast": {
+        "S": 175,
+        "H": 506,
+        "Z": 0,
+        "alpha": 0.25697503671071953,
+        "beta": 0.7430249632892805,
+        "maxZ": 11
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.5139500734214391
+      },
+      "meta": [
+        "# -*- coding: utf-8 -*-",
+        "# Python: 3.9  (ten test uruchamia się tylko na 3.9.x)",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# ŚCIEŻKI (ten plik leży w: glitchlab/tests/test_post_commit_e2e.py)",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# GIT UTILS",
+        "# ──────────────────────────────────────────────────────────────────────────────"
+      ]
     }
   ],
   "aggregate": {
-    "files": 5,
-    "S": 1935,
-    "H": 6935,
-    "avg_align": 0.4472338687892098
+    "files": 9,
+    "S": 1723,
+    "H": 6022,
+    "avg_align": 0.39162379829010696
   },
   "doc_decision": "REVIEW",
-  "commit": "a6a65092eb0ad27d6fbb0a17ce2b66a589601a91",
-  "range": "7d174a1..a6a6509"
+  "commit": "02db792d994b1ff082c4b65fa0f43b53959f50d4",
+  "range": "a6a6509..02db792"
 }
