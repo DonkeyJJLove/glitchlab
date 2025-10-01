@@ -1,0 +1,423 @@
+{
+  "schema": "glx.selfdoc.v1",
+  "generated_at": "2025-10-01T14:05:03Z",
+  "project_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab",
+  "package_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\glitchlab",
+  "glx_state": {
+    "app": "glitchlab",
+    "base_sha": "7d174a196ad515290ce8b90c278ef0ff5f55644e",
+    "last_seq": "",
+    "last_range": "",
+    "last_repo": "DonkeyJJLove/glitchlab@master",
+    "mail_vs_local": "IN_SYNC",
+    "ahead_flag": "IN_SYNC",
+    "updated_at": "2025-09-30T19:13:09Z"
+  },
+  "git": {
+    "ok": true,
+    "head": "a6a65092eb0ad27d6fbb0a17ce2b66a589601a91",
+    "commits": [
+      {
+        "hash": "a6a65092eb0ad27d6fbb0a17ce2b66a589601a91",
+        "ts": 1759259587,
+        "subject": "15 file(s) staged: [Î”] Zakres - files: 15 (commit_analysis.json, commit_snippet.txt, state.json, analiza_progi.md, exporters.py, commit_20250929-185522.json (+9)) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "7d174a196ad515290ce8b90c278ef0ff5f55644e",
+        "ts": 1759180801,
+        "subject": "1 file(s) staged: [Î”] Zakres - files: 1 (bytes) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "f209ecdbfe8c3cf0bfa8562268f2f73d04c2b49f",
+        "ts": 1759178414,
+        "subject": "6 file(s) staged: [Î”] Zakres - files: 6 (commit_analysis.json, commit_snippet.txt, state.json, impact.py, commit_20250929-042037.json, commit_20250929-184951.json) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "9d9f3998e0740572bb989f534d407e4a821f0bab",
+        "ts": 1759176091,
+        "subject": "4 file(s) staged: [Î”] Zakres - files: 4 (ast_delta.py, ast_index.py, git_io.py, phi_psi_bridge.py) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "92e6d17fc94ddf61f9a4588783d50a0c423f84f2",
+        "ts": 1759172157,
+        "subject": "1 file(s) staged: [Î”] Zakres - files: 1 (README.md) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "5d99a6d7e584d92175bc42fc01947ede58ed7c90",
+        "ts": 1759172121,
+        "subject": "1 file(s) staged: [Î”] Zakres - files: 1 (README.md) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "592886e8f9c41cd79f1ab64a1acce777866e2a2b",
+        "ts": 1759171790,
+        "subject": "8 file(s) staged: [Î”] Zakres - files: 8 (commit_20250929-043402.json, commit_20250929-164411.json, commit_20250929-165443.json, commit_20250929-183139.json, README.md, cstudy.md (+2)) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "a3b5791205bbe9c596f7ad02a813e495d73dd207",
+        "ts": 1759170698,
+        "subject": "1 file(s) staged: [Î”] Zakres - files: 1 (README.md) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "3a5cebedf6bc8cba076af54633a7935dd8712473",
+        "ts": 1759164882,
+        "subject": "2 file(s) staged: [Î”] Zakres - files: 2 (hybrid_ast_mosaic.py, structure.md) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "6c0007c9744fa31fecff26baa9a9918b3358b753",
+        "ts": 1759164250,
+        "subject": "2 file(s) staged: [Î”] Zakres - files: 2 (model.png, structure.md) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "c7e94adf25d23110d3101f6b5c9a8eb6a7057295",
+        "ts": 1759120441,
+        "subject": "135 file(s) staged: [Î”] Zakres - files: 135 (__init__.cpython-39.pyc, diff.cpython-39.pyc, exporters.cpython-39.pyc, metrics.cpython-39.pyc, commit_20250929-043151.json, __init__.cpython-39.pyc (+129)) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "5dc9eef9f9533c29103aa6b8808dddf745121154",
+        "ts": 1759120310,
+        "subject": "1 file(s) staged: [Î”] Zakres - files: 1 (__init__.cpython-39.pyc) - typ: auto (pre-diff)"
+      }
+    ],
+    "delta_last": [
+      {
+        "status": "M",
+        "path": ".glx/commit_analysis.json"
+      },
+      {
+        "status": "M",
+        "path": ".glx/commit_snippet.txt"
+      },
+      {
+        "status": "M",
+        "path": ".glx/state.json"
+      },
+      {
+        "status": "A",
+        "path": "analysis/analiza_progi.md"
+      },
+      {
+        "status": "M",
+        "path": "analysis/exporters.py"
+      },
+      {
+        "status": "A",
+        "path": "analysis/logs/commit_20250929-185522.json"
+      },
+      {
+        "status": "A",
+        "path": "analysis/logs/commit_20250929-185559.json"
+      },
+      {
+        "status": "A",
+        "path": "analysis/logs/commit_20250929-200133.json"
+      },
+      {
+        "status": "A",
+        "path": "analysis/logs/commit_20250929-204015.json"
+      },
+      {
+        "status": "A",
+        "path": "analysis/logs/commit_20250929-212003.json"
+      },
+      {
+        "status": "A",
+        "path": "analysis/mosaic_adapter.py"
+      },
+      {
+        "status": "A",
+        "path": "analysis/policy.json"
+      },
+      {
+        "status": "A",
+        "path": "analysis/reporting.py"
+      },
+      {
+        "status": "M",
+        "path": "core/mosaic.py"
+      },
+      {
+        "status": "M",
+        "path": "gui/mosaic/hybrid_ast_mosaic.py"
+      }
+    ]
+  },
+  "code": {
+    "totals": {
+      "loc": 0,
+      "modules": 0,
+      "defs": 0,
+      "classes": 0
+    },
+    "top_modules_by_loc": [],
+    "modules": [],
+    "invariants_hint": {
+      "edge_range": "[0,1]",
+      "len(edge)==rows*cols": "delegowane do warstwy Mosaic"
+    },
+    "conventions": {
+      "CoreMosaic": "glitchlab.core.mosaic (dict)",
+      "AnalysisMosaic": "glitchlab.mosaic.hybrid_ast_mosaic.Mosaic (dataclass)",
+      "Aliases": "importuj z aliasami w warstwach łączących"
+    }
+  },
+  "prompts": {
+    "architect_review": {
+      "system": "Jesteś asystentem inżynierskim GlitchLab. Twoja analiza ma być deterministyczna, konkretna, bez wprowadzania losowości. Oceniaj wpływ zmian na architekturę i HUD/Mosaic⇄AST.",
+      "user": "Cel: architect_review. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=0, modules=0, defs=0, classes=0.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
+      "context": {
+        "glx_state": {
+          "app": "glitchlab",
+          "base_sha": "7d174a196ad515290ce8b90c278ef0ff5f55644e",
+          "last_seq": "",
+          "last_range": "",
+          "last_repo": "DonkeyJJLove/glitchlab@master",
+          "mail_vs_local": "IN_SYNC",
+          "ahead_flag": "IN_SYNC",
+          "updated_at": "2025-09-30T19:13:09Z"
+        },
+        "git_head": "a6a65092eb0ad27d6fbb0a17ce2b66a589601a91",
+        "recent_commits": [
+          {
+            "hash": "a6a65092eb0ad27d6fbb0a17ce2b66a589601a91",
+            "ts": 1759259587,
+            "subject": "15 file(s) staged: [Î”] Zakres - files: 15 (commit_analysis.json, commit_snippet.txt, state.json, analiza_progi.md, exporters.py, commit_20250929-185522.json (+9)) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "7d174a196ad515290ce8b90c278ef0ff5f55644e",
+            "ts": 1759180801,
+            "subject": "1 file(s) staged: [Î”] Zakres - files: 1 (bytes) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "f209ecdbfe8c3cf0bfa8562268f2f73d04c2b49f",
+            "ts": 1759178414,
+            "subject": "6 file(s) staged: [Î”] Zakres - files: 6 (commit_analysis.json, commit_snippet.txt, state.json, impact.py, commit_20250929-042037.json, commit_20250929-184951.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "9d9f3998e0740572bb989f534d407e4a821f0bab",
+            "ts": 1759176091,
+            "subject": "4 file(s) staged: [Î”] Zakres - files: 4 (ast_delta.py, ast_index.py, git_io.py, phi_psi_bridge.py) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "92e6d17fc94ddf61f9a4588783d50a0c423f84f2",
+            "ts": 1759172157,
+            "subject": "1 file(s) staged: [Î”] Zakres - files: 1 (README.md) - typ: auto (pre-diff)"
+          }
+        ],
+        "delta_last": [
+          {
+            "status": "M",
+            "path": ".glx/commit_analysis.json"
+          },
+          {
+            "status": "M",
+            "path": ".glx/commit_snippet.txt"
+          },
+          {
+            "status": "M",
+            "path": ".glx/state.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/analiza_progi.md"
+          },
+          {
+            "status": "M",
+            "path": "analysis/exporters.py"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-185522.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-185559.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-200133.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-204015.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-212003.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/mosaic_adapter.py"
+          },
+          {
+            "status": "A",
+            "path": "analysis/policy.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/reporting.py"
+          },
+          {
+            "status": "M",
+            "path": "core/mosaic.py"
+          },
+          {
+            "status": "M",
+            "path": "gui/mosaic/hybrid_ast_mosaic.py"
+          }
+        ],
+        "top_modules": [],
+        "notes": []
+      },
+      "attachments": {
+        "schema": "glx.selfdoc.v1",
+        "when": "2025-10-01T14:05:03Z",
+        "telemetry": {
+          "ok": true,
+          "error": "",
+          "scan_ms": 0.2521000000000051,
+          "ast_ms": 0.0,
+          "files_scanned": 0,
+          "mods": 0,
+          "defs": 0,
+          "classes": 0,
+          "git_ok": true
+        }
+      }
+    },
+    "risk_brief": {
+      "system": "Jesteś asystentem inżynierskim GlitchLab. Twoja analiza ma być deterministyczna, konkretna, bez wprowadzania losowości. Oceniaj wpływ zmian na architekturę i HUD/Mosaic⇄AST.",
+      "user": "Cel: risk_brief. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=0, modules=0, defs=0, classes=0.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
+      "context": {
+        "glx_state": {
+          "app": "glitchlab",
+          "base_sha": "7d174a196ad515290ce8b90c278ef0ff5f55644e",
+          "last_seq": "",
+          "last_range": "",
+          "last_repo": "DonkeyJJLove/glitchlab@master",
+          "mail_vs_local": "IN_SYNC",
+          "ahead_flag": "IN_SYNC",
+          "updated_at": "2025-09-30T19:13:09Z"
+        },
+        "git_head": "a6a65092eb0ad27d6fbb0a17ce2b66a589601a91",
+        "recent_commits": [
+          {
+            "hash": "a6a65092eb0ad27d6fbb0a17ce2b66a589601a91",
+            "ts": 1759259587,
+            "subject": "15 file(s) staged: [Î”] Zakres - files: 15 (commit_analysis.json, commit_snippet.txt, state.json, analiza_progi.md, exporters.py, commit_20250929-185522.json (+9)) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "7d174a196ad515290ce8b90c278ef0ff5f55644e",
+            "ts": 1759180801,
+            "subject": "1 file(s) staged: [Î”] Zakres - files: 1 (bytes) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "f209ecdbfe8c3cf0bfa8562268f2f73d04c2b49f",
+            "ts": 1759178414,
+            "subject": "6 file(s) staged: [Î”] Zakres - files: 6 (commit_analysis.json, commit_snippet.txt, state.json, impact.py, commit_20250929-042037.json, commit_20250929-184951.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "9d9f3998e0740572bb989f534d407e4a821f0bab",
+            "ts": 1759176091,
+            "subject": "4 file(s) staged: [Î”] Zakres - files: 4 (ast_delta.py, ast_index.py, git_io.py, phi_psi_bridge.py) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "92e6d17fc94ddf61f9a4588783d50a0c423f84f2",
+            "ts": 1759172157,
+            "subject": "1 file(s) staged: [Î”] Zakres - files: 1 (README.md) - typ: auto (pre-diff)"
+          }
+        ],
+        "delta_last": [
+          {
+            "status": "M",
+            "path": ".glx/commit_analysis.json"
+          },
+          {
+            "status": "M",
+            "path": ".glx/commit_snippet.txt"
+          },
+          {
+            "status": "M",
+            "path": ".glx/state.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/analiza_progi.md"
+          },
+          {
+            "status": "M",
+            "path": "analysis/exporters.py"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-185522.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-185559.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-200133.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-204015.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/logs/commit_20250929-212003.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/mosaic_adapter.py"
+          },
+          {
+            "status": "A",
+            "path": "analysis/policy.json"
+          },
+          {
+            "status": "A",
+            "path": "analysis/reporting.py"
+          },
+          {
+            "status": "M",
+            "path": "core/mosaic.py"
+          },
+          {
+            "status": "M",
+            "path": "gui/mosaic/hybrid_ast_mosaic.py"
+          }
+        ],
+        "top_modules": [],
+        "notes": []
+      },
+      "attachments": {
+        "schema": "glx.selfdoc.v1",
+        "when": "2025-10-01T14:05:03Z",
+        "telemetry": {
+          "ok": true,
+          "error": "",
+          "scan_ms": 0.2521000000000051,
+          "ast_ms": 0.0,
+          "files_scanned": 0,
+          "mods": 0,
+          "defs": 0,
+          "classes": 0,
+          "git_ok": true
+        }
+      }
+    }
+  },
+  "telemetry": {
+    "ok": true,
+    "error": "",
+    "scan_ms": 0.2521000000000051,
+    "ast_ms": 0.0,
+    "files_scanned": 0,
+    "mods": 0,
+    "defs": 0,
+    "classes": 0,
+    "git_ok": true
+  },
+  "notes": []
+}

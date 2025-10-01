@@ -1,5 +1,8 @@
 # Domyślnie Git wykrywa tekst, ale wymuszamy profile per rozszerzenie
-*           text=auto
+* text=auto
+*.sh text eol=lf
+pre-commit text eol=lf
+post-commit text eol=lf
 
 # --- LF dla kodu i docs ---
 *.py        text eol=lf

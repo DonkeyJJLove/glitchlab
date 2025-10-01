@@ -1111,8 +1111,11 @@ def cmd_test(args):
     print(json.dumps(sign, indent=2))
 
 
+def _normpath_under_project(pth: str, project_root: Path) -> Path:
+    p = Path(pth)
+    return (project_root / p).resolve() if not p.is_absolute() else p.resolve()
+
 def cmd_from_git_dump(args):
-    # 1) uruchom pipeline
     res = run_from_git(
         base=args.base,
         head=args.head,
@@ -1127,21 +1130,63 @@ def cmd_from_git_dump(args):
         policy_file=args.policy_file,
     )
 
-    # 2) zapisz artefakty
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
 
     artifacts = {}
-    if _emit_artifacts is not None:
-        artifacts = _emit_artifacts(res, outdir=outdir)
-    else:
-        # miękki fallback: zawsze zapisujemy przynajmniej report.json
-        report_path = outdir / "report.json"
-        report_path.write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
-        artifacts = {"report": str(report_path)}
-        # (summary.md i mosaic_map.json wymagają modułu reporting)
+    errors: list[str] = []
+    try:
+        if _emit_artifacts is not None:
+            try:
+                artifacts = _emit_artifacts(res, outdir=outdir) or {}
+            except Exception as e:
+                errors.append(f"emit_artifacts failed: {e.__class__.__name__}: {e}")
+                artifacts = {}
+        else:
+            errors.append("reporting.emit_artifacts not available")
+    except Exception as e:
+        errors.append(f"unexpected error: {e.__class__.__name__}: {e}")
 
-    print(json.dumps({"ok": True, "artifacts": artifacts}, ensure_ascii=False, indent=2))
+    # sprawdź, czy zwrócone ścieżki faktycznie istnieją
+    existing = {}
+    missing = {}
+    for k, v in (artifacts or {}).items():
+        if not v:
+            missing[k] = v
+            continue
+        p = _normpath_under_project(v, Path.cwd())
+        if p.exists():
+            existing[k] = str(p)
+        else:
+            missing[k] = str(p)
+
+    ok = bool(existing)
+    diagnostics = {
+        "base": res.get("base"),
+        "head": res.get("head"),
+        "files_analyzed": res.get("delta", {}).get("files", 0),
+        "missing_artifacts": missing,
+        "notes": errors,
+    }
+
+    # Jeżeli nic nie powstało: wypisz ostrzeżenie na STDERR, przekaż ok:false w STDOUT
+    if not ok:
+        msg = "[GLX] WARN: no artifacts produced by from-git-dump; check --base/--head and reporting module."
+        if diagnostics["files_analyzed"] == 0:
+            msg += " (No changed .py files between BASE..HEAD.)"
+        print(msg, file=sys.stderr)
+
+        out_json = {"ok": False, "artifacts": {}, "diagnostics": diagnostics}
+        print(json.dumps(out_json, ensure_ascii=False, indent=2))
+        # RC zależnie od trybu
+        strict_env = os.getenv("GLX_STRICT_ARTIFACTS", "0").strip() in ("1", "true", "yes")
+        if getattr(args, "strict_artifacts", False) or strict_env:
+            sys.exit(1)
+        sys.exit(0)
+
+    # Sukces: zwracamy tylko istniejące artefakty (reszta w diagnostyce)
+    out_json = {"ok": True, "artifacts": existing, "diagnostics": diagnostics}
+    print(json.dumps(out_json, ensure_ascii=False, indent=2))
 
 
 def cmd_from_git(args):
@@ -1196,7 +1241,8 @@ def build_cli():
     g.add_argument("--paths", nargs="*", help="opcjonalny filtr ścieżek (substring/endswith)")
     g.set_defaults(func=cmd_from_git)
 
-    gd = sub.add_parser("from-git-dump", help="Analiza BASE..HEAD i zapis artefaktów (report.json, summary.md, mosaic_map.json)")
+    gd = sub.add_parser("from-git-dump",
+                        help="Analiza BASE..HEAD i zapis artefaktów (report.json, summary.md, mosaic_map.json)")
     gd.add_argument("--base", required=True, help="BASE sha/refs (np. merge-base, .glx/state.json)")
     gd.add_argument("--head", default="HEAD", help="HEAD sha/ref (domyślnie HEAD)")
     gd.add_argument("--rows", type=int, default=6)
@@ -1208,6 +1254,9 @@ def build_cli():
     gd.add_argument("--paths", nargs="*")
     gd.add_argument("--out", default="analysis/last", help="katalog wyjściowy na artefakty")
     # współdzielone z top-level: --phi, --policy-file już są w parserze głównym
+    # tryb surowy – jeśli artefakty nie powstały, zakończ rc = 1
+    gd.add_argument("--strict-artifacts", action="store_true",
+                    help="jeżeli artefakty nie powstaną, zakończ błędem (rc=1)")
     gd.set_defaults(func=cmd_from_git_dump)
 
     return p
@@ -1219,4 +1268,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    pass
+#   main()
