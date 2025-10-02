@@ -1,0 +1,294 @@
+{
+  "when": "2025-10-02 00:33:20Z",
+  "files": [
+    [
+      "M",
+      ".glx/commit_analysis.json"
+    ],
+    [
+      "M",
+      ".glx/commit_snippet.txt"
+    ],
+    [
+      "M",
+      ".glx/state.json"
+    ],
+    [
+      "M",
+      "analysis/autonomy/gateway.py"
+    ],
+    [
+      "M",
+      "analysis/git_io.py"
+    ],
+    [
+      "A",
+      "analysis/last/autonomy/env.json"
+    ],
+    [
+      "M",
+      "analysis/last/autonomy/pack.json"
+    ],
+    [
+      "M",
+      "analysis/last/autonomy/pack.md"
+    ],
+    [
+      "M",
+      "analysis/last/autonomy/prompt.json"
+    ],
+    [
+      "A",
+      "analysis/last/mosaic_map.json"
+    ],
+    [
+      "A",
+      "analysis/last/report.html"
+    ],
+    [
+      "A",
+      "analysis/last/report.json"
+    ],
+    [
+      "A",
+      "analysis/last/summary.md"
+    ],
+    [
+      "A",
+      "analysis/logs/commit_20251001-141752.json"
+    ],
+    [
+      "A",
+      "analysis/logs/commit_20251001-141809.json"
+    ],
+    [
+      "A",
+      "analysis/logs/commit_20251001-142656.json"
+    ],
+    [
+      "A",
+      "analysis/logs/commit_20251001-142721.json"
+    ],
+    [
+      "A",
+      "analysis/logs/commit_20251001-142903.json"
+    ],
+    [
+      "A",
+      "analysis/logs/commit_20251001-142954.json"
+    ],
+    [
+      "M",
+      "analysis/reporting.py"
+    ],
+    [
+      "M",
+      "gui/mosaic/hybrid_ast_mosaic.py"
+    ],
+    [
+      "M",
+      "gui/mosaic/router.py"
+    ],
+    [
+      "M",
+      "scripts/ast_mosaic_analyzer.py"
+    ],
+    [
+      "M",
+      "tests/test_post_commit_e2e.py"
+    ]
+  ],
+  "py_results": [
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\analysis\\autonomy\\gateway.py",
+      "ok": true,
+      "ast": {
+        "S": 304,
+        "H": 1012,
+        "Z": 0,
+        "alpha": 0.23100303951367782,
+        "beta": 0.7689969604863222,
+        "maxZ": 13
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.4620060790273557
+      },
+      "meta": [
+        "# -*- coding: utf-8 -*-",
+        "# Python: 3.9  (ten kod uruchamia się tylko na 3.9.x)",
+        "# Ścieżka: glitchlab/analysis/autonomy/gateway.py",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# .ENV — ładowanie (python-dotenv jeśli jest; inaczej prosty parser)",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# Szukamy .env w katalogu i jeden poziom wyżej (jak w testach)",
+        "# Fallback – prosty parser bez nadpisywania istniejących zmiennych"
+      ]
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\analysis\\git_io.py",
+      "ok": true,
+      "ast": {
+        "S": 290,
+        "H": 967,
+        "Z": 0,
+        "alpha": 0.2307080350039777,
+        "beta": 0.7692919649960223,
+        "maxZ": 12
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.4614160700079555
+      },
+      "meta": [
+        "# glitchlab/analysis/git_io.py",
+        "# Git I/O + RepoMosaic (kafel=plik) dla analizy Δ (BASE..HEAD)",
+        "# Python 3.9+ (stdlib only)",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# Stałe i narzędzia",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# SHA „pustego drzewa” (gdy repo ma 0/1 commit i HEAD~1 nie istnieje)",
+        "# fallback: manualny spacer w górę"
+      ]
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\analysis\\reporting.py",
+      "ok": true,
+      "ast": {
+        "S": 449,
+        "H": 1385,
+        "Z": 0,
+        "alpha": 0.24482006543075246,
+        "beta": 0.7551799345692476,
+        "maxZ": 14
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.4896401308615048
+      },
+      "meta": [
+        "#!/usr/bin/env python",
+        "# glitchlab/analysis/reporting.py",
+        "# -*- coding: utf-8 -*-",
+        "# Python 3.9+",
+        "# ── GLX_RUN: flags & kolejność ───────────────────────────────────────────────",
+        "# 1) Hex / decimal",
+        "# 2) Litery z separatorami",
+        "# Z (audit ZIP) wymaga przynajmniej jednego z A/M (bo musi mieć co archiwizować)."
+      ]
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\gui\\mosaic\\hybrid_ast_mosaic.py",
+      "ok": true,
+      "ast": {
+        "S": 1089,
+        "H": 4002,
+        "Z": 0,
+        "alpha": 0.2139068945197407,
+        "beta": 0.7860931054802592,
+        "maxZ": 15
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.42781378903948153
+      },
+      "meta": [
+        "# glitchlab/gui/mosaic/hybrid_ast_mosaic.py",
+        "# Hybrydowy algorytm AST ⇄ Mozaika (Φ/Ψ), ΔS/ΔH/ΔZ, λ-kompresja,",
+        "# warianty Φ, Ψ-feedback, metryki, inwarianty, sweep λ×Δ, CLI, + from-git.",
+        "# Python 3.9+  (deps: numpy; stdlib: ast, math, json, argparse, itertools, hashlib)",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# 0) PARAMS / PUBLIC API",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# soft-labels dla krawędzi"
+      ]
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\gui\\mosaic\\router.py",
+      "ok": true,
+      "ast": {
+        "S": 181,
+        "H": 757,
+        "Z": 0,
+        "alpha": 0.1929637526652452,
+        "beta": 0.8070362473347548,
+        "maxZ": 13
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.3859275053304905
+      },
+      "meta": [
+        "# glitchlab/mosaic/router.py",
+        "# -----------------------",
+        "# Helpers & data types",
+        "# -----------------------",
+        "@dataclass",
+        "# tuple like (pattern, weight)",
+        "# -----------------------",
+        "# Public API"
+      ]
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\scripts\\ast_mosaic_analyzer.py",
+      "ok": true,
+      "ast": {
+        "S": 108,
+        "H": 395,
+        "Z": 0,
+        "alpha": 0.2147117296222664,
+        "beta": 0.7852882703777336,
+        "maxZ": 12
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.42942345924453273
+      },
+      "meta": [
+        "#!/usr/bin/env python",
+        "# glitchlab/scripts/ast_mosaic_analyzer.py",
+        "# -*- coding: utf-8 -*-",
+        "# Python 3.9+",
+        "# ── Heurystyki AST (S/H/Z + α/β) ──────────────────────────────────────────────",
+        "# \"Δ-reguły\"",
+        "# ── Prosta mozaika (grid 6x6) i Align ────────────────────────────────────────",
+        "# ── Metawarstwa: komentarze i adnotacje ──────────────────────────────────────"
+      ]
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\tests\\test_post_commit_e2e.py",
+      "ok": true,
+      "ast": {
+        "S": 287,
+        "H": 872,
+        "Z": 0,
+        "alpha": 0.24762726488352027,
+        "beta": 0.7523727351164797,
+        "maxZ": 16
+      },
+      "mosaic": {
+        "edge_p": 1.0,
+        "align": 0.49525452976704054
+      },
+      "meta": [
+        "#!/usr/bin/env python",
+        "# -*- coding: utf-8 -*-",
+        "# Python: 3.9  (ten test uruchamia się tylko na 3.9.x)",
+        "# Ścieżka: glitchlab/tests/test_post_commit_e2e.py",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# ŚCIEŻKI BAZOWE",
+        "# ──────────────────────────────────────────────────────────────────────────────",
+        "# ──────────────────────────────────────────────────────────────────────────────"
+      ]
+    }
+  ],
+  "aggregate": {
+    "files": 7,
+    "S": 2708,
+    "H": 9390,
+    "avg_align": 0.4502116518969088
+  },
+  "doc_decision": "REVIEW",
+  "commit": "35f28e634f11ecc81f729cdea689d5a8ade56a7b",
+  "range": "bc13bf1..35f28e6"
+}

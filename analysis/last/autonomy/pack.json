@@ -1,6 +1,6 @@
 {
   "schema": "glx.selfdoc.v1",
-  "generated_at": "2025-10-02T00:31:27Z",
+  "generated_at": "2025-10-02T00:35:27Z",
   "project_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project",
   "package_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab",
   "glx_state": {},
@@ -14045,12 +14045,12 @@
       },
       "attachments": {
         "schema": "glx.selfdoc.v1",
-        "when": "2025-10-02T00:31:27Z",
+        "when": "2025-10-02T00:35:27Z",
         "telemetry": {
           "ok": true,
           "error": "",
-          "scan_ms": 1285.0032,
-          "ast_ms": 1104.7733000000012,
+          "scan_ms": 1296.1275,
+          "ast_ms": 1116.6822999999997,
           "files_scanned": 199,
           "mods": 199,
           "defs": 2036,
@@ -15319,12 +15319,12 @@
       },
       "attachments": {
         "schema": "glx.selfdoc.v1",
-        "when": "2025-10-02T00:31:27Z",
+        "when": "2025-10-02T00:35:27Z",
         "telemetry": {
           "ok": true,
           "error": "",
-          "scan_ms": 1285.0032,
-          "ast_ms": 1104.7733000000012,
+          "scan_ms": 1296.1275,
+          "ast_ms": 1116.6822999999997,
           "files_scanned": 199,
           "mods": 199,
           "defs": 2036,
@@ -15337,8 +15337,8 @@
   "telemetry": {
     "ok": true,
     "error": "",
-    "scan_ms": 1285.0032,
-    "ast_ms": 1104.7733000000012,
+    "scan_ms": 1296.1275,
+    "ast_ms": 1116.6822999999997,
     "files_scanned": 199,
     "mods": 199,
     "defs": 2036,
