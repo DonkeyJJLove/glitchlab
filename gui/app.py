@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-
-
 import os
 import sys
 
@@ -11,6 +9,7 @@ import sys
 if sys.platform.startswith("win"):
     try:
         import ctypes
+
         try:
             ctypes.windll.user32.SetProcessDpiAwarenessContext(-4)  # PER_MONITOR_AWARE_V2
         except Exception:
@@ -26,7 +25,10 @@ from typing import Any, Dict, Optional, List, Tuple
 try:
     from glitchlab.gui.views.bottom_area import init_styles
 except Exception:
-    def init_styles(_root): ...
+    def init_styles(_root):
+        ...
+
+
     pass
 
 # sys.path bootstrap (when run as script)
@@ -83,8 +85,11 @@ try:
 except Exception:  # minimal stub
     class EventBus:
         def __init__(self, *_a, **_k): ...
+
         def publish(self, t, p=None): print("[bus.publish]", t, p)
+
         def subscribe(self, *_a, **_k): ...
+
         def request(self, *_a, **_k): return None
 
 try:
@@ -214,7 +219,8 @@ class App(tk.Frame):
 
         # (3) Right notebook (without Layers tab)
         self.right = ttk.Notebook(self.main)
-        self.tab_general = GeneralTab(self.right, ctx_ref=self.state, cfg=GeneralTabConfig(preview_size=320), bus=self.bus)
+        self.tab_general = GeneralTab(self.right, ctx_ref=self.state, cfg=GeneralTabConfig(preview_size=320),
+                                      bus=self.bus)
         self.tab_filter = TabFilter(self.right, bus=self.bus, ctx_ref=self.state, cfg=FilterTabConfig(allow_apply=True))
         self.tab_preset = PresetsTab(self.right, bus=self.bus)
         self.right.add(self.tab_general, text="General")
@@ -233,6 +239,7 @@ class App(tk.Frame):
                 self.main.sashpos(1, int(dummy_w + (w - dummy_w) * 0.65))
             except Exception:
                 pass
+
         self.after_idle(_init_sash)
 
         # bottom (HUD)
@@ -293,11 +300,11 @@ class App(tk.Frame):
         B.subscribe("preset.parsed", lambda _t, d: self._on_preset_parsed(d))
 
         # >>> LAYERS – wejścia z UI (LayersPanel / narzędzia) <<<
-        B.subscribe("ui.layer.add",        lambda _t, d: self._on_layer_add(d))
-        B.subscribe("ui.layer.remove",     lambda _t, d: self._on_layer_remove(d))
+        B.subscribe("ui.layer.add", lambda _t, d: self._on_layer_add(d))
+        B.subscribe("ui.layer.remove", lambda _t, d: self._on_layer_remove(d))
         B.subscribe("ui.layer.set_active", lambda _t, d: self._on_layer_set_active(d))
-        B.subscribe("ui.layer.update",     lambda _t, d: self._on_layer_update(d))
-        B.subscribe("ui.layers.reorder",   lambda _t, d: self._on_layers_reorder(d))
+        B.subscribe("ui.layer.update", lambda _t, d: self._on_layer_update(d))
+        B.subscribe("ui.layers.reorder", lambda _t, d: self._on_layers_reorder(d))
 
         # >>> LAYERS – zmiana stanu (od LayerManagera) → recomposite + snapshot <<<
         B.subscribe(
@@ -344,7 +351,8 @@ class App(tk.Frame):
                 self._last_layers_sig = None  # reset debounce po „Open”
 
                 # dodaj „Background”
-                self.layer_mgr.add_layer(img, name="Background", visible=True, opacity=1.0, blend="normal")  # type: ignore[arg-type]
+                self.layer_mgr.add_layer(img, name="Background", visible=True, opacity=1.0,
+                                         blend="normal")  # type: ignore[arg-type]
 
                 # Fallback: gdy LM sam nie wyśle sygnału – odśwież ręcznie
                 self._refresh_composite()

@@ -1,17 +1,17 @@
-3 file(s) staged: [Δ] Zakres
-- files: 3 (post-commit, commit_analysis.json, commit_snippet.txt)
+11 file(s) staged: [Δ] Zakres
+- files: 11 (commit_analysis.json, commit_snippet.txt, ast_delta.py, gateway.py, pack.json, pack.md (+5))
 - typ: auto (pre-diff)
 
 [Φ/Ψ] Mozaika (semantyka kodu)
-- Align(mean .py): 0.00
-- Hint: brak wpływu na strukturę sąsiednich kafli
+- Align(mean .py): 0.43
+- Hint: lokalne dopasowanie; sprawdź sekcje dotkniętych modułów
 
 [AST] Deltas (staged .py)
-- S: 0  H: 0
+- S: 651  H: 2293
 - uwagi: wartości przybliżone (heurystyki)
 
 [Dokumentacja]
-- decyzja: NO-OP
+- decyzja: REVIEW
 
 Meta
-- Generated-by: pre-diff/AST-mosaic @ 2025-10-02 00:43:52Z
+- Generated-by: pre-diff/AST-mosaic @ 2025-10-02 00:57:03Z
