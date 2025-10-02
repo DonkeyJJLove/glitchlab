@@ -1,26 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ -n "${MSYSTEM:-}" ]]; then export MSYS2_ARG_CONV_EXCL="*"; fi
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-if command -v py >/dev/null 2>&1; then PY=(py -3); elif command -v python3 >/dev/null 2>&1; then PY=(python3); else PY=(python); fi
+if command -v py >/dev/null 2>&1; then PY=(py -3)
+elif command -v python3 >/dev/null 2>&1; then PY=(python3)
+else PY=(python); fi
 
-# 1) post-diff: wzbogacenie raportu o hash/zakres
-if [[ -f "scripts/post_diff.py" ]]; then
-  "${PY[@]}" scripts/post_diff.py || true
+export PYTHONUTF8=1
+
+# opcjonalne kroki poboczne
+[[ -f scripts/post_diff.py  ]] && "${PY[@]}" scripts/post_diff.py  || true
+[[ -f scripts/send_patch.py ]] && "${PY[@]}" scripts/send_patch.py || true
+[[ -f .glx/current_mail.txt && -f scripts/glx_sync.py ]] && "${PY[@]}" scripts/glx_sync.py || true
+
+# Wczytaj minimalnie .env (tylko potrzebne klucze); nie parsujemy skomplikowanych wartości
+if [[ -f ".env" ]]; then
+  while IFS='=' read -r k v; do
+    [[ -z "$k" || "$k" =~ ^# || "$k" != GLX_* ]] && continue
+    export "$k=${v}"
+  done < <(grep -E '^(GLX_[A-Z0-9_]+)=' .env || true)
 fi
 
-# 2) mail GLX (BODY-FIRST + FILES + PATCH)
-if [[ -f "scripts/send_patch.py" ]]; then
-  "${PY[@]}" scripts/send_patch.py || true
+# Domyślne GLX_RUN jeśli brak (np. tylko Autonomy)
+GLX_RUN_UPPER="${GLX_RUN:-A}"
+GLX_RUN_UPPER="${GLX_RUN_UPPER^^}"
+
+# Autonomy (A) — tylko gdy jest w GLX_RUN
+if [[ "$GLX_RUN_UPPER" == *A* ]]; then
+  OUT="${GLX_AUTONOMY_OUT:-glitchlab/analysis/last/autonomy}"
+  mkdir -p "$OUT"
+  # Interpreter
+  "${PY[@]}" -m glitchlab.analysis.autonomy.gateway \
+    build --out "$OUT" \
+    >/dev/null 2>&1 || true
 fi
 
-# 3) opcjonalny sync (gdy current_mail.txt istnieje)
-if [[ -f ".glx/current_mail.txt" && -f "scripts/glx_sync.py" ]]; then
-  "${PY[@]}" scripts/glx_sync.py || true
-fi
-
-cd "$(git rev-parse --show-toplevel)" || exit 0
-export PYTHONPATH="$PWD"
-python -m glitchlab.analysis.autonomy.gateway build --out glitchlab/analysis/last/autonomy >/dev/null 2>&1 || true
