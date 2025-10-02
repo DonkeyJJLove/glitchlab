@@ -16,11 +16,10 @@ import pytest
 # ŚCIEŻKI BAZOWE
 # ──────────────────────────────────────────────────────────────────────────────
 THIS = Path(__file__).resolve()
-PKG_ROOT = THIS.parents[1]  # .../glitchlab
-PROJECT_ROOT = PKG_ROOT.parent  # .../<repo_root>
+PKG_ROOT = THIS.parents[1]         # .../glitchlab
+PROJECT_ROOT = PKG_ROOT.parent     # .../<repo_root_katalog_projektu>
 
 IS_PY39 = (3, 9) <= sys.version_info[:2] < (3, 10)
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # .ENV — ładujemy wcześnie (dotenv → fallback)
@@ -40,6 +39,7 @@ def _simple_parse_env(path: Path) -> Dict[str, str]:
 
 
 def _load_dotenv_into_env(dotenv_dir: Path) -> None:
+    # próbujemy .env w PROJECT_ROOT oraz katalog wyżej (tak jak w starszych setupach)
     candidates = [dotenv_dir / ".env", dotenv_dir.parent / ".env"]
     dot = next((p for p in candidates if p.is_file()), None)
     if not dot:
@@ -92,7 +92,6 @@ GLX_PHI = os.getenv("GLX_PHI", "balanced")
 GLX_DELTA = os.getenv("GLX_DELTA", "0.25")
 GLX_PYTHONPATH_APPEND = os.getenv("GLX_PYTHONPATH_APPEND", "")
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # GIT UTILS
 # ──────────────────────────────────────────────────────────────────────────────
@@ -109,11 +108,25 @@ def _git_top(cwd: Path) -> Optional[Path]:
     return None
 
 
-GIT_ROOT = _git_top(GLX_ROOT) or _git_top(PROJECT_ROOT) or GLX_ROOT
+def _git_top_any(candidates: List[Path]) -> Optional[Path]:
+    """Zwróć pierwszy katalog, dla którego git-top istnieje."""
+    for c in candidates:
+        top = _git_top(c)
+        if top:
+            return top
+    return None
 
+
+# Kolejność prób: GLX_ROOT, PROJECT_ROOT, GLX_ROOT/GLX_PKG, PKG_ROOT
+GIT_ROOT = _git_top_any([
+    GLX_ROOT,
+    PROJECT_ROOT,
+    (GLX_ROOT / GLX_PKG),
+    PKG_ROOT,
+]) or (GLX_ROOT / GLX_PKG)
 
 def _have_git_worktree() -> bool:
-    return shutil.which("git") is not None and GIT_ROOT is not None
+    return shutil.which("git") is not None and _git_top(GIT_ROOT) is not None
 
 
 def _rev(ref: str) -> str:
@@ -122,7 +135,6 @@ def _rev(ref: str) -> str:
         cwd=str(GIT_ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
     )
     return p.stdout.strip() if p.returncode == 0 and p.stdout.strip() else ref
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ENV/CWD do subprocessów — respektujemy .env
@@ -141,7 +153,7 @@ def _subenv() -> dict:
         path_parts.append(str(pkg_dir))
     path_parts.append(str(GLX_ROOT))
 
-    # 2) Jeżeli GIT_ROOT różni się od GLX_ROOT — dodaj
+    # 2) Jeżeli GIT_ROOT różni się od GLX_ROOT — dodaj (na końcu rdzenia)
     if GIT_ROOT and GIT_ROOT != GLX_ROOT:
         path_parts.append(str(GIT_ROOT))
 
@@ -164,7 +176,6 @@ def _subenv() -> dict:
 def _assert_can_import_glitchlab(cwd: Path, env: dict):
     """
     Sprawdza import 'glitchlab' z PYTHONPATH zbudowanego wg .env.
-    Błąd wcześniej był, bo 'try:' stał po średniku w jednej linii.
     """
     code = (
         "import sys\n"
@@ -195,7 +206,6 @@ def _assert_can_import_glitchlab(cwd: Path, env: dict):
             f"Probe STDOUT={p.stdout!r}\nProbe STDERR={p.stderr!r}"
         )
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # POMOCNICZE
 # ──────────────────────────────────────────────────────────────────────────────
@@ -214,15 +224,16 @@ def _list_files(base: Path) -> List[Path]:
 
 def _try_run_module(mod: str, args: List[str]):
     """
-    Uruchom `python -m <mod> <args>` z CWD=GLX_ROOT, env=_subenv().
-    Zwraca: (rc, stdout, stderr, used_cwd, used_env)
+    Uruchom `python -m <mod> <args>` z **CWD=GIT_ROOT** (ważne dla komend git),
+    env=_subenv(). Zwraca: (rc, stdout, stderr, used_cwd, used_env)
     """
     env = _subenv()
+    # Import testujemy względem GLX_ROOT (gdzie leży kod pakietu),
+    # ale sam proces modułu uruchamiamy z CWD=GIT_ROOT (żeby git widział repo).
     _assert_can_import_glitchlab(GLX_ROOT, env)
     cmd = [sys.executable, "-m", mod] + args
-    p = subprocess.run(cmd, cwd=str(GLX_ROOT), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    return p.returncode, p.stdout or "", p.stderr or "", GLX_ROOT, env
-
+    p = subprocess.run(cmd, cwd=str(GIT_ROOT), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    return p.returncode, p.stdout or "", p.stderr or "", GIT_ROOT, env
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TEST 1: Autonomy Gateway build (z .env → GLX_AUTONOMY_OUT)
@@ -234,6 +245,7 @@ def test_autonomy_gateway_build():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     env = _subenv()
+    # Tu import może być z GLX_ROOT, nie wymaga repo git
     _assert_can_import_glitchlab(GLX_ROOT, env)
 
     cmd = [
@@ -241,6 +253,7 @@ def test_autonomy_gateway_build():
         f"{GLX_PKG}.analysis.autonomy.gateway",
         "build", "--out", str(out_dir),
     ]
+    # Gateway nie potrzebuje git — CWD=GLX_ROOT jest OK
     r = subprocess.run(cmd, cwd=str(GLX_ROOT), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     assert r.returncode == 0, (
         "gateway build failed\n"
@@ -250,7 +263,6 @@ def test_autonomy_gateway_build():
     assert _existing(out_dir / "pack.json"), "pack.json not created"
     assert _existing(out_dir / "prompt.json"), "prompt.json not created"
     assert _existing(out_dir / "pack.md"), "pack.md not created"
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # TEST 2: Mosaic from-git-dump (obsługa 2 ścieżek modułu, ścieżki z .env)
@@ -281,7 +293,7 @@ def test_hybrid_mosaic_from_git_dump_and_optional_html():
         f"{GLX_PKG}.mosaic.hybrid_ast_mosaic",
     ]
 
-    last = (1, "", "", GLX_ROOT, os.environ.copy())
+    last = (1, "", "", GIT_ROOT, os.environ.copy())
     stdout_json = None
 
     for mod in module_candidates:
@@ -343,9 +355,8 @@ def test_hybrid_mosaic_from_git_dump_and_optional_html():
                 "No mosaic artifacts found under analysis/last.\n"
                 f"CWD={used_cwd}\nPYTHONPATH={used_env.get('PYTHONPATH', '')}\n"
                 "STDOUT:\n" + (so or "(empty)") + "\n"
-                                                  "STDERR:\n" + (se or "(empty)") + "\n"
-                                                                                    "Files under analysis/last:\n" + "\n".join(
-                    f" - {c}" for c in sorted(created))
+                "STDERR:\n" + (se or "(empty)") + "\n"
+                "Files under analysis/last:\n" + "\n".join(f" - {c}" for c in sorted(created))
             )
 
     # (opcjonalnie) generator HTML

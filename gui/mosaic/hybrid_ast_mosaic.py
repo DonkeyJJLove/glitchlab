@@ -13,9 +13,10 @@ import hashlib
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Tuple, Optional, Callable, Iterable
 import numpy as np
-import os
+import subprocess
 from pathlib import Path
-import sys
+from typing import List, Dict, Any
+from glitchlab.gui.mosaic.git_delta import collect_changed_files
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 0) PARAMS / PUBLIC API
@@ -330,6 +331,15 @@ def _soft_label(edge_val: float, thr: float, tau: float) -> float:
     return _sigmoid((edge_val - thr) / max(1e-6, tau))
 
 
+def _only_py(files: List[str]) -> List[str]:
+    return [f for f in files if f.lower().endswith(".py")]
+
+
+def _abs(repo_root: Path, rel: str) -> Path:
+    p = (repo_root / rel).resolve()
+    return p
+
+
 def tile_dist(i: int, j: int, M: Mosaic, thr: float,
               alpha=1.0, beta=0.7, gamma=0.5,
               use_soft_labels: bool = SOFT_LABELS_DEFAULT,
@@ -632,7 +642,6 @@ def _adjacency_indices(M: "Mosaic") -> List[List[int]]:
     return adj
 
 
-
 def _connected_components(mask: np.ndarray, M: "Mosaic") -> int:
     """
     Liczba spójnych komponentów dla kafli, gdzie mask[i]==True.
@@ -718,7 +727,6 @@ def couple_alpha_beta(ast: AstSummary, M: Mosaic, thr: float,
     alpha_new = (1 - w) * ast.alpha + w * aM
     beta_new = 1.0 - alpha_new
     return AstSummary(ast.S, ast.H, ast.Z, ast.maxZ, alpha_new, beta_new, ast.nodes, ast.labels)
-
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1146,65 +1154,150 @@ def _emit_fallback_artifacts(res: Dict, outdir: Path) -> Dict[str, str]:
     }
 
 
-def cmd_from_git_dump(args):
-    res = run_from_git(
-        base=args.base,
-        head=args.head,
-        rows=args.rows,
-        cols=args.cols,
-        thr=args.edge_thr,
-        mosaic_kind=args.mosaic,
-        delta=args.delta,
-        kappa_ab=args.kappa_ab,
-        paths=args.paths or None,
-        phi_name=args.phi,
-        policy_file=args.policy_file,
-    )
+def cmd_from_git_dump(args) -> Dict[str, Any]:
+    repo_root = _git_top(Path.cwd()) or Path.cwd()
+    if not isinstance(repo_root, Path):
+        repo_root = Path(str(repo_root))
+    if collect_changed_files is None:
+        raise RuntimeError("collect_changed_files nie jest dostępne (git_delta import fail)")
 
-    outdir = Path(args.out)
-    outdir.mkdir(parents=True, exist_ok=True)
+    base = str(getattr(args, "base", "") or "HEAD~1")
+    head = str(getattr(args, "head", "") or "HEAD")
+    rows = int(args.rows);
+    cols = int(args.cols)
+    thr = float(args.edge_thr)
+    mosaic_kind = str(args.mosaic)
+    delta = float(args.delta)
+    kappa = float(args.kappa_ab)
+    phi_name = str(args.phi)
+    policy_file = getattr(args, "policy_file", None)
 
-    artifacts: Dict[str, str] = {}
-    errors: list[str] = []
+    # 1) delta plików
+    changed = collect_changed_files(repo_root, base, head)
+    changed_py = _only_py(changed)
 
-    # 1) Spróbuj „pełnego” reportingu (jeśli dostępny)
-    try:
-        if _emit_artifacts is not None:
+    # 2) mozaika + selektor
+    M = build_mosaic(rows, cols, seed=7, kind=mosaic_kind, edge_thr=thr)
+    sel_label, selector, policy = _selector_from_args(phi_name, policy_file)
+
+    files_out: List[Dict[str, Any]] = []
+    totals = dict(dS=0, dH=0, dZ=0, align_gain=0.0)
+
+    for rel_path in changed_py:
+        # 2a) treść pliku w base/head
+        base_src = _git_show_file(repo_root, base, rel_path)
+        head_src = _git_show_file(repo_root, head, rel_path)
+
+        # 2b) AstSummary deterministycznie (z preferencją na ast_index)
+        a_base = _ast_summary_for_source_det(base_src, rel_path)
+        a_head = _ast_summary_for_source_det(head_src, rel_path)
+
+        # 2c) Δ (użyj analysis.ast_delta jeśli dostępne)
+        if idx_ast_delta is not None:
             try:
-                artifacts = _emit_artifacts(res, outdir=outdir) or {}
-            except Exception as e:
-                errors.append(f"emit_artifacts failed: {e.__class__.__name__}: {e}")
-                artifacts = {}
-    except Exception as e:
-        errors.append(f"emit_artifacts unexpected error: {e.__class__.__name__}: {e}")
-
-    # 2) Fallback – minimalny zestaw bez zależności
-    if not artifacts:
-        try:
-            artifacts = _emit_fallback_artifacts(res, outdir)
-        except Exception as e:
-            errors.append(f"fallback_artifacts failed: {e.__class__.__name__}: {e}")
-            artifacts = {}
-
-    # 3) Walidacja i decyzja o rc
-    want = {
-        "report": outdir / "report.json",
-        "mosaic_map": outdir / "mosaic_map.json",
-        "summary": outdir / "summary.md",
-    }
-    missing_keys = [k for k, p in want.items() if not p.exists()]
-    if missing_keys:
-        for msg in errors:
-            print(f"[GLX][mosaic][err] {msg}", file=sys.stderr)
-
-        msg = f"missing artifacts: {', '.join(missing_keys)} in {outdir}"
-        if getattr(args, "strict_artifacts", False):
-            print(f"[GLX][mosaic] {msg}", file=sys.stderr)
-            raise SystemExit(1)
+                d = idx_ast_delta(a_base, a_head)
+                if isinstance(d, dict):
+                    dS = int(d.get("dS", 0));
+                    dH = int(d.get("dH", 0));
+                    dZ = int(d.get("dZ", 0))
+                elif isinstance(d, (tuple, list)) and len(d) >= 3:
+                    dS, dH, dZ = map(int, d[:3])
+                else:
+                    dS = int(getattr(d, "dS", 0));
+                    dH = int(getattr(d, "dH", 0));
+                    dZ = int(getattr(d, "dZ", 0))
+            except Exception:
+                dS = a_head.S - a_base.S;
+                dH = a_head.H - a_base.H;
+                dZ = a_head.Z - a_base.Z
         else:
-            print(f"[GLX][mosaic] {msg} (non-strict mode, continuing)", file=sys.stderr)
-    else:
-        print(json.dumps({"ok": True, "artifacts": {k: str(v) for k, v in want.items()}}, ensure_ascii=False))
+            dS = a_head.S - a_base.S;
+            dH = a_head.H - a_base.H;
+            dZ = a_head.Z - a_base.Z
+
+        # 2d) Φ – koszty
+        J1, _ = phi_cost(a_head, M, thr, selector=phi_region_for)
+        J2, _ = phi_cost(a_head, M, thr, selector=phi_region_for_balanced)
+        J3, _ = phi_cost(a_head, M, thr, selector=phi_region_for_entropy)
+        Jp = None
+        if sel_label == "policy":
+            Jp, _ = phi_cost(a_head, M, thr, selector=selector)
+
+        # 2e) Align
+        Align_before = 1.0 - min(1.0, distance_ast_mosaic(a_head, M, thr))
+        a_after = psi_feedback(a_head, M, delta, thr)
+        a_cpl = couple_alpha_beta(a_after, M, thr, delta=delta, kappa_ab=kappa)
+        Align_after = 1.0 - min(1.0, distance_ast_mosaic(a_cpl, M, thr))
+
+        entry = {
+            "path": rel_path,
+            "delta": {"dS": dS, "dH": dH, "dZ": dZ},
+            "phi": {"J1": J1, "J2": J2, "J3": J3},
+            "align": {"before": round(Align_before, 6), "after": round(Align_after, 6)},
+            "mosaic": {"kind": mosaic_kind, "thr": thr, "grid": {"rows": rows, "cols": cols}},
+        }
+        if Jp is not None:
+            entry["phi"]["J_policy"] = Jp
+            entry["phi"]["policy_used"] = True
+
+        files_out.append(entry)
+        totals["dS"] += dS;
+        totals["dH"] += dH;
+        totals["dZ"] += dZ
+        totals["align_gain"] += (Align_after - Align_before)
+
+    # 3) raport (JSON-safe, UTF-8)
+    out: Dict[str, Any] = {
+        "base": base, "head": head, "branch": None,
+        "repo_root": str(repo_root),
+        "mosaic": {"kind": mosaic_kind, "grid": {"rows": rows, "cols": cols}, "thr": thr},
+        "delta": {"files": len(files_out)},
+        "phi_selector": sel_label,
+        "policy_file": policy_file if policy_file else None,
+        "files": files_out,
+        "totals": totals,
+    }
+    if not changed_py:
+        out["note"] = "git-delta-empty: próbowano diff/diff-tree/show; żadnych .py do analizy."
+
+    # 4) artefakty
+    out_dir = Path(getattr(args, "out", "analysis/last"))
+    if not out_dir.is_absolute():
+        out_dir = (Path.cwd() / out_dir).resolve()
+    artifacts = _emit_fallback_artifacts(out, out_dir)
+
+    # 5) strict
+    if getattr(args, "strict_artifacts", False):
+        missing = [k for k, v in artifacts.items() if not Path(v).exists()]
+        if missing:
+            raise SystemExit(1)
+
+    # 6) stdout (na wszelki wypadek — test też lubi z JSONem)
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+    return out
+
+
+def _git_run(repo_root: Path, args: List[str]) -> Tuple[int, str, str]:
+    p = subprocess.run(["git", *args], cwd=str(repo_root),
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    return p.returncode, p.stdout or "", p.stderr or ""
+
+
+def _git_show_file(repo_root: Path, rev: str, rel_path: str) -> str:
+    rc, out, _ = _git_run(repo_root, ["show", f"{rev}:{rel_path}"])
+    if rc == 0:
+        return out
+    return ""  # brak pliku w danym revie → traktuj jako pusty
+
+
+def _git_top(start: Path) -> Optional[Path]:
+    try:
+        rc, out, _ = _git_run(start, ["rev-parse", "--show-toplevel"])
+        if rc == 0 and out.strip():
+            return Path(out.strip()).resolve()
+    except Exception:
+        pass
+    return None
 
 
 def cmd_from_git(args):

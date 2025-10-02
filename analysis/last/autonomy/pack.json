@@ -1,6 +1,7 @@
 {
-  "schema": "glx.selfdoc.v1",
-  "generated_at": "2025-10-02T00:35:27Z",
+  "schema": "glx.selfdoc",
+  "schema_ver": "v1.1",
+  "generated_at": "2025-10-02T20:13:20Z",
   "project_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project",
   "package_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab",
   "glx_state": {},
@@ -10,609 +11,449 @@
   },
   "code": {
     "totals": {
-      "loc": 41416,
-      "modules": 199,
-      "defs": 2036,
+      "loc": 41735,
+      "modules": 200,
+      "defs": 2050,
       "classes": 223
     },
     "top_modules_by_loc": [
       {
         "path": "glitchlab/gui/mosaic/hybrid_ast_mosaic.py",
-        "loc": 1288,
+        "loc": 1382,
         "defs": [
           {
             "name": "_rng_for_meta",
-            "lineno": 149
+            "lineno": 150
           },
           {
             "name": "_meta_for",
-            "lineno": 157
+            "lineno": 158
           },
           {
             "name": "ast_deltas",
-            "lineno": 177
+            "lineno": 178
           },
           {
             "name": "add",
-            "lineno": 185
+            "lineno": 186
           },
           {
             "name": "compress_ast",
-            "lineno": 235
+            "lineno": 236
           },
           {
             "name": "build_mosaic_grid",
-            "lineno": 266
+            "lineno": 267
           },
           {
             "name": "build_mosaic_hex",
-            "lineno": 281
+            "lineno": 282
           },
           {
             "name": "build_mosaic",
-            "lineno": 297
+            "lineno": 298
           },
           {
             "name": "region_ids",
-            "lineno": 303
+            "lineno": 304
           },
           {
             "name": "_xy_of_idx",
-            "lineno": 311
+            "lineno": 312
           },
           {
             "name": "_sigmoid",
-            "lineno": 318
+            "lineno": 319
           },
           {
             "name": "_soft_label",
-            "lineno": 328
+            "lineno": 329
+          },
+          {
+            "name": "_only_py",
+            "lineno": 334
+          },
+          {
+            "name": "_abs",
+            "lineno": 338
           },
           {
             "name": "tile_dist",
-            "lineno": 333
+            "lineno": 343
           },
           {
             "name": "_dm_greedy_oneway",
-            "lineno": 350
+            "lineno": 360
           },
           {
             "name": "_length_penalty",
-            "lineno": 364
+            "lineno": 374
           },
           {
             "name": "_pair_cost",
-            "lineno": 378
+            "lineno": 388
           },
           {
             "name": "D_M",
-            "lineno": 403
+            "lineno": 413
           },
           {
             "name": "phi_region_for",
-            "lineno": 425
+            "lineno": 435
           },
           {
             "name": "phi_region_for_balanced",
-            "lineno": 433
+            "lineno": 443
           },
           {
             "name": "phi_region_for_entropy",
-            "lineno": 466
+            "lineno": 476
           },
           {
             "name": "near_thr",
-            "lineno": 467
+            "lineno": 477
           },
           {
             "name": "load_policy_json",
-            "lineno": 478
+            "lineno": 488
           },
           {
             "name": "make_selector_policy_aware",
-            "lineno": 508
+            "lineno": 518
           },
           {
             "name": "_sel",
-            "lineno": 524
+            "lineno": 534
           },
           {
             "name": "centroid",
-            "lineno": 543
+            "lineno": 553
           },
           {
             "name": "phi_cost",
-            "lineno": 551
+            "lineno": 561
           },
           {
             "name": "psi_feedback",
-            "lineno": 572
+            "lineno": 582
           },
           {
             "name": "_neighbors_grid",
-            "lineno": 599
-          },
-          {
-            "name": "_neighbors_hex_oddr",
             "lineno": 609
           },
           {
+            "name": "_neighbors_hex_oddr",
+            "lineno": 619
+          },
+          {
             "name": "_adjacency_indices",
-            "lineno": 622
+            "lineno": 632
           },
           {
             "name": "_connected_components",
-            "lineno": 636
+            "lineno": 645
           },
           {
             "name": "mosaic_profile",
-            "lineno": 670
+            "lineno": 679
           },
           {
             "name": "couple_alpha_beta",
-            "lineno": 706
+            "lineno": 715
           },
           {
             "name": "distance_ast_mosaic",
-            "lineno": 728
+            "lineno": 736
           },
           {
             "name": "invariants_check",
-            "lineno": 735
+            "lineno": 743
           },
           {
             "name": "_selector_from_args",
-            "lineno": 758
+            "lineno": 766
           },
           {
             "name": "run_once",
-            "lineno": 771
+            "lineno": 779
           },
           {
             "name": "sweep",
-            "lineno": 805
+            "lineno": 813
           },
           {
             "name": "sign_test_phi2_better",
-            "lineno": 821
+            "lineno": 829
           },
           {
             "name": "_ast_summary_for_source_det",
-            "lineno": 854
+            "lineno": 862
           },
           {
             "name": "_file_selector_filter",
-            "lineno": 880
+            "lineno": 888
           },
           {
             "name": "run_from_git",
-            "lineno": 890
+            "lineno": 898
           },
           {
             "name": "_pretty_table",
-            "lineno": 1023
+            "lineno": 1031
           },
           {
             "name": "rowfmt",
-            "lineno": 1027
+            "lineno": 1035
           },
           {
             "name": "line",
-            "lineno": 1038
+            "lineno": 1046
           },
           {
             "name": "cmd_run",
-            "lineno": 1047
+            "lineno": 1055
           },
           {
             "name": "cmd_sweep",
-            "lineno": 1067
+            "lineno": 1075
           },
           {
             "name": "cmd_test",
-            "lineno": 1079
+            "lineno": 1087
           },
           {
             "name": "_normpath_under_project",
-            "lineno": 1092
+            "lineno": 1100
           },
           {
             "name": "_emit_fallback_artifacts",
-            "lineno": 1097
+            "lineno": 1105
           },
           {
             "name": "cmd_from_git_dump",
-            "lineno": 1149
+            "lineno": 1157
+          },
+          {
+            "name": "_git_run",
+            "lineno": 1281
+          },
+          {
+            "name": "_git_show_file",
+            "lineno": 1287
+          },
+          {
+            "name": "_git_top",
+            "lineno": 1294
           },
           {
             "name": "cmd_from_git",
-            "lineno": 1210
+            "lineno": 1304
           },
           {
             "name": "build_cli",
-            "lineno": 1227
+            "lineno": 1321
           },
           {
             "name": "main",
-            "lineno": 1281
+            "lineno": 1375
           }
         ],
         "classes": [
           {
             "name": "AstNode",
-            "lineno": 126
+            "lineno": 127
           },
           {
             "name": "AstSummary",
-            "lineno": 137
+            "lineno": 138
           },
           {
             "name": "Mosaic",
-            "lineno": 255
+            "lineno": 256
           }
         ]
       },
       {
         "path": "glitchlab/gui/app.py",
-        "loc": 913,
+        "loc": 921,
         "defs": [
           {
             "name": "init_styles",
-            "lineno": 29
+            "lineno": 28
           },
           {
             "name": "__init__",
-            "lineno": 85
-          },
-          {
-            "name": "publish",
-            "lineno": 86
-          },
-          {
-            "name": "subscribe",
             "lineno": 87
           },
           {
+            "name": "publish",
+            "lineno": 89
+          },
+          {
+            "name": "subscribe",
+            "lineno": 91
+          },
+          {
             "name": "request",
-            "lineno": 88
+            "lineno": 93
           },
           {
             "name": "__init__",
-            "lineno": 112
+            "lineno": 117
           },
           {
             "name": "__init__",
-            "lineno": 127
+            "lineno": 132
           },
           {
             "name": "_build_ui",
-            "lineno": 163
+            "lineno": 168
           },
           {
             "name": "_init_sash",
-            "lineno": 226
+            "lineno": 232
           },
           {
             "name": "_wire_bus",
-            "lineno": 251
+            "lineno": 258
           },
           {
             "name": "_on_preset_parsed",
-            "lineno": 318
+            "lineno": 325
           },
           {
             "name": "_load_image_path",
-            "lineno": 327
+            "lineno": 334
           },
           {
             "name": "_save_image_path",
-            "lineno": 374
+            "lineno": 382
           },
           {
             "name": "_pil_to_u8",
-            "lineno": 393
+            "lineno": 401
           },
           {
             "name": "_array_to_pil",
-            "lineno": 406
+            "lineno": 414
           },
           {
             "name": "run_step",
-            "lineno": 420
+            "lineno": 428
           },
           {
             "name": "run_preset",
-            "lineno": 457
+            "lineno": 465
           },
           {
             "name": "_on_progress",
-            "lineno": 507
+            "lineno": 515
           },
           {
             "name": "_on_run_done",
-            "lineno": 519
+            "lineno": 527
           },
           {
             "name": "_on_run_error",
-            "lineno": 556
+            "lineno": 564
           },
           {
             "name": "_update_bottom_from_cache",
-            "lineno": 570
-          },
-          {
-            "name": "_update_edit_menu_state",
             "lineno": 578
           },
           {
-            "name": "_on_undo",
+            "name": "_update_edit_menu_state",
             "lineno": 586
           },
           {
+            "name": "_on_undo",
+            "lineno": 594
+          },
+          {
             "name": "_on_redo",
-            "lineno": 615
+            "lineno": 623
           },
           {
             "name": "_toggle_left",
-            "lineno": 645
+            "lineno": 653
           },
           {
             "name": "_toggle_right",
-            "lineno": 665
+            "lineno": 673
           },
           {
             "name": "_toggle_hud",
-            "lineno": 681
+            "lineno": 689
           },
           {
             "name": "_toggle_fullscreen",
-            "lineno": 697
+            "lineno": 705
           },
           {
             "name": "_get_active_layer_pil",
-            "lineno": 711
+            "lineno": 719
           },
           {
             "name": "_get_composite_np",
-            "lineno": 733
+            "lineno": 741
           },
           {
             "name": "_refresh_composite",
-            "lineno": 748
+            "lineno": 756
           },
           {
             "name": "_layers_snapshot",
-            "lineno": 761
+            "lineno": 769
           },
           {
             "name": "_calc_layers_sig",
-            "lineno": 776
+            "lineno": 784
           },
           {
             "name": "_publish_layers_snapshot",
-            "lineno": 785
+            "lineno": 793
           },
           {
             "name": "_on_layers_changed",
-            "lineno": 798
+            "lineno": 806
           },
           {
             "name": "_on_layer_add",
-            "lineno": 804
+            "lineno": 812
           },
           {
             "name": "_on_layer_remove",
-            "lineno": 837
+            "lineno": 845
           },
           {
             "name": "_on_layer_set_active",
-            "lineno": 848
+            "lineno": 856
           },
           {
             "name": "_on_layer_update",
-            "lineno": 857
+            "lineno": 865
           },
           {
             "name": "_on_layers_reorder",
-            "lineno": 874
+            "lineno": 882
           },
           {
             "name": "main",
-            "lineno": 894
+            "lineno": 902
           }
         ],
         "classes": [
           {
             "name": "EventBus",
-            "lineno": 84
+            "lineno": 86
           },
           {
             "name": "AppState",
-            "lineno": 111
+            "lineno": 116
           },
           {
             "name": "App",
-            "lineno": 126
-          }
-        ]
-      },
-      {
-        "path": "glitchlab/gui/mosaic/tests/ast_mosaic_coupled.py",
-        "loc": 732,
-        "defs": [
-          {
-            "name": "energy",
-            "lineno": 53
-          },
-          {
-            "name": "entropy",
-            "lineno": 57
-          },
-          {
-            "name": "_node_label",
-            "lineno": 75
-          },
-          {
-            "name": "_attach_parents_and_depths",
-            "lineno": 91
-          },
-          {
-            "name": "walk",
-            "lineno": 92
-          },
-          {
-            "name": "_group_of",
-            "lineno": 111
-          },
-          {
-            "name": "_coords_for_tree",
-            "lineno": 119
-          },
-          {
-            "name": "walk",
-            "lineno": 122
-          },
-          {
-            "name": "_meta_for_node",
-            "lineno": 148
-          },
-          {
-            "name": "ast_nodes_from_code",
-            "lineno": 164
-          },
-          {
-            "name": "group_centroids",
-            "lineno": 193
-          },
-          {
-            "name": "coords_for_lambda",
-            "lineno": 204
-          },
-          {
-            "name": "build_base_mosaic",
-            "lineno": 219
-          },
-          {
-            "name": "_norm01",
-            "lineno": 231
-          },
-          {
-            "name": "_sobel_mag",
-            "lineno": 238
-          },
-          {
-            "name": "mosaic_from_ast",
-            "lineno": 255
-          },
-          {
-            "name": "_pos_lam",
-            "lineno": 269
-          },
-          {
-            "name": "region_indices",
-            "lineno": 296
-          },
-          {
-            "name": "region_centroid",
-            "lineno": 302
-          },
-          {
-            "name": "region_feats",
-            "lineno": 310
-          },
-          {
-            "name": "fuse_meta",
-            "lineno": 322
-          },
-          {
-            "name": "draw_ast",
-            "lineno": 331
-          },
-          {
-            "name": "draw_mosaic",
-            "lineno": 345
-          },
-          {
-            "name": "draw_region_frame",
-            "lineno": 360
-          },
-          {
-            "name": "draw_fusion",
-            "lineno": 371
-          },
-          {
-            "name": "draw_infographic",
-            "lineno": 406
-          },
-          {
-            "name": "__init__",
-            "lineno": 445
-          },
-          {
-            "name": "_font_step",
-            "lineno": 540
-          },
-          {
-            "name": "reset_views",
-            "lineno": 547
-          },
-          {
-            "name": "render",
-            "lineno": 553
-          },
-          {
-            "name": "on_lambda_changed",
-            "lineno": 581
-          },
-          {
-            "name": "on_node_changed",
-            "lineno": 585
-          },
-          {
-            "name": "recompute_mosaic_from_ast",
-            "lineno": 590
-          },
-          {
-            "name": "apply_feedback_and_recompute",
-            "lineno": 609
-          },
-          {
-            "name": "feats_at",
-            "lineno": 618
-          },
-          {
-            "name": "on_region_changed",
-            "lineno": 641
-          },
-          {
-            "name": "on_pick_ast",
-            "lineno": 646
-          },
-          {
-            "name": "on_click_any",
-            "lineno": 656
-          },
-          {
-            "name": "repaint",
-            "lineno": 679
-          },
-          {
-            "name": "main",
-            "lineno": 725
-          }
-        ],
-        "classes": [
-          {
-            "name": "AstNodeMeta",
-            "lineno": 44
-          },
-          {
-            "name": "Mosaic",
-            "lineno": 62
-          },
-          {
-            "name": "App",
-            "lineno": 444
+            "lineno": 131
           }
         ]
       },
@@ -797,8 +638,188 @@
         ]
       },
       {
+        "path": "glitchlab/gui/mosaic/tests/ast_mosaic_coupled.py",
+        "loc": 732,
+        "defs": [
+          {
+            "name": "energy",
+            "lineno": 53
+          },
+          {
+            "name": "entropy",
+            "lineno": 57
+          },
+          {
+            "name": "_node_label",
+            "lineno": 75
+          },
+          {
+            "name": "_attach_parents_and_depths",
+            "lineno": 91
+          },
+          {
+            "name": "walk",
+            "lineno": 92
+          },
+          {
+            "name": "_group_of",
+            "lineno": 111
+          },
+          {
+            "name": "_coords_for_tree",
+            "lineno": 119
+          },
+          {
+            "name": "walk",
+            "lineno": 122
+          },
+          {
+            "name": "_meta_for_node",
+            "lineno": 148
+          },
+          {
+            "name": "ast_nodes_from_code",
+            "lineno": 164
+          },
+          {
+            "name": "group_centroids",
+            "lineno": 193
+          },
+          {
+            "name": "coords_for_lambda",
+            "lineno": 204
+          },
+          {
+            "name": "build_base_mosaic",
+            "lineno": 219
+          },
+          {
+            "name": "_norm01",
+            "lineno": 231
+          },
+          {
+            "name": "_sobel_mag",
+            "lineno": 238
+          },
+          {
+            "name": "mosaic_from_ast",
+            "lineno": 255
+          },
+          {
+            "name": "_pos_lam",
+            "lineno": 269
+          },
+          {
+            "name": "region_indices",
+            "lineno": 296
+          },
+          {
+            "name": "region_centroid",
+            "lineno": 302
+          },
+          {
+            "name": "region_feats",
+            "lineno": 310
+          },
+          {
+            "name": "fuse_meta",
+            "lineno": 322
+          },
+          {
+            "name": "draw_ast",
+            "lineno": 331
+          },
+          {
+            "name": "draw_mosaic",
+            "lineno": 345
+          },
+          {
+            "name": "draw_region_frame",
+            "lineno": 360
+          },
+          {
+            "name": "draw_fusion",
+            "lineno": 371
+          },
+          {
+            "name": "draw_infographic",
+            "lineno": 406
+          },
+          {
+            "name": "__init__",
+            "lineno": 445
+          },
+          {
+            "name": "_font_step",
+            "lineno": 540
+          },
+          {
+            "name": "reset_views",
+            "lineno": 547
+          },
+          {
+            "name": "render",
+            "lineno": 553
+          },
+          {
+            "name": "on_lambda_changed",
+            "lineno": 581
+          },
+          {
+            "name": "on_node_changed",
+            "lineno": 585
+          },
+          {
+            "name": "recompute_mosaic_from_ast",
+            "lineno": 590
+          },
+          {
+            "name": "apply_feedback_and_recompute",
+            "lineno": 609
+          },
+          {
+            "name": "feats_at",
+            "lineno": 618
+          },
+          {
+            "name": "on_region_changed",
+            "lineno": 641
+          },
+          {
+            "name": "on_pick_ast",
+            "lineno": 646
+          },
+          {
+            "name": "on_click_any",
+            "lineno": 656
+          },
+          {
+            "name": "repaint",
+            "lineno": 679
+          },
+          {
+            "name": "main",
+            "lineno": 725
+          }
+        ],
+        "classes": [
+          {
+            "name": "AstNodeMeta",
+            "lineno": 44
+          },
+          {
+            "name": "Mosaic",
+            "lineno": 62
+          },
+          {
+            "name": "App",
+            "lineno": 444
+          }
+        ]
+      },
+      {
         "path": "glitchlab/.githooks/post-commit.py",
-        "loc": 653,
+        "loc": 640,
         "defs": [
           {
             "name": "_is_git_repo",
@@ -825,122 +846,226 @@
             "lineno": 114
           },
           {
-            "name": "_parse_env_file",
+            "name": "_load_env",
             "lineno": 127
           },
           {
-            "name": "_load_env",
-            "lineno": 140
-          },
-          {
             "name": "_expand_vars_and_user",
-            "lineno": 160
+            "lineno": 147
           },
           {
             "name": "_resolve_path",
-            "lineno": 165
+            "lineno": 152
           },
           {
             "name": "_norm_paths_in_env",
-            "lineno": 179
+            "lineno": 166
           },
           {
             "name": "_log",
-            "lineno": 203
+            "lineno": 190
           },
           {
             "name": "_fail",
-            "lineno": 207
+            "lineno": 194
           },
           {
             "name": "_git",
-            "lineno": 213
+            "lineno": 200
           },
           {
             "name": "_git_top",
-            "lineno": 217
+            "lineno": 204
           },
           {
             "name": "_rev_parse",
-            "lineno": 229
+            "lineno": 216
           },
           {
             "name": "_rev_ok",
-            "lineno": 234
+            "lineno": 221
           },
           {
             "name": "_empty_tree_oid",
-            "lineno": 243
+            "lineno": 230
           },
           {
             "name": "_detect_base",
-            "lineno": 259
+            "lineno": 246
           },
           {
             "name": "_dirs_chain_up",
-            "lineno": 297
+            "lineno": 284
           },
           {
             "name": "_req",
-            "lineno": 326
+            "lineno": 313
           },
           {
             "name": "_as_int",
-            "lineno": 332
+            "lineno": 319
           },
           {
             "name": "_as_float01",
-            "lineno": 339
+            "lineno": 326
           },
           {
             "name": "_redact_env",
-            "lineno": 350
+            "lineno": 337
           },
           {
             "name": "_module_exists",
-            "lineno": 361
+            "lineno": 348
           },
           {
             "name": "_module_cmd_from_candidates",
-            "lineno": 368
+            "lineno": 355
           },
           {
             "name": "_child_env",
-            "lineno": 392
+            "lineno": 379
           },
           {
             "name": "_run_gateway",
-            "lineno": 399
+            "lineno": 386
           },
           {
             "name": "_run_mosaic",
-            "lineno": 437
+            "lineno": 424
           },
           {
             "name": "_send_mail",
-            "lineno": 489
+            "lineno": 476
           },
           {
             "name": "_should_zip",
-            "lineno": 529
+            "lineno": 516
           },
           {
             "name": "_writestr_deterministic",
-            "lineno": 536
+            "lineno": 523
           },
           {
             "name": "_make_zip",
-            "lineno": 543
+            "lineno": 530
           },
           {
             "name": "main",
-            "lineno": 592
+            "lineno": 579
           }
         ],
         "classes": []
       },
       {
-        "path": "glitchlab/gui/mosaic/tests/metarelation_scaling_test.py",
+        "path": "glitchlab/analysis/autonomy/gateway.py",
+        "loc": 637,
+        "defs": [
+          {
+            "name": "_strip_inline_comment",
+            "lineno": 46
+          },
+          {
+            "name": "_clean_value",
+            "lineno": 61
+          },
+          {
+            "name": "_simple_parse_env",
+            "lineno": 68
+          },
+          {
+            "name": "_dirs_chain_up",
+            "lineno": 82
+          },
+          {
+            "name": "_load_dotenv_chain_into_environ",
+            "lineno": 102
+          },
+          {
+            "name": "_norm_from",
+            "lineno": 134
+          },
+          {
+            "name": "_best_guess_package_root",
+            "lineno": 141
+          },
+          {
+            "name": "_int_env",
+            "lineno": 165
+          },
+          {
+            "name": "_utc_iso",
+            "lineno": 227
+          },
+          {
+            "name": "_safe_read_json",
+            "lineno": 231
+          },
+          {
+            "name": "_read_text",
+            "lineno": 240
+          },
+          {
+            "name": "_rel_to_project",
+            "lineno": 247
+          },
+          {
+            "name": "_is_binary_like",
+            "lineno": 254
+          },
+          {
+            "name": "_redact_env_snapshot",
+            "lineno": 264
+          },
+          {
+            "name": "scan_repository",
+            "lineno": 280
+          },
+          {
+            "name": "_excluded",
+            "lineno": 295
+          },
+          {
+            "name": "_run_git",
+            "lineno": 382
+          },
+          {
+            "name": "git_snapshot",
+            "lineno": 393
+          },
+          {
+            "name": "make_prompt_pack",
+            "lineno": 437
+          },
+          {
+            "name": "build_selfdoc",
+            "lineno": 474
+          },
+          {
+            "name": "write_outputs",
+            "lineno": 522
+          },
+          {
+            "name": "_parse_argv",
+            "lineno": 562
+          },
+          {
+            "name": "main",
+            "lineno": 589
+          }
+        ],
+        "classes": [
+          {
+            "name": "Telemetry",
+            "lineno": 190
+          },
+          {
+            "name": "SelfDocPack",
+            "lineno": 208
+          }
+        ]
+      },
+      {
+        "path": "glitchlab/tests/metarelation_scaling_test.py",
         "loc": 591,
         "defs": [
           {
@@ -1072,7 +1197,7 @@
         ]
       },
       {
-        "path": "glitchlab/tests/metarelation_scaling_test.py",
+        "path": "glitchlab/gui/mosaic/tests/metarelation_scaling_test.py",
         "loc": 591,
         "defs": [
           {
@@ -1432,6 +1557,129 @@
         ]
       },
       {
+        "path": "glitchlab/analysis/reporting.py",
+        "loc": 506,
+        "defs": [
+          {
+            "name": "_strip_inline_comment",
+            "lineno": 24
+          },
+          {
+            "name": "_parse_glx_run",
+            "lineno": 40
+          },
+          {
+            "name": "_validate_mask",
+            "lineno": 89
+          },
+          {
+            "name": "_clean_value",
+            "lineno": 97
+          },
+          {
+            "name": "_parse_env_file",
+            "lineno": 106
+          },
+          {
+            "name": "_load_env",
+            "lineno": 119
+          },
+          {
+            "name": "_expand_vars_and_user",
+            "lineno": 128
+          },
+          {
+            "name": "_resolve_path",
+            "lineno": 133
+          },
+          {
+            "name": "_norm_paths_in_env",
+            "lineno": 148
+          },
+          {
+            "name": "_log",
+            "lineno": 162
+          },
+          {
+            "name": "_fail",
+            "lineno": 166
+          },
+          {
+            "name": "_git",
+            "lineno": 172
+          },
+          {
+            "name": "_git_top",
+            "lineno": 176
+          },
+          {
+            "name": "_rev_parse",
+            "lineno": 188
+          },
+          {
+            "name": "_detect_base",
+            "lineno": 193
+          },
+          {
+            "name": "_req",
+            "lineno": 216
+          },
+          {
+            "name": "_as_int",
+            "lineno": 222
+          },
+          {
+            "name": "_as_float01",
+            "lineno": 229
+          },
+          {
+            "name": "_redact_env",
+            "lineno": 240
+          },
+          {
+            "name": "_module_exists",
+            "lineno": 251
+          },
+          {
+            "name": "_module_cmd_from_candidates",
+            "lineno": 258
+          },
+          {
+            "name": "_child_env",
+            "lineno": 282
+          },
+          {
+            "name": "_run_gateway",
+            "lineno": 289
+          },
+          {
+            "name": "_run_mosaic",
+            "lineno": 327
+          },
+          {
+            "name": "_send_mail",
+            "lineno": 379
+          },
+          {
+            "name": "_should_zip",
+            "lineno": 402
+          },
+          {
+            "name": "_writestr_deterministic",
+            "lineno": 409
+          },
+          {
+            "name": "_make_zip",
+            "lineno": 416
+          },
+          {
+            "name": "main",
+            "lineno": 445
+          }
+        ],
+        "classes": []
+      },
+      {
         "path": "glitchlab/analysis/impact.py",
         "loc": 506,
         "defs": [
@@ -1566,129 +1814,6 @@
             "lineno": 132
           }
         ]
-      },
-      {
-        "path": "glitchlab/analysis/reporting.py",
-        "loc": 506,
-        "defs": [
-          {
-            "name": "_strip_inline_comment",
-            "lineno": 24
-          },
-          {
-            "name": "_parse_glx_run",
-            "lineno": 40
-          },
-          {
-            "name": "_validate_mask",
-            "lineno": 89
-          },
-          {
-            "name": "_clean_value",
-            "lineno": 97
-          },
-          {
-            "name": "_parse_env_file",
-            "lineno": 106
-          },
-          {
-            "name": "_load_env",
-            "lineno": 119
-          },
-          {
-            "name": "_expand_vars_and_user",
-            "lineno": 128
-          },
-          {
-            "name": "_resolve_path",
-            "lineno": 133
-          },
-          {
-            "name": "_norm_paths_in_env",
-            "lineno": 148
-          },
-          {
-            "name": "_log",
-            "lineno": 162
-          },
-          {
-            "name": "_fail",
-            "lineno": 166
-          },
-          {
-            "name": "_git",
-            "lineno": 172
-          },
-          {
-            "name": "_git_top",
-            "lineno": 176
-          },
-          {
-            "name": "_rev_parse",
-            "lineno": 188
-          },
-          {
-            "name": "_detect_base",
-            "lineno": 193
-          },
-          {
-            "name": "_req",
-            "lineno": 216
-          },
-          {
-            "name": "_as_int",
-            "lineno": 222
-          },
-          {
-            "name": "_as_float01",
-            "lineno": 229
-          },
-          {
-            "name": "_redact_env",
-            "lineno": 240
-          },
-          {
-            "name": "_module_exists",
-            "lineno": 251
-          },
-          {
-            "name": "_module_cmd_from_candidates",
-            "lineno": 258
-          },
-          {
-            "name": "_child_env",
-            "lineno": 282
-          },
-          {
-            "name": "_run_gateway",
-            "lineno": 289
-          },
-          {
-            "name": "_run_mosaic",
-            "lineno": 327
-          },
-          {
-            "name": "_send_mail",
-            "lineno": 379
-          },
-          {
-            "name": "_should_zip",
-            "lineno": 402
-          },
-          {
-            "name": "_writestr_deterministic",
-            "lineno": 409
-          },
-          {
-            "name": "_make_zip",
-            "lineno": 416
-          },
-          {
-            "name": "main",
-            "lineno": 445
-          }
-        ],
-        "classes": []
       },
       {
         "path": "glitchlab/gui/widgets/preset_manager.py",
@@ -2133,138 +2258,12 @@
             "lineno": 302
           }
         ]
-      },
-      {
-        "path": "glitchlab/tests/mosaic_ast_to3d_point0.py",
-        "loc": 468,
-        "defs": [
-          {
-            "name": "energy",
-            "lineno": 43
-          },
-          {
-            "name": "entropy",
-            "lineno": 47
-          },
-          {
-            "name": "_label",
-            "lineno": 61
-          },
-          {
-            "name": "build_ast",
-            "lineno": 70
-          },
-          {
-            "name": "add",
-            "lineno": 74
-          },
-          {
-            "name": "merkle",
-            "lineno": 102
-          },
-          {
-            "name": "axial_to_xy",
-            "lineno": 118
-          },
-          {
-            "name": "build_hex_mosaic",
-            "lineno": 133
-          },
-          {
-            "name": "build_bcc",
-            "lineno": 168
-          },
-          {
-            "name": "to_center",
-            "lineno": 170
-          },
-          {
-            "name": "region_ids_for_node",
-            "lineno": 193
-          },
-          {
-            "name": "centroid_hex",
-            "lineno": 206
-          },
-          {
-            "name": "phi_ast_to_hex",
-            "lineno": 216
-          },
-          {
-            "name": "psi_hex_to_ast",
-            "lineno": 241
-          },
-          {
-            "name": "feats",
-            "lineno": 245
-          },
-          {
-            "name": "merkle_compression",
-            "lineno": 261
-          },
-          {
-            "name": "snap_ast_to_bcc",
-            "lineno": 266
-          },
-          {
-            "name": "phi_cost",
-            "lineno": 283
-          },
-          {
-            "name": "draw_ast",
-            "lineno": 298
-          },
-          {
-            "name": "draw_hex",
-            "lineno": 317
-          },
-          {
-            "name": "norm",
-            "lineno": 322
-          },
-          {
-            "name": "draw_bcc",
-            "lineno": 376
-          },
-          {
-            "name": "main",
-            "lineno": 400
-          }
-        ],
-        "classes": [
-          {
-            "name": "AstNode",
-            "lineno": 31
-          },
-          {
-            "name": "Hex",
-            "lineno": 122
-          },
-          {
-            "name": "Mosaic",
-            "lineno": 129
-          },
-          {
-            "name": "Cell",
-            "lineno": 158
-          },
-          {
-            "name": "BCC",
-            "lineno": 163
-          }
-        ]
       }
     ],
     "modules": [
       {
-        "path": "glitchlab/__init__.py",
-        "loc": 2,
-        "defs": [],
-        "classes": []
-      },
-      {
         "path": "glitchlab/.githooks/post-commit.py",
-        "loc": 653,
+        "loc": 640,
         "defs": [
           {
             "name": "_is_git_repo",
@@ -2291,248 +2290,256 @@
             "lineno": 114
           },
           {
-            "name": "_parse_env_file",
+            "name": "_load_env",
             "lineno": 127
           },
           {
-            "name": "_load_env",
-            "lineno": 140
-          },
-          {
             "name": "_expand_vars_and_user",
-            "lineno": 160
+            "lineno": 147
           },
           {
             "name": "_resolve_path",
-            "lineno": 165
+            "lineno": 152
           },
           {
             "name": "_norm_paths_in_env",
-            "lineno": 179
+            "lineno": 166
           },
           {
             "name": "_log",
-            "lineno": 203
+            "lineno": 190
           },
           {
             "name": "_fail",
-            "lineno": 207
+            "lineno": 194
           },
           {
             "name": "_git",
-            "lineno": 213
+            "lineno": 200
           },
           {
             "name": "_git_top",
-            "lineno": 217
+            "lineno": 204
           },
           {
             "name": "_rev_parse",
-            "lineno": 229
+            "lineno": 216
           },
           {
             "name": "_rev_ok",
-            "lineno": 234
+            "lineno": 221
           },
           {
             "name": "_empty_tree_oid",
-            "lineno": 243
+            "lineno": 230
           },
           {
             "name": "_detect_base",
-            "lineno": 259
+            "lineno": 246
           },
           {
             "name": "_dirs_chain_up",
-            "lineno": 297
+            "lineno": 284
           },
           {
             "name": "_req",
-            "lineno": 326
+            "lineno": 313
           },
           {
             "name": "_as_int",
-            "lineno": 332
+            "lineno": 319
           },
           {
             "name": "_as_float01",
-            "lineno": 339
+            "lineno": 326
           },
           {
             "name": "_redact_env",
-            "lineno": 350
+            "lineno": 337
           },
           {
             "name": "_module_exists",
-            "lineno": 361
+            "lineno": 348
           },
           {
             "name": "_module_cmd_from_candidates",
-            "lineno": 368
+            "lineno": 355
           },
           {
             "name": "_child_env",
-            "lineno": 392
+            "lineno": 379
           },
           {
             "name": "_run_gateway",
-            "lineno": 399
+            "lineno": 386
           },
           {
             "name": "_run_mosaic",
-            "lineno": 437
+            "lineno": 424
           },
           {
             "name": "_send_mail",
-            "lineno": 489
+            "lineno": 476
           },
           {
             "name": "_should_zip",
-            "lineno": 529
+            "lineno": 516
           },
           {
             "name": "_writestr_deterministic",
-            "lineno": 536
+            "lineno": 523
           },
           {
             "name": "_make_zip",
-            "lineno": 543
+            "lineno": 530
           },
           {
             "name": "main",
-            "lineno": 592
+            "lineno": 579
           }
         ],
         "classes": []
       },
       {
         "path": "glitchlab/.githooks/pre-commit.py",
-        "loc": 136,
+        "loc": 154,
         "defs": [
           {
             "name": "_log",
-            "lineno": 15
+            "lineno": 19
           },
           {
             "name": "_fail",
-            "lineno": 18
-          },
-          {
-            "name": "_git",
             "lineno": 23
           },
           {
-            "name": "_git_top",
-            "lineno": 26
+            "name": "_git",
+            "lineno": 29
           },
           {
-            "name": "_staged_files",
+            "name": "_git_top",
             "lineno": 33
           },
           {
+            "name": "_staged_files",
+            "lineno": 41
+          },
+          {
             "name": "_strip_inline_comment",
-            "lineno": 46
+            "lineno": 55
           },
           {
             "name": "_clean_value",
-            "lineno": 60
+            "lineno": 70
           },
           {
             "name": "_parse_env_file",
-            "lineno": 66
+            "lineno": 77
           },
           {
             "name": "_dirs_chain_up",
-            "lineno": 78
+            "lineno": 90
           },
           {
             "name": "_load_env",
-            "lineno": 95
+            "lineno": 108
           },
           {
             "name": "_req",
-            "lineno": 109
+            "lineno": 123
           },
           {
             "name": "_as_int",
-            "lineno": 115
+            "lineno": 130
           },
           {
             "name": "_as_float01",
-            "lineno": 121
+            "lineno": 137
           },
           {
             "name": "_parse_glx_run",
-            "lineno": 131
+            "lineno": 149
           }
         ],
         "classes": []
       },
       {
+        "path": "glitchlab/__init__.py",
+        "loc": 2,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/analysis/__init__.py",
+        "loc": 2,
+        "defs": [],
+        "classes": []
+      },
+      {
         "path": "glitchlab/analysis/ast_delta.py",
-        "loc": 323,
+        "loc": 324,
         "defs": [
           {
             "name": "ast_summary_of_source",
-            "lineno": 15
+            "lineno": 16
           },
           {
             "name": "ast_summary_of_rev",
-            "lineno": 17
+            "lineno": 18
           },
           {
             "name": "ast_summary_of_file",
-            "lineno": 19
+            "lineno": 20
           },
           {
             "name": "total",
-            "lineno": 45
+            "lineno": 46
           },
           {
             "name": "diff_label_counts",
-            "lineno": 88
+            "lineno": 89
           },
           {
             "name": "ast_delta",
-            "lineno": 109
+            "lineno": 110
           },
           {
             "name": "delta_from_sources",
-            "lineno": 148
+            "lineno": 149
           },
           {
             "name": "delta_of_file_between_revs",
-            "lineno": 158
+            "lineno": 159
           },
           {
             "name": "delta_of_local_file",
-            "lineno": 170
+            "lineno": 171
           },
           {
             "name": "merge_deltas",
-            "lineno": 183
+            "lineno": 184
           },
           {
             "name": "w_pair",
-            "lineno": 192
+            "lineno": 193
           },
           {
             "name": "to_jsonable",
-            "lineno": 258
+            "lineno": 259
           },
           {
             "name": "_cli",
-            "lineno": 283
+            "lineno": 284
           }
         ],
         "classes": [
           {
             "name": "LabelDelta",
-            "lineno": 39
+            "lineno": 40
           },
           {
             "name": "AstDelta",
-            "lineno": 50
+            "lineno": 51
           }
         ]
       },
@@ -2597,6 +2604,120 @@
           {
             "name": "AstSummary",
             "lineno": 53
+          }
+        ]
+      },
+      {
+        "path": "glitchlab/analysis/autonomy/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/analysis/autonomy/gateway.py",
+        "loc": 637,
+        "defs": [
+          {
+            "name": "_strip_inline_comment",
+            "lineno": 46
+          },
+          {
+            "name": "_clean_value",
+            "lineno": 61
+          },
+          {
+            "name": "_simple_parse_env",
+            "lineno": 68
+          },
+          {
+            "name": "_dirs_chain_up",
+            "lineno": 82
+          },
+          {
+            "name": "_load_dotenv_chain_into_environ",
+            "lineno": 102
+          },
+          {
+            "name": "_norm_from",
+            "lineno": 134
+          },
+          {
+            "name": "_best_guess_package_root",
+            "lineno": 141
+          },
+          {
+            "name": "_int_env",
+            "lineno": 165
+          },
+          {
+            "name": "_utc_iso",
+            "lineno": 227
+          },
+          {
+            "name": "_safe_read_json",
+            "lineno": 231
+          },
+          {
+            "name": "_read_text",
+            "lineno": 240
+          },
+          {
+            "name": "_rel_to_project",
+            "lineno": 247
+          },
+          {
+            "name": "_is_binary_like",
+            "lineno": 254
+          },
+          {
+            "name": "_redact_env_snapshot",
+            "lineno": 264
+          },
+          {
+            "name": "scan_repository",
+            "lineno": 280
+          },
+          {
+            "name": "_excluded",
+            "lineno": 295
+          },
+          {
+            "name": "_run_git",
+            "lineno": 382
+          },
+          {
+            "name": "git_snapshot",
+            "lineno": 393
+          },
+          {
+            "name": "make_prompt_pack",
+            "lineno": 437
+          },
+          {
+            "name": "build_selfdoc",
+            "lineno": 474
+          },
+          {
+            "name": "write_outputs",
+            "lineno": 522
+          },
+          {
+            "name": "_parse_argv",
+            "lineno": 562
+          },
+          {
+            "name": "main",
+            "lineno": 589
+          }
+        ],
+        "classes": [
+          {
+            "name": "Telemetry",
+            "lineno": 190
+          },
+          {
+            "name": "SelfDocPack",
+            "lineno": 208
           }
         ]
       },
@@ -3206,93 +3327,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/__init__.py",
-        "loc": 2,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/analysis/autonomy/gateway.py",
-        "loc": 456,
-        "defs": [
-          {
-            "name": "_simple_parse_env",
-            "lineno": 43
-          },
-          {
-            "name": "_load_dotenv_into_environ",
-            "lineno": 56
-          },
-          {
-            "name": "_norm_from",
-            "lineno": 83
-          },
-          {
-            "name": "_utc_iso",
-            "lineno": 145
-          },
-          {
-            "name": "_safe_read_json",
-            "lineno": 148
-          },
-          {
-            "name": "_read_text",
-            "lineno": 156
-          },
-          {
-            "name": "_rel_to_project",
-            "lineno": 162
-          },
-          {
-            "name": "scan_repository",
-            "lineno": 172
-          },
-          {
-            "name": "_excluded",
-            "lineno": 186
-          },
-          {
-            "name": "_run_git",
-            "lineno": 254
-          },
-          {
-            "name": "git_snapshot",
-            "lineno": 264
-          },
-          {
-            "name": "make_prompt_pack",
-            "lineno": 297
-          },
-          {
-            "name": "build_selfdoc",
-            "lineno": 331
-          },
-          {
-            "name": "write_outputs",
-            "lineno": 374
-          },
-          {
-            "name": "_parse_argv",
-            "lineno": 411
-          },
-          {
-            "name": "main",
-            "lineno": 425
-          }
-        ],
-        "classes": [
-          {
-            "name": "Telemetry",
-            "lineno": 117
-          },
-          {
-            "name": "SelfDocPack",
-            "lineno": 129
-          }
-        ]
-      },
-      {
-        "path": "glitchlab/analysis/autonomy/__init__.py",
+        "path": "glitchlab/core/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
@@ -3420,6 +3455,64 @@
             "lineno": 66
           }
         ]
+      },
+      {
+        "path": "glitchlab/core/metrics/basic.py",
+        "loc": 171,
+        "defs": [
+          {
+            "name": "_to_gray_f32",
+            "lineno": 30
+          },
+          {
+            "name": "_downsample_max_side",
+            "lineno": 44
+          },
+          {
+            "name": "_compute_entropy",
+            "lineno": 73
+          },
+          {
+            "name": "_edge_density",
+            "lineno": 84
+          },
+          {
+            "name": "_contrast_rms",
+            "lineno": 93
+          },
+          {
+            "name": "_block_stats",
+            "lineno": 99
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/core/metrics/compare.py",
+        "loc": 165,
+        "defs": [
+          {
+            "name": "to_gray_f32",
+            "lineno": 54
+          },
+          {
+            "name": "psnr",
+            "lineno": 77
+          },
+          {
+            "name": "_pad_reflect",
+            "lineno": 96
+          },
+          {
+            "name": "_box_mean",
+            "lineno": 102
+          },
+          {
+            "name": "ssim_box",
+            "lineno": 130
+          }
+        ],
+        "classes": []
       },
       {
         "path": "glitchlab/core/mosaic.py",
@@ -3709,65 +3802,20 @@
         "classes": []
       },
       {
-        "path": "glitchlab/core/__init__.py",
-        "loc": 0,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/core/metrics/basic.py",
-        "loc": 171,
+        "path": "glitchlab/filters/__init__.py",
+        "loc": 121,
         "defs": [
           {
-            "name": "_to_gray_f32",
-            "lineno": 30
+            "name": "_safe_import",
+            "lineno": 57
           },
           {
-            "name": "_downsample_max_side",
-            "lineno": 44
+            "name": "load_all",
+            "lineno": 71
           },
           {
-            "name": "_compute_entropy",
-            "lineno": 73
-          },
-          {
-            "name": "_edge_density",
-            "lineno": 84
-          },
-          {
-            "name": "_contrast_rms",
-            "lineno": 93
-          },
-          {
-            "name": "_block_stats",
-            "lineno": 99
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/core/metrics/compare.py",
-        "loc": 165,
-        "defs": [
-          {
-            "name": "to_gray_f32",
-            "lineno": 54
-          },
-          {
-            "name": "psnr",
-            "lineno": 77
-          },
-          {
-            "name": "_pad_reflect",
-            "lineno": 96
-          },
-          {
-            "name": "_box_mean",
-            "lineno": 102
-          },
-          {
-            "name": "ssim_box",
-            "lineno": 130
+            "name": "add_aliases",
+            "lineno": 94
           }
         ],
         "classes": []
@@ -4293,207 +4341,553 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/__init__.py",
-        "loc": 121,
-        "defs": [
-          {
-            "name": "_safe_import",
-            "lineno": 57
-          },
-          {
-            "name": "load_all",
-            "lineno": 71
-          },
-          {
-            "name": "add_aliases",
-            "lineno": 94
-          }
-        ],
+        "path": "glitchlab/gui/__init__.py",
+        "loc": 1,
+        "defs": [],
         "classes": []
       },
       {
         "path": "glitchlab/gui/app.py",
-        "loc": 913,
+        "loc": 921,
         "defs": [
           {
             "name": "init_styles",
-            "lineno": 29
+            "lineno": 28
           },
           {
             "name": "__init__",
-            "lineno": 85
-          },
-          {
-            "name": "publish",
-            "lineno": 86
-          },
-          {
-            "name": "subscribe",
             "lineno": 87
           },
           {
+            "name": "publish",
+            "lineno": 89
+          },
+          {
+            "name": "subscribe",
+            "lineno": 91
+          },
+          {
             "name": "request",
-            "lineno": 88
+            "lineno": 93
           },
           {
             "name": "__init__",
-            "lineno": 112
+            "lineno": 117
           },
           {
             "name": "__init__",
-            "lineno": 127
+            "lineno": 132
           },
           {
             "name": "_build_ui",
-            "lineno": 163
+            "lineno": 168
           },
           {
             "name": "_init_sash",
-            "lineno": 226
+            "lineno": 232
           },
           {
             "name": "_wire_bus",
-            "lineno": 251
+            "lineno": 258
           },
           {
             "name": "_on_preset_parsed",
-            "lineno": 318
+            "lineno": 325
           },
           {
             "name": "_load_image_path",
-            "lineno": 327
+            "lineno": 334
           },
           {
             "name": "_save_image_path",
-            "lineno": 374
+            "lineno": 382
           },
           {
             "name": "_pil_to_u8",
-            "lineno": 393
+            "lineno": 401
           },
           {
             "name": "_array_to_pil",
-            "lineno": 406
+            "lineno": 414
           },
           {
             "name": "run_step",
-            "lineno": 420
+            "lineno": 428
           },
           {
             "name": "run_preset",
-            "lineno": 457
+            "lineno": 465
           },
           {
             "name": "_on_progress",
-            "lineno": 507
+            "lineno": 515
           },
           {
             "name": "_on_run_done",
-            "lineno": 519
+            "lineno": 527
           },
           {
             "name": "_on_run_error",
-            "lineno": 556
+            "lineno": 564
           },
           {
             "name": "_update_bottom_from_cache",
-            "lineno": 570
-          },
-          {
-            "name": "_update_edit_menu_state",
             "lineno": 578
           },
           {
-            "name": "_on_undo",
+            "name": "_update_edit_menu_state",
             "lineno": 586
           },
           {
+            "name": "_on_undo",
+            "lineno": 594
+          },
+          {
             "name": "_on_redo",
-            "lineno": 615
+            "lineno": 623
           },
           {
             "name": "_toggle_left",
-            "lineno": 645
+            "lineno": 653
           },
           {
             "name": "_toggle_right",
-            "lineno": 665
+            "lineno": 673
           },
           {
             "name": "_toggle_hud",
-            "lineno": 681
+            "lineno": 689
           },
           {
             "name": "_toggle_fullscreen",
-            "lineno": 697
+            "lineno": 705
           },
           {
             "name": "_get_active_layer_pil",
-            "lineno": 711
+            "lineno": 719
           },
           {
             "name": "_get_composite_np",
-            "lineno": 733
+            "lineno": 741
           },
           {
             "name": "_refresh_composite",
-            "lineno": 748
+            "lineno": 756
           },
           {
             "name": "_layers_snapshot",
-            "lineno": 761
+            "lineno": 769
           },
           {
             "name": "_calc_layers_sig",
-            "lineno": 776
+            "lineno": 784
           },
           {
             "name": "_publish_layers_snapshot",
-            "lineno": 785
+            "lineno": 793
           },
           {
             "name": "_on_layers_changed",
-            "lineno": 798
+            "lineno": 806
           },
           {
             "name": "_on_layer_add",
-            "lineno": 804
+            "lineno": 812
           },
           {
             "name": "_on_layer_remove",
-            "lineno": 837
+            "lineno": 845
           },
           {
             "name": "_on_layer_set_active",
-            "lineno": 848
+            "lineno": 856
           },
           {
             "name": "_on_layer_update",
-            "lineno": 857
+            "lineno": 865
           },
           {
             "name": "_on_layers_reorder",
-            "lineno": 874
+            "lineno": 882
           },
           {
             "name": "main",
-            "lineno": 894
+            "lineno": 902
           }
         ],
         "classes": [
           {
             "name": "EventBus",
-            "lineno": 84
+            "lineno": 86
           },
           {
             "name": "AppState",
-            "lineno": 111
+            "lineno": 116
           },
           {
             "name": "App",
-            "lineno": 126
+            "lineno": 131
           }
         ]
+      },
+      {
+        "path": "glitchlab/gui/bench/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/ab_pilot.py",
+        "loc": 103,
+        "defs": [
+          {
+            "name": "load_task",
+            "lineno": 12
+          },
+          {
+            "name": "run_agent_on_tasks",
+            "lineno": 17
+          },
+          {
+            "name": "aggregate",
+            "lineno": 37
+          },
+          {
+            "name": "main",
+            "lineno": 50
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/ab_runner.py",
+        "loc": 89,
+        "defs": [
+          {
+            "name": "load_tasks",
+            "lineno": 16
+          },
+          {
+            "name": "run_agent",
+            "lineno": 30
+          },
+          {
+            "name": "main",
+            "lineno": 62
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/agents/agent_mozaika.py",
+        "loc": 81,
+        "defs": [
+          {
+            "name": "_align_metrics",
+            "lineno": 15
+          },
+          {
+            "name": "generate_code",
+            "lineno": 72
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/agents/agent_ms_like.py",
+        "loc": 121,
+        "defs": [
+          {
+            "name": "_heuristic_code",
+            "lineno": 24
+          },
+          {
+            "name": "_induction_code",
+            "lineno": 54
+          },
+          {
+            "name": "_fallback_code",
+            "lineno": 83
+          },
+          {
+            "name": "generate_code",
+            "lineno": 88
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/judge.py",
+        "loc": 90,
+        "defs": [
+          {
+            "name": "_timeout_handler",
+            "lineno": 12
+          },
+          {
+            "name": "_exec_code",
+            "lineno": 16
+          },
+          {
+            "name": "run_tests",
+            "lineno": 22
+          }
+        ],
+        "classes": [
+          {
+            "name": "TimeoutError",
+            "lineno": 7
+          }
+        ]
+      },
+      {
+        "path": "glitchlab/gui/bench/metrics.py",
+        "loc": 53,
+        "defs": [
+          {
+            "name": "sign_test_p",
+            "lineno": 8
+          },
+          {
+            "name": "cliffs_delta",
+            "lineno": 16
+          },
+          {
+            "name": "bootstrap_ci",
+            "lineno": 24
+          },
+          {
+            "name": "summarize_pairs",
+            "lineno": 36
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/schemas/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/stats.py",
+        "loc": 76,
+        "defs": [
+          {
+            "name": "_aggregate",
+            "lineno": 6
+          },
+          {
+            "name": "cliffs_delta",
+            "lineno": 52
+          },
+          {
+            "name": "binomial_sign_test_p",
+            "lineno": 61
+          },
+          {
+            "name": "summarize",
+            "lineno": 69
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/templates.py",
+        "loc": 51,
+        "defs": [
+          {
+            "name": "get_template",
+            "lineno": 49
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/e2e/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/e2e/test_ab_runner.py",
+        "loc": 67,
+        "defs": [
+          {
+            "name": "_run",
+            "lineno": 6
+          },
+          {
+            "name": "test_template_protocol_reverse_str",
+            "lineno": 11
+          },
+          {
+            "name": "test_template_protocol_fib",
+            "lineno": 19
+          },
+          {
+            "name": "test_heuristic_protocol_palindrome",
+            "lineno": 27
+          },
+          {
+            "name": "test_heuristic_protocol_factorial",
+            "lineno": 34
+          },
+          {
+            "name": "test_heuristic_protocol_gcd",
+            "lineno": 41
+          },
+          {
+            "name": "test_induction_protocol_reverse",
+            "lineno": 48
+          },
+          {
+            "name": "test_induction_protocol_sum",
+            "lineno": 55
+          },
+          {
+            "name": "test_fallback_protocol",
+            "lineno": 62
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/e2e/test_plot_results.py",
+        "loc": 14,
+        "defs": [
+          {
+            "name": "test_plot_results",
+            "lineno": 4
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/fuzz/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/fuzz/test_fuzz_tasks.py",
+        "loc": 13,
+        "defs": [
+          {
+            "name": "test_reverse_fuzz",
+            "lineno": 5
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/perf/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/perf/test_perf_timings.py",
+        "loc": 11,
+        "defs": [
+          {
+            "name": "test_perf_reverse_under_10ms",
+            "lineno": 5
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/property/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/property/test_tasks_property.py",
+        "loc": 9,
+        "defs": [
+          {
+            "name": "test_generated_code_compiles_smoke",
+            "lineno": 3
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/unit/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/unit/test_stats.py",
+        "loc": 9,
+        "defs": [
+          {
+            "name": "test_cliffs_delta_bounds",
+            "lineno": 4
+          },
+          {
+            "name": "test_sign_test_ties",
+            "lineno": 7
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/tests/unit/test_templates.py",
+        "loc": 6,
+        "defs": [
+          {
+            "name": "test_has_basic_templates",
+            "lineno": 3
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/utils/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/bench/utils/plot_results.py",
+        "loc": 171,
+        "defs": [
+          {
+            "name": "_safe_get",
+            "lineno": 14
+          },
+          {
+            "name": "_ratio",
+            "lineno": 22
+          },
+          {
+            "name": "plot_results",
+            "lineno": 28
+          },
+          {
+            "name": "distance_to_one",
+            "lineno": 108
+          },
+          {
+            "name": "_make_argparser",
+            "lineno": 157
+          },
+          {
+            "name": "main",
+            "lineno": 164
+          }
+        ],
+        "classes": []
       },
       {
         "path": "glitchlab/gui/controls.py",
@@ -4734,855 +5128,296 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panel_base.py",
-        "loc": 191,
+        "path": "glitchlab/gui/mosaic/__init__.py",
+        "loc": 35,
         "defs": [
           {
-            "name": "register_panel",
-            "lineno": 27
+            "name": "__getattr__",
+            "lineno": 26
           },
           {
-            "name": "get_panel",
-            "lineno": 36
-          },
-          {
-            "name": "list_registered",
-            "lineno": 41
-          },
-          {
-            "name": "mask_keys",
-            "lineno": 67
-          },
-          {
-            "name": "emit",
-            "lineno": 80
-          },
-          {
-            "name": "__init__",
-            "lineno": 97
-          },
-          {
-            "name": "track_var",
-            "lineno": 106
-          },
-          {
-            "name": "_on_any_change",
-            "lineno": 123
-          },
-          {
-            "name": "get_params",
-            "lineno": 127
-          },
-          {
-            "name": "add_labeled_entry",
-            "lineno": 144
-          },
-          {
-            "name": "add_check",
-            "lineno": 156
-          },
-          {
-            "name": "add_combo",
-            "lineno": 162
-          },
-          {
-            "name": "add_slider",
-            "lineno": 176
-          }
-        ],
-        "classes": [
-          {
-            "name": "PanelContext",
-            "lineno": 50
-          },
-          {
-            "name": "PanelBase",
-            "lineno": 88
-          }
-        ]
-      },
-      {
-        "path": "glitchlab/gui/panel_loader.py",
-        "loc": 285,
-        "defs": [
-          {
-            "name": "_guess_panel_class_name",
-            "lineno": 58
-          },
-          {
-            "name": "_is_panel_class",
-            "lineno": 64
-          },
-          {
-            "name": "_probe_panels_registry",
-            "lineno": 75
-          },
-          {
-            "name": "_discover_panel_keys_fallback",
-            "lineno": 103
-          },
-          {
-            "name": "list_available_panels",
-            "lineno": 123
-          },
-          {
-            "name": "_import_panel_class",
-            "lineno": 140
-          },
-          {
-            "name": "_construct_fallback",
-            "lineno": 175
-          },
-          {
-            "name": "load_panel",
-            "lineno": 216
-          },
-          {
-            "name": "get_panel_class",
-            "lineno": 253
-          },
-          {
-            "name": "instantiate_panel",
-            "lineno": 267
-          }
-        ],
-        "classes": [
-          {
-            "name": "PanelLoadError",
-            "lineno": 43
-          },
-          {
-            "name": "PanelSpec",
-            "lineno": 48
-          }
-        ]
-      },
-      {
-        "path": "glitchlab/gui/paths.py",
-        "loc": 16,
-        "defs": [
-          {
-            "name": "project_root",
-            "lineno": 7
-          },
-          {
-            "name": "get_default_preset_dir",
-            "lineno": 12
+            "name": "__dir__",
+            "lineno": 33
           }
         ],
         "classes": []
       },
       {
-        "path": "glitchlab/gui/preset_dir_fallback.py",
-        "loc": 62,
+        "path": "glitchlab/gui/mosaic/git_delta.py",
+        "loc": 88,
         "defs": [
           {
-            "name": "_compute_default_dir",
-            "lineno": 14
-          },
-          {
-            "name": "_get_preset_dir",
-            "lineno": 38
-          },
-          {
-            "name": "_set_preset_dir",
-            "lineno": 45
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/preset_manager.py",
-        "loc": 167,
-        "defs": [
-          {
-            "name": "__init__",
-            "lineno": 23
-          },
-          {
-            "name": "_safe_dir_text",
-            "lineno": 63
-          },
-          {
-            "name": "_refresh_dir_label",
-            "lineno": 72
-          },
-          {
-            "name": "_refresh_view",
-            "lineno": 76
-          },
-          {
-            "name": "_json_to_yaml_fallback",
-            "lineno": 95
-          },
-          {
-            "name": "_set_text",
-            "lineno": 99
-          },
-          {
-            "name": "_load",
-            "lineno": 105
-          },
-          {
-            "name": "_save",
-            "lineno": 130
-          },
-          {
-            "name": "_apply",
-            "lineno": 144
-          },
-          {
-            "name": "_add_cur_step",
-            "lineno": 150
-          }
-        ],
-        "classes": [
-          {
-            "name": "PresetManager",
-            "lineno": 16
-          }
-        ]
-      },
-      {
-        "path": "glitchlab/gui/preset_paths.py",
-        "loc": 101,
-        "defs": [
-          {
-            "name": "_load_settings",
-            "lineno": 28
-          },
-          {
-            "name": "_save_settings",
-            "lineno": 37
-          },
-          {
-            "name": "discover_preset_dirs",
-            "lineno": 44
-          },
-          {
-            "name": "list_preset_files",
-            "lineno": 76
-          },
-          {
-            "name": "get_last_preset_dir",
-            "lineno": 86
-          },
-          {
-            "name": "set_last_preset_dir",
-            "lineno": 97
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/state.py",
-        "loc": 20,
-        "defs": [],
-        "classes": [
-          {
-            "name": "UiState",
-            "lineno": 9
-          }
-        ]
-      },
-      {
-        "path": "glitchlab/gui/__init__.py",
-        "loc": 1,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/ab_pilot.py",
-        "loc": 103,
-        "defs": [
-          {
-            "name": "load_task",
-            "lineno": 12
-          },
-          {
-            "name": "run_agent_on_tasks",
-            "lineno": 17
-          },
-          {
-            "name": "aggregate",
-            "lineno": 37
-          },
-          {
-            "name": "main",
-            "lineno": 50
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/ab_runner.py",
-        "loc": 89,
-        "defs": [
-          {
-            "name": "load_tasks",
-            "lineno": 16
-          },
-          {
-            "name": "run_agent",
-            "lineno": 30
-          },
-          {
-            "name": "main",
-            "lineno": 62
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/judge.py",
-        "loc": 90,
-        "defs": [
-          {
-            "name": "_timeout_handler",
-            "lineno": 12
-          },
-          {
-            "name": "_exec_code",
-            "lineno": 16
-          },
-          {
-            "name": "run_tests",
-            "lineno": 22
-          }
-        ],
-        "classes": [
-          {
-            "name": "TimeoutError",
-            "lineno": 7
-          }
-        ]
-      },
-      {
-        "path": "glitchlab/gui/bench/metrics.py",
-        "loc": 53,
-        "defs": [
-          {
-            "name": "sign_test_p",
-            "lineno": 8
-          },
-          {
-            "name": "cliffs_delta",
-            "lineno": 16
-          },
-          {
-            "name": "bootstrap_ci",
-            "lineno": 24
-          },
-          {
-            "name": "summarize_pairs",
-            "lineno": 36
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/stats.py",
-        "loc": 76,
-        "defs": [
-          {
-            "name": "_aggregate",
-            "lineno": 6
-          },
-          {
-            "name": "cliffs_delta",
-            "lineno": 52
-          },
-          {
-            "name": "binomial_sign_test_p",
-            "lineno": 61
-          },
-          {
-            "name": "summarize",
-            "lineno": 69
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/templates.py",
-        "loc": 51,
-        "defs": [
-          {
-            "name": "get_template",
-            "lineno": 49
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/__init__.py",
-        "loc": 0,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/agents/agent_mozaika.py",
-        "loc": 81,
-        "defs": [
-          {
-            "name": "_align_metrics",
-            "lineno": 15
-          },
-          {
-            "name": "generate_code",
-            "lineno": 72
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/agents/agent_ms_like.py",
-        "loc": 121,
-        "defs": [
-          {
-            "name": "_heuristic_code",
-            "lineno": 24
-          },
-          {
-            "name": "_induction_code",
-            "lineno": 54
-          },
-          {
-            "name": "_fallback_code",
-            "lineno": 83
-          },
-          {
-            "name": "generate_code",
-            "lineno": 88
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/schemas/__init__.py",
-        "loc": 0,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/__init__.py",
-        "loc": 0,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/e2e/test_ab_runner.py",
-        "loc": 67,
-        "defs": [
-          {
-            "name": "_run",
-            "lineno": 6
-          },
-          {
-            "name": "test_template_protocol_reverse_str",
-            "lineno": 11
-          },
-          {
-            "name": "test_template_protocol_fib",
+            "name": "_run_git",
             "lineno": 19
           },
           {
-            "name": "test_heuristic_protocol_palindrome",
-            "lineno": 27
-          },
-          {
-            "name": "test_heuristic_protocol_factorial",
-            "lineno": 34
-          },
-          {
-            "name": "test_heuristic_protocol_gcd",
-            "lineno": 41
-          },
-          {
-            "name": "test_induction_protocol_reverse",
-            "lineno": 48
-          },
-          {
-            "name": "test_induction_protocol_sum",
-            "lineno": 55
-          },
-          {
-            "name": "test_fallback_protocol",
-            "lineno": 62
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/e2e/test_plot_results.py",
-        "loc": 14,
-        "defs": [
-          {
-            "name": "test_plot_results",
-            "lineno": 4
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/e2e/__init__.py",
-        "loc": 0,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/fuzz/test_fuzz_tasks.py",
-        "loc": 13,
-        "defs": [
-          {
-            "name": "test_reverse_fuzz",
-            "lineno": 5
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/fuzz/__init__.py",
-        "loc": 0,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/perf/test_perf_timings.py",
-        "loc": 11,
-        "defs": [
-          {
-            "name": "test_perf_reverse_under_10ms",
-            "lineno": 5
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/perf/__init__.py",
-        "loc": 0,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/property/test_tasks_property.py",
-        "loc": 9,
-        "defs": [
-          {
-            "name": "test_generated_code_compiles_smoke",
-            "lineno": 3
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/property/__init__.py",
-        "loc": 0,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/unit/test_stats.py",
-        "loc": 9,
-        "defs": [
-          {
-            "name": "test_cliffs_delta_bounds",
-            "lineno": 4
-          },
-          {
-            "name": "test_sign_test_ties",
-            "lineno": 7
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/unit/test_templates.py",
-        "loc": 6,
-        "defs": [
-          {
-            "name": "test_has_basic_templates",
-            "lineno": 3
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/tests/unit/__init__.py",
-        "loc": 0,
-        "defs": [],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/utils/plot_results.py",
-        "loc": 171,
-        "defs": [
-          {
-            "name": "_safe_get",
-            "lineno": 14
-          },
-          {
-            "name": "_ratio",
-            "lineno": 22
-          },
-          {
-            "name": "plot_results",
+            "name": "_rev_parse",
             "lineno": 28
           },
           {
-            "name": "distance_to_one",
-            "lineno": 108
+            "name": "_parse_name_status",
+            "lineno": 34
           },
           {
-            "name": "_make_argparser",
-            "lineno": 157
-          },
-          {
-            "name": "main",
-            "lineno": 164
+            "name": "collect_changed_files",
+            "lineno": 60
           }
         ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/bench/utils/__init__.py",
-        "loc": 0,
-        "defs": [],
         "classes": []
       },
       {
         "path": "glitchlab/gui/mosaic/hybrid_ast_mosaic.py",
-        "loc": 1288,
+        "loc": 1382,
         "defs": [
           {
             "name": "_rng_for_meta",
-            "lineno": 149
+            "lineno": 150
           },
           {
             "name": "_meta_for",
-            "lineno": 157
+            "lineno": 158
           },
           {
             "name": "ast_deltas",
-            "lineno": 177
+            "lineno": 178
           },
           {
             "name": "add",
-            "lineno": 185
+            "lineno": 186
           },
           {
             "name": "compress_ast",
-            "lineno": 235
+            "lineno": 236
           },
           {
             "name": "build_mosaic_grid",
-            "lineno": 266
+            "lineno": 267
           },
           {
             "name": "build_mosaic_hex",
-            "lineno": 281
+            "lineno": 282
           },
           {
             "name": "build_mosaic",
-            "lineno": 297
+            "lineno": 298
           },
           {
             "name": "region_ids",
-            "lineno": 303
+            "lineno": 304
           },
           {
             "name": "_xy_of_idx",
-            "lineno": 311
+            "lineno": 312
           },
           {
             "name": "_sigmoid",
-            "lineno": 318
+            "lineno": 319
           },
           {
             "name": "_soft_label",
-            "lineno": 328
+            "lineno": 329
+          },
+          {
+            "name": "_only_py",
+            "lineno": 334
+          },
+          {
+            "name": "_abs",
+            "lineno": 338
           },
           {
             "name": "tile_dist",
-            "lineno": 333
+            "lineno": 343
           },
           {
             "name": "_dm_greedy_oneway",
-            "lineno": 350
+            "lineno": 360
           },
           {
             "name": "_length_penalty",
-            "lineno": 364
+            "lineno": 374
           },
           {
             "name": "_pair_cost",
-            "lineno": 378
+            "lineno": 388
           },
           {
             "name": "D_M",
-            "lineno": 403
+            "lineno": 413
           },
           {
             "name": "phi_region_for",
-            "lineno": 425
+            "lineno": 435
           },
           {
             "name": "phi_region_for_balanced",
-            "lineno": 433
+            "lineno": 443
           },
           {
             "name": "phi_region_for_entropy",
-            "lineno": 466
+            "lineno": 476
           },
           {
             "name": "near_thr",
-            "lineno": 467
+            "lineno": 477
           },
           {
             "name": "load_policy_json",
-            "lineno": 478
+            "lineno": 488
           },
           {
             "name": "make_selector_policy_aware",
-            "lineno": 508
+            "lineno": 518
           },
           {
             "name": "_sel",
-            "lineno": 524
+            "lineno": 534
           },
           {
             "name": "centroid",
-            "lineno": 543
+            "lineno": 553
           },
           {
             "name": "phi_cost",
-            "lineno": 551
+            "lineno": 561
           },
           {
             "name": "psi_feedback",
-            "lineno": 572
+            "lineno": 582
           },
           {
             "name": "_neighbors_grid",
-            "lineno": 599
-          },
-          {
-            "name": "_neighbors_hex_oddr",
             "lineno": 609
           },
           {
+            "name": "_neighbors_hex_oddr",
+            "lineno": 619
+          },
+          {
             "name": "_adjacency_indices",
-            "lineno": 622
+            "lineno": 632
           },
           {
             "name": "_connected_components",
-            "lineno": 636
+            "lineno": 645
           },
           {
             "name": "mosaic_profile",
-            "lineno": 670
+            "lineno": 679
           },
           {
             "name": "couple_alpha_beta",
-            "lineno": 706
+            "lineno": 715
           },
           {
             "name": "distance_ast_mosaic",
-            "lineno": 728
+            "lineno": 736
           },
           {
             "name": "invariants_check",
-            "lineno": 735
+            "lineno": 743
           },
           {
             "name": "_selector_from_args",
-            "lineno": 758
+            "lineno": 766
           },
           {
             "name": "run_once",
-            "lineno": 771
+            "lineno": 779
           },
           {
             "name": "sweep",
-            "lineno": 805
+            "lineno": 813
           },
           {
             "name": "sign_test_phi2_better",
-            "lineno": 821
+            "lineno": 829
           },
           {
             "name": "_ast_summary_for_source_det",
-            "lineno": 854
+            "lineno": 862
           },
           {
             "name": "_file_selector_filter",
-            "lineno": 880
+            "lineno": 888
           },
           {
             "name": "run_from_git",
-            "lineno": 890
+            "lineno": 898
           },
           {
             "name": "_pretty_table",
-            "lineno": 1023
+            "lineno": 1031
           },
           {
             "name": "rowfmt",
-            "lineno": 1027
+            "lineno": 1035
           },
           {
             "name": "line",
-            "lineno": 1038
+            "lineno": 1046
           },
           {
             "name": "cmd_run",
-            "lineno": 1047
+            "lineno": 1055
           },
           {
             "name": "cmd_sweep",
-            "lineno": 1067
+            "lineno": 1075
           },
           {
             "name": "cmd_test",
-            "lineno": 1079
+            "lineno": 1087
           },
           {
             "name": "_normpath_under_project",
-            "lineno": 1092
+            "lineno": 1100
           },
           {
             "name": "_emit_fallback_artifacts",
-            "lineno": 1097
+            "lineno": 1105
           },
           {
             "name": "cmd_from_git_dump",
-            "lineno": 1149
+            "lineno": 1157
+          },
+          {
+            "name": "_git_run",
+            "lineno": 1281
+          },
+          {
+            "name": "_git_show_file",
+            "lineno": 1287
+          },
+          {
+            "name": "_git_top",
+            "lineno": 1294
           },
           {
             "name": "cmd_from_git",
-            "lineno": 1210
+            "lineno": 1304
           },
           {
             "name": "build_cli",
-            "lineno": 1227
+            "lineno": 1321
           },
           {
             "name": "main",
-            "lineno": 1281
+            "lineno": 1375
           }
         ],
         "classes": [
           {
             "name": "AstNode",
-            "lineno": 126
+            "lineno": 127
           },
           {
             "name": "AstSummary",
-            "lineno": 137
+            "lineno": 138
           },
           {
             "name": "Mosaic",
-            "lineno": 255
+            "lineno": 256
           }
         ]
       },
@@ -5824,65 +5659,6 @@
           {
             "name": "save_spec",
             "lineno": 271
-          }
-        ],
-        "classes": []
-      },
-      {
-        "path": "glitchlab/gui/mosaic/vis_ast_kites_all.py",
-        "loc": 249,
-        "defs": [
-          {
-            "name": "label2coeff",
-            "lineno": 47
-          },
-          {
-            "name": "label2region",
-            "lineno": 60
-          },
-          {
-            "name": "node_point",
-            "lineno": 78
-          },
-          {
-            "name": "region_point",
-            "lineno": 83
-          },
-          {
-            "name": "make_kite",
-            "lineno": 93
-          },
-          {
-            "name": "mosaic_profile_text",
-            "lineno": 108
-          },
-          {
-            "name": "draw_scene",
-            "lineno": 119
-          },
-          {
-            "name": "main",
-            "lineno": 213
-          }
-        ],
-        "classes": [
-          {
-            "name": "Kite",
-            "lineno": 68
-          }
-        ]
-      },
-      {
-        "path": "glitchlab/gui/mosaic/__init__.py",
-        "loc": 35,
-        "defs": [
-          {
-            "name": "__getattr__",
-            "lineno": 26
-          },
-          {
-            "name": "__dir__",
-            "lineno": 33
           }
         ],
         "classes": []
@@ -6442,6 +6218,222 @@
           {
             "name": "App",
             "lineno": 418
+          }
+        ]
+      },
+      {
+        "path": "glitchlab/gui/mosaic/vis_ast_kites_all.py",
+        "loc": 249,
+        "defs": [
+          {
+            "name": "label2coeff",
+            "lineno": 47
+          },
+          {
+            "name": "label2region",
+            "lineno": 60
+          },
+          {
+            "name": "node_point",
+            "lineno": 78
+          },
+          {
+            "name": "region_point",
+            "lineno": 83
+          },
+          {
+            "name": "make_kite",
+            "lineno": 93
+          },
+          {
+            "name": "mosaic_profile_text",
+            "lineno": 108
+          },
+          {
+            "name": "draw_scene",
+            "lineno": 119
+          },
+          {
+            "name": "main",
+            "lineno": 213
+          }
+        ],
+        "classes": [
+          {
+            "name": "Kite",
+            "lineno": 68
+          }
+        ]
+      },
+      {
+        "path": "glitchlab/gui/panel_base.py",
+        "loc": 191,
+        "defs": [
+          {
+            "name": "register_panel",
+            "lineno": 27
+          },
+          {
+            "name": "get_panel",
+            "lineno": 36
+          },
+          {
+            "name": "list_registered",
+            "lineno": 41
+          },
+          {
+            "name": "mask_keys",
+            "lineno": 67
+          },
+          {
+            "name": "emit",
+            "lineno": 80
+          },
+          {
+            "name": "__init__",
+            "lineno": 97
+          },
+          {
+            "name": "track_var",
+            "lineno": 106
+          },
+          {
+            "name": "_on_any_change",
+            "lineno": 123
+          },
+          {
+            "name": "get_params",
+            "lineno": 127
+          },
+          {
+            "name": "add_labeled_entry",
+            "lineno": 144
+          },
+          {
+            "name": "add_check",
+            "lineno": 156
+          },
+          {
+            "name": "add_combo",
+            "lineno": 162
+          },
+          {
+            "name": "add_slider",
+            "lineno": 176
+          }
+        ],
+        "classes": [
+          {
+            "name": "PanelContext",
+            "lineno": 50
+          },
+          {
+            "name": "PanelBase",
+            "lineno": 88
+          }
+        ]
+      },
+      {
+        "path": "glitchlab/gui/panel_loader.py",
+        "loc": 285,
+        "defs": [
+          {
+            "name": "_guess_panel_class_name",
+            "lineno": 58
+          },
+          {
+            "name": "_is_panel_class",
+            "lineno": 64
+          },
+          {
+            "name": "_probe_panels_registry",
+            "lineno": 75
+          },
+          {
+            "name": "_discover_panel_keys_fallback",
+            "lineno": 103
+          },
+          {
+            "name": "list_available_panels",
+            "lineno": 123
+          },
+          {
+            "name": "_import_panel_class",
+            "lineno": 140
+          },
+          {
+            "name": "_construct_fallback",
+            "lineno": 175
+          },
+          {
+            "name": "load_panel",
+            "lineno": 216
+          },
+          {
+            "name": "get_panel_class",
+            "lineno": 253
+          },
+          {
+            "name": "instantiate_panel",
+            "lineno": 267
+          }
+        ],
+        "classes": [
+          {
+            "name": "PanelLoadError",
+            "lineno": 43
+          },
+          {
+            "name": "PanelSpec",
+            "lineno": 48
+          }
+        ]
+      },
+      {
+        "path": "glitchlab/gui/panels/__init__.py",
+        "loc": 168,
+        "defs": [
+          {
+            "name": "__init__",
+            "lineno": 39
+          },
+          {
+            "name": "_iter_candidate_modules",
+            "lineno": 52
+          },
+          {
+            "name": "_safe_import",
+            "lineno": 69
+          },
+          {
+            "name": "_derive_names_from_module",
+            "lineno": 81
+          },
+          {
+            "name": "_canonicalize",
+            "lineno": 95
+          },
+          {
+            "name": "_register_from_module",
+            "lineno": 106
+          },
+          {
+            "name": "_autoboot",
+            "lineno": 145
+          },
+          {
+            "name": "get_panel",
+            "lineno": 157
+          },
+          {
+            "name": "list_panels",
+            "lineno": 165
+          }
+        ],
+        "classes": [
+          {
+            "name": "PanelContext",
+            "lineno": 38
           }
         ]
       },
@@ -7158,52 +7150,127 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/__init__.py",
-        "loc": 168,
+        "path": "glitchlab/gui/paths.py",
+        "loc": 16,
+        "defs": [
+          {
+            "name": "project_root",
+            "lineno": 7
+          },
+          {
+            "name": "get_default_preset_dir",
+            "lineno": 12
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/preset_dir_fallback.py",
+        "loc": 62,
+        "defs": [
+          {
+            "name": "_compute_default_dir",
+            "lineno": 14
+          },
+          {
+            "name": "_get_preset_dir",
+            "lineno": 38
+          },
+          {
+            "name": "_set_preset_dir",
+            "lineno": 45
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/preset_manager.py",
+        "loc": 167,
         "defs": [
           {
             "name": "__init__",
-            "lineno": 39
+            "lineno": 23
           },
           {
-            "name": "_iter_candidate_modules",
-            "lineno": 52
+            "name": "_safe_dir_text",
+            "lineno": 63
           },
           {
-            "name": "_safe_import",
-            "lineno": 69
+            "name": "_refresh_dir_label",
+            "lineno": 72
           },
           {
-            "name": "_derive_names_from_module",
-            "lineno": 81
+            "name": "_refresh_view",
+            "lineno": 76
           },
           {
-            "name": "_canonicalize",
+            "name": "_json_to_yaml_fallback",
             "lineno": 95
           },
           {
-            "name": "_register_from_module",
-            "lineno": 106
+            "name": "_set_text",
+            "lineno": 99
           },
           {
-            "name": "_autoboot",
-            "lineno": 145
+            "name": "_load",
+            "lineno": 105
           },
           {
-            "name": "get_panel",
-            "lineno": 157
+            "name": "_save",
+            "lineno": 130
           },
           {
-            "name": "list_panels",
-            "lineno": 165
+            "name": "_apply",
+            "lineno": 144
+          },
+          {
+            "name": "_add_cur_step",
+            "lineno": 150
           }
         ],
         "classes": [
           {
-            "name": "PanelContext",
-            "lineno": 38
+            "name": "PresetManager",
+            "lineno": 16
           }
         ]
+      },
+      {
+        "path": "glitchlab/gui/preset_paths.py",
+        "loc": 101,
+        "defs": [
+          {
+            "name": "_load_settings",
+            "lineno": 28
+          },
+          {
+            "name": "_save_settings",
+            "lineno": 37
+          },
+          {
+            "name": "discover_preset_dirs",
+            "lineno": 44
+          },
+          {
+            "name": "list_preset_files",
+            "lineno": 76
+          },
+          {
+            "name": "get_last_preset_dir",
+            "lineno": 86
+          },
+          {
+            "name": "set_last_preset_dir",
+            "lineno": 97
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "glitchlab/gui/services/__init__.py",
+        "loc": 0,
+        "defs": [],
+        "classes": []
       },
       {
         "path": "glitchlab/gui/services/compositor.py",
@@ -7729,8 +7796,19 @@
         ]
       },
       {
-        "path": "glitchlab/gui/services/__init__.py",
-        "loc": 0,
+        "path": "glitchlab/gui/state.py",
+        "loc": 20,
+        "defs": [],
+        "classes": [
+          {
+            "name": "UiState",
+            "lineno": 9
+          }
+        ]
+      },
+      {
+        "path": "glitchlab/gui/views/__init__.py",
+        "loc": 24,
         "defs": [],
         "classes": []
       },
@@ -7823,6 +7901,118 @@
           {
             "name": "BottomPanel",
             "lineno": 44
+          }
+        ]
+      },
+      {
+        "path": "glitchlab/gui/views/helpers/dragging_helper.py",
+        "loc": 386,
+        "defs": [
+          {
+            "name": "_clamp",
+            "lineno": 16
+          },
+          {
+            "name": "__init__",
+            "lineno": 44
+          },
+          {
+            "name": "_wire_bus",
+            "lineno": 61
+          },
+          {
+            "name": "_g",
+            "lineno": 65
+          },
+          {
+            "name": "_publish",
+            "lineno": 101
+          },
+          {
+            "name": "add",
+            "lineno": 109
+          },
+          {
+            "name": "remove",
+            "lineno": 165
+          },
+          {
+            "name": "show",
+            "lineno": 175
+          },
+          {
+            "name": "toggle",
+            "lineno": 189
+          },
+          {
+            "name": "move_to",
+            "lineno": 196
+          },
+          {
+            "name": "resize_to",
+            "lineno": 204
+          },
+          {
+            "name": "bring_to_front",
+            "lineno": 212
+          },
+          {
+            "name": "clamp_all",
+            "lineno": 224
+          },
+          {
+            "name": "set_bounds",
+            "lineno": 228
+          },
+          {
+            "name": "save_layout",
+            "lineno": 244
+          },
+          {
+            "name": "load_layout",
+            "lineno": 250
+          },
+          {
+            "name": "make_draggable",
+            "lineno": 274
+          },
+          {
+            "name": "_grab",
+            "lineno": 282
+          },
+          {
+            "name": "_move",
+            "lineno": 295
+          },
+          {
+            "name": "_apply",
+            "lineno": 299
+          },
+          {
+            "name": "_release",
+            "lineno": 326
+          },
+          {
+            "name": "_apply_place",
+            "lineno": 343
+          },
+          {
+            "name": "_bounds_geom",
+            "lineno": 361
+          },
+          {
+            "name": "_select_handle",
+            "lineno": 370
+          }
+        ],
+        "classes": [
+          {
+            "name": "FloaterState",
+            "lineno": 21
+          },
+          {
+            "name": "FloatingLayoutManager",
+            "lineno": 33
           }
         ]
       },
@@ -8971,122 +9161,10 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/__init__.py",
-        "loc": 24,
+        "path": "glitchlab/gui/widgets/__init__.py",
+        "loc": 16,
         "defs": [],
         "classes": []
-      },
-      {
-        "path": "glitchlab/gui/views/helpers/dragging_helper.py",
-        "loc": 386,
-        "defs": [
-          {
-            "name": "_clamp",
-            "lineno": 16
-          },
-          {
-            "name": "__init__",
-            "lineno": 44
-          },
-          {
-            "name": "_wire_bus",
-            "lineno": 61
-          },
-          {
-            "name": "_g",
-            "lineno": 65
-          },
-          {
-            "name": "_publish",
-            "lineno": 101
-          },
-          {
-            "name": "add",
-            "lineno": 109
-          },
-          {
-            "name": "remove",
-            "lineno": 165
-          },
-          {
-            "name": "show",
-            "lineno": 175
-          },
-          {
-            "name": "toggle",
-            "lineno": 189
-          },
-          {
-            "name": "move_to",
-            "lineno": 196
-          },
-          {
-            "name": "resize_to",
-            "lineno": 204
-          },
-          {
-            "name": "bring_to_front",
-            "lineno": 212
-          },
-          {
-            "name": "clamp_all",
-            "lineno": 224
-          },
-          {
-            "name": "set_bounds",
-            "lineno": 228
-          },
-          {
-            "name": "save_layout",
-            "lineno": 244
-          },
-          {
-            "name": "load_layout",
-            "lineno": 250
-          },
-          {
-            "name": "make_draggable",
-            "lineno": 274
-          },
-          {
-            "name": "_grab",
-            "lineno": 282
-          },
-          {
-            "name": "_move",
-            "lineno": 295
-          },
-          {
-            "name": "_apply",
-            "lineno": 299
-          },
-          {
-            "name": "_release",
-            "lineno": 326
-          },
-          {
-            "name": "_apply_place",
-            "lineno": 343
-          },
-          {
-            "name": "_bounds_geom",
-            "lineno": 361
-          },
-          {
-            "name": "_select_handle",
-            "lineno": 370
-          }
-        ],
-        "classes": [
-          {
-            "name": "FloaterState",
-            "lineno": 21
-          },
-          {
-            "name": "FloatingLayoutManager",
-            "lineno": 33
-          }
-        ]
       },
       {
         "path": "glitchlab/gui/widgets/canvas_container.py",
@@ -10181,26 +10259,88 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/welcome_panel.py",
-        "loc": 26,
+        "path": "glitchlab/gui/widgets/tools/__init__.py",
+        "loc": 119,
         "defs": [
           {
             "name": "__init__",
-            "lineno": 6
+            "lineno": 32
+          },
+          {
+            "name": "on_activate",
+            "lineno": 33
+          },
+          {
+            "name": "on_deactivate",
+            "lineno": 34
+          },
+          {
+            "name": "on_mouse_down",
+            "lineno": 35
+          },
+          {
+            "name": "on_mouse_move",
+            "lineno": 36
+          },
+          {
+            "name": "on_mouse_up",
+            "lineno": 37
+          },
+          {
+            "name": "on_key",
+            "lineno": 38
+          },
+          {
+            "name": "on_wheel",
+            "lineno": 39
+          },
+          {
+            "name": "draw_overlay",
+            "lineno": 40
+          },
+          {
+            "name": "_try_register",
+            "lineno": 51
+          },
+          {
+            "name": "on_activate",
+            "lineno": 86
+          },
+          {
+            "name": "draw_overlay",
+            "lineno": 87
+          },
+          {
+            "name": "available",
+            "lineno": 92
+          },
+          {
+            "name": "has",
+            "lineno": 97
+          },
+          {
+            "name": "get_tool",
+            "lineno": 102
+          },
+          {
+            "name": "debug_errors",
+            "lineno": 110
           }
         ],
         "classes": [
           {
-            "name": "WelcomePanel",
-            "lineno": 5
+            "name": "ToolBase",
+            "lineno": 30
+          },
+          {
+            "name": "ToolEventContext",
+            "lineno": 42
+          },
+          {
+            "name": "_ViewNoop",
+            "lineno": 84
           }
         ]
-      },
-      {
-        "path": "glitchlab/gui/widgets/__init__.py",
-        "loc": 16,
-        "defs": [],
-        "classes": []
       },
       {
         "path": "glitchlab/gui/widgets/tools/base.py",
@@ -10831,86 +10971,18 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/__init__.py",
-        "loc": 119,
+        "path": "glitchlab/gui/widgets/welcome_panel.py",
+        "loc": 26,
         "defs": [
           {
             "name": "__init__",
-            "lineno": 32
-          },
-          {
-            "name": "on_activate",
-            "lineno": 33
-          },
-          {
-            "name": "on_deactivate",
-            "lineno": 34
-          },
-          {
-            "name": "on_mouse_down",
-            "lineno": 35
-          },
-          {
-            "name": "on_mouse_move",
-            "lineno": 36
-          },
-          {
-            "name": "on_mouse_up",
-            "lineno": 37
-          },
-          {
-            "name": "on_key",
-            "lineno": 38
-          },
-          {
-            "name": "on_wheel",
-            "lineno": 39
-          },
-          {
-            "name": "draw_overlay",
-            "lineno": 40
-          },
-          {
-            "name": "_try_register",
-            "lineno": 51
-          },
-          {
-            "name": "on_activate",
-            "lineno": 86
-          },
-          {
-            "name": "draw_overlay",
-            "lineno": 87
-          },
-          {
-            "name": "available",
-            "lineno": 92
-          },
-          {
-            "name": "has",
-            "lineno": 97
-          },
-          {
-            "name": "get_tool",
-            "lineno": 102
-          },
-          {
-            "name": "debug_errors",
-            "lineno": 110
+            "lineno": 6
           }
         ],
         "classes": [
           {
-            "name": "ToolBase",
-            "lineno": 30
-          },
-          {
-            "name": "ToolEventContext",
-            "lineno": 42
-          },
-          {
-            "name": "_ViewNoop",
-            "lineno": 84
+            "name": "WelcomePanel",
+            "lineno": 5
           }
         ]
       },
@@ -11208,15 +11280,11 @@
       },
       {
         "path": "glitchlab/scripts/report_html.py",
-        "loc": 388,
+        "loc": 330,
         "defs": [
           {
-            "name": "_fill",
-            "lineno": 325
-          },
-          {
             "name": "main",
-            "lineno": 332
+            "lineno": 274
           }
         ],
         "classes": []
@@ -12787,610 +12855,451 @@
   "prompts": {
     "architect_review": {
       "system": "Jesteś asystentem inżynierskim GlitchLab. Twoja analiza ma być deterministyczna, konkretna, bez wprowadzania losowości. Oceniaj wpływ zmian na architekturę i HUD/Mosaic⇄AST.",
-      "user": "Cel: architect_review. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=41416, modules=199, defs=2036, classes=223.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
+      "user": "Cel: architect_review. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=41735, modules=200, defs=2050, classes=223.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
       "context": {
         "glx_state": {},
         "git_head": null,
+        "git_branch": null,
         "recent_commits": [],
         "delta_last": [],
         "top_modules": [
           {
             "path": "glitchlab/gui/mosaic/hybrid_ast_mosaic.py",
-            "loc": 1288,
+            "loc": 1382,
             "defs": [
               {
                 "name": "_rng_for_meta",
-                "lineno": 149
+                "lineno": 150
               },
               {
                 "name": "_meta_for",
-                "lineno": 157
+                "lineno": 158
               },
               {
                 "name": "ast_deltas",
-                "lineno": 177
+                "lineno": 178
               },
               {
                 "name": "add",
-                "lineno": 185
+                "lineno": 186
               },
               {
                 "name": "compress_ast",
-                "lineno": 235
+                "lineno": 236
               },
               {
                 "name": "build_mosaic_grid",
-                "lineno": 266
+                "lineno": 267
               },
               {
                 "name": "build_mosaic_hex",
-                "lineno": 281
+                "lineno": 282
               },
               {
                 "name": "build_mosaic",
-                "lineno": 297
+                "lineno": 298
               },
               {
                 "name": "region_ids",
-                "lineno": 303
+                "lineno": 304
               },
               {
                 "name": "_xy_of_idx",
-                "lineno": 311
+                "lineno": 312
               },
               {
                 "name": "_sigmoid",
-                "lineno": 318
+                "lineno": 319
               },
               {
                 "name": "_soft_label",
-                "lineno": 328
+                "lineno": 329
+              },
+              {
+                "name": "_only_py",
+                "lineno": 334
+              },
+              {
+                "name": "_abs",
+                "lineno": 338
               },
               {
                 "name": "tile_dist",
-                "lineno": 333
+                "lineno": 343
               },
               {
                 "name": "_dm_greedy_oneway",
-                "lineno": 350
+                "lineno": 360
               },
               {
                 "name": "_length_penalty",
-                "lineno": 364
+                "lineno": 374
               },
               {
                 "name": "_pair_cost",
-                "lineno": 378
+                "lineno": 388
               },
               {
                 "name": "D_M",
-                "lineno": 403
+                "lineno": 413
               },
               {
                 "name": "phi_region_for",
-                "lineno": 425
+                "lineno": 435
               },
               {
                 "name": "phi_region_for_balanced",
-                "lineno": 433
+                "lineno": 443
               },
               {
                 "name": "phi_region_for_entropy",
-                "lineno": 466
+                "lineno": 476
               },
               {
                 "name": "near_thr",
-                "lineno": 467
+                "lineno": 477
               },
               {
                 "name": "load_policy_json",
-                "lineno": 478
+                "lineno": 488
               },
               {
                 "name": "make_selector_policy_aware",
-                "lineno": 508
+                "lineno": 518
               },
               {
                 "name": "_sel",
-                "lineno": 524
+                "lineno": 534
               },
               {
                 "name": "centroid",
-                "lineno": 543
+                "lineno": 553
               },
               {
                 "name": "phi_cost",
-                "lineno": 551
+                "lineno": 561
               },
               {
                 "name": "psi_feedback",
-                "lineno": 572
+                "lineno": 582
               },
               {
                 "name": "_neighbors_grid",
-                "lineno": 599
-              },
-              {
-                "name": "_neighbors_hex_oddr",
                 "lineno": 609
               },
               {
+                "name": "_neighbors_hex_oddr",
+                "lineno": 619
+              },
+              {
                 "name": "_adjacency_indices",
-                "lineno": 622
+                "lineno": 632
               },
               {
                 "name": "_connected_components",
-                "lineno": 636
+                "lineno": 645
               },
               {
                 "name": "mosaic_profile",
-                "lineno": 670
+                "lineno": 679
               },
               {
                 "name": "couple_alpha_beta",
-                "lineno": 706
+                "lineno": 715
               },
               {
                 "name": "distance_ast_mosaic",
-                "lineno": 728
+                "lineno": 736
               },
               {
                 "name": "invariants_check",
-                "lineno": 735
+                "lineno": 743
               },
               {
                 "name": "_selector_from_args",
-                "lineno": 758
+                "lineno": 766
               },
               {
                 "name": "run_once",
-                "lineno": 771
+                "lineno": 779
               },
               {
                 "name": "sweep",
-                "lineno": 805
+                "lineno": 813
               },
               {
                 "name": "sign_test_phi2_better",
-                "lineno": 821
+                "lineno": 829
               },
               {
                 "name": "_ast_summary_for_source_det",
-                "lineno": 854
+                "lineno": 862
               },
               {
                 "name": "_file_selector_filter",
-                "lineno": 880
+                "lineno": 888
               },
               {
                 "name": "run_from_git",
-                "lineno": 890
+                "lineno": 898
               },
               {
                 "name": "_pretty_table",
-                "lineno": 1023
+                "lineno": 1031
               },
               {
                 "name": "rowfmt",
-                "lineno": 1027
+                "lineno": 1035
               },
               {
                 "name": "line",
-                "lineno": 1038
+                "lineno": 1046
               },
               {
                 "name": "cmd_run",
-                "lineno": 1047
+                "lineno": 1055
               },
               {
                 "name": "cmd_sweep",
-                "lineno": 1067
+                "lineno": 1075
               },
               {
                 "name": "cmd_test",
-                "lineno": 1079
+                "lineno": 1087
               },
               {
                 "name": "_normpath_under_project",
-                "lineno": 1092
+                "lineno": 1100
               },
               {
                 "name": "_emit_fallback_artifacts",
-                "lineno": 1097
+                "lineno": 1105
               },
               {
                 "name": "cmd_from_git_dump",
-                "lineno": 1149
+                "lineno": 1157
+              },
+              {
+                "name": "_git_run",
+                "lineno": 1281
+              },
+              {
+                "name": "_git_show_file",
+                "lineno": 1287
+              },
+              {
+                "name": "_git_top",
+                "lineno": 1294
               },
               {
                 "name": "cmd_from_git",
-                "lineno": 1210
+                "lineno": 1304
               },
               {
                 "name": "build_cli",
-                "lineno": 1227
+                "lineno": 1321
               },
               {
                 "name": "main",
-                "lineno": 1281
+                "lineno": 1375
               }
             ],
             "classes": [
               {
                 "name": "AstNode",
-                "lineno": 126
+                "lineno": 127
               },
               {
                 "name": "AstSummary",
-                "lineno": 137
+                "lineno": 138
               },
               {
                 "name": "Mosaic",
-                "lineno": 255
+                "lineno": 256
               }
             ]
           },
           {
             "path": "glitchlab/gui/app.py",
-            "loc": 913,
+            "loc": 921,
             "defs": [
               {
                 "name": "init_styles",
-                "lineno": 29
+                "lineno": 28
               },
               {
                 "name": "__init__",
-                "lineno": 85
-              },
-              {
-                "name": "publish",
-                "lineno": 86
-              },
-              {
-                "name": "subscribe",
                 "lineno": 87
               },
               {
+                "name": "publish",
+                "lineno": 89
+              },
+              {
+                "name": "subscribe",
+                "lineno": 91
+              },
+              {
                 "name": "request",
-                "lineno": 88
+                "lineno": 93
               },
               {
                 "name": "__init__",
-                "lineno": 112
+                "lineno": 117
               },
               {
                 "name": "__init__",
-                "lineno": 127
+                "lineno": 132
               },
               {
                 "name": "_build_ui",
-                "lineno": 163
+                "lineno": 168
               },
               {
                 "name": "_init_sash",
-                "lineno": 226
+                "lineno": 232
               },
               {
                 "name": "_wire_bus",
-                "lineno": 251
+                "lineno": 258
               },
               {
                 "name": "_on_preset_parsed",
-                "lineno": 318
+                "lineno": 325
               },
               {
                 "name": "_load_image_path",
-                "lineno": 327
+                "lineno": 334
               },
               {
                 "name": "_save_image_path",
-                "lineno": 374
+                "lineno": 382
               },
               {
                 "name": "_pil_to_u8",
-                "lineno": 393
+                "lineno": 401
               },
               {
                 "name": "_array_to_pil",
-                "lineno": 406
+                "lineno": 414
               },
               {
                 "name": "run_step",
-                "lineno": 420
+                "lineno": 428
               },
               {
                 "name": "run_preset",
-                "lineno": 457
+                "lineno": 465
               },
               {
                 "name": "_on_progress",
-                "lineno": 507
+                "lineno": 515
               },
               {
                 "name": "_on_run_done",
-                "lineno": 519
+                "lineno": 527
               },
               {
                 "name": "_on_run_error",
-                "lineno": 556
+                "lineno": 564
               },
               {
                 "name": "_update_bottom_from_cache",
-                "lineno": 570
-              },
-              {
-                "name": "_update_edit_menu_state",
                 "lineno": 578
               },
               {
-                "name": "_on_undo",
+                "name": "_update_edit_menu_state",
                 "lineno": 586
               },
               {
+                "name": "_on_undo",
+                "lineno": 594
+              },
+              {
                 "name": "_on_redo",
-                "lineno": 615
+                "lineno": 623
               },
               {
                 "name": "_toggle_left",
-                "lineno": 645
+                "lineno": 653
               },
               {
                 "name": "_toggle_right",
-                "lineno": 665
+                "lineno": 673
               },
               {
                 "name": "_toggle_hud",
-                "lineno": 681
+                "lineno": 689
               },
               {
                 "name": "_toggle_fullscreen",
-                "lineno": 697
+                "lineno": 705
               },
               {
                 "name": "_get_active_layer_pil",
-                "lineno": 711
+                "lineno": 719
               },
               {
                 "name": "_get_composite_np",
-                "lineno": 733
+                "lineno": 741
               },
               {
                 "name": "_refresh_composite",
-                "lineno": 748
+                "lineno": 756
               },
               {
                 "name": "_layers_snapshot",
-                "lineno": 761
+                "lineno": 769
               },
               {
                 "name": "_calc_layers_sig",
-                "lineno": 776
+                "lineno": 784
               },
               {
                 "name": "_publish_layers_snapshot",
-                "lineno": 785
+                "lineno": 793
               },
               {
                 "name": "_on_layers_changed",
-                "lineno": 798
+                "lineno": 806
               },
               {
                 "name": "_on_layer_add",
-                "lineno": 804
+                "lineno": 812
               },
               {
                 "name": "_on_layer_remove",
-                "lineno": 837
+                "lineno": 845
               },
               {
                 "name": "_on_layer_set_active",
-                "lineno": 848
+                "lineno": 856
               },
               {
                 "name": "_on_layer_update",
-                "lineno": 857
+                "lineno": 865
               },
               {
                 "name": "_on_layers_reorder",
-                "lineno": 874
+                "lineno": 882
               },
               {
                 "name": "main",
-                "lineno": 894
+                "lineno": 902
               }
             ],
             "classes": [
               {
                 "name": "EventBus",
-                "lineno": 84
+                "lineno": 86
               },
               {
                 "name": "AppState",
-                "lineno": 111
+                "lineno": 116
               },
               {
                 "name": "App",
-                "lineno": 126
-              }
-            ]
-          },
-          {
-            "path": "glitchlab/gui/mosaic/tests/ast_mosaic_coupled.py",
-            "loc": 732,
-            "defs": [
-              {
-                "name": "energy",
-                "lineno": 53
-              },
-              {
-                "name": "entropy",
-                "lineno": 57
-              },
-              {
-                "name": "_node_label",
-                "lineno": 75
-              },
-              {
-                "name": "_attach_parents_and_depths",
-                "lineno": 91
-              },
-              {
-                "name": "walk",
-                "lineno": 92
-              },
-              {
-                "name": "_group_of",
-                "lineno": 111
-              },
-              {
-                "name": "_coords_for_tree",
-                "lineno": 119
-              },
-              {
-                "name": "walk",
-                "lineno": 122
-              },
-              {
-                "name": "_meta_for_node",
-                "lineno": 148
-              },
-              {
-                "name": "ast_nodes_from_code",
-                "lineno": 164
-              },
-              {
-                "name": "group_centroids",
-                "lineno": 193
-              },
-              {
-                "name": "coords_for_lambda",
-                "lineno": 204
-              },
-              {
-                "name": "build_base_mosaic",
-                "lineno": 219
-              },
-              {
-                "name": "_norm01",
-                "lineno": 231
-              },
-              {
-                "name": "_sobel_mag",
-                "lineno": 238
-              },
-              {
-                "name": "mosaic_from_ast",
-                "lineno": 255
-              },
-              {
-                "name": "_pos_lam",
-                "lineno": 269
-              },
-              {
-                "name": "region_indices",
-                "lineno": 296
-              },
-              {
-                "name": "region_centroid",
-                "lineno": 302
-              },
-              {
-                "name": "region_feats",
-                "lineno": 310
-              },
-              {
-                "name": "fuse_meta",
-                "lineno": 322
-              },
-              {
-                "name": "draw_ast",
-                "lineno": 331
-              },
-              {
-                "name": "draw_mosaic",
-                "lineno": 345
-              },
-              {
-                "name": "draw_region_frame",
-                "lineno": 360
-              },
-              {
-                "name": "draw_fusion",
-                "lineno": 371
-              },
-              {
-                "name": "draw_infographic",
-                "lineno": 406
-              },
-              {
-                "name": "__init__",
-                "lineno": 445
-              },
-              {
-                "name": "_font_step",
-                "lineno": 540
-              },
-              {
-                "name": "reset_views",
-                "lineno": 547
-              },
-              {
-                "name": "render",
-                "lineno": 553
-              },
-              {
-                "name": "on_lambda_changed",
-                "lineno": 581
-              },
-              {
-                "name": "on_node_changed",
-                "lineno": 585
-              },
-              {
-                "name": "recompute_mosaic_from_ast",
-                "lineno": 590
-              },
-              {
-                "name": "apply_feedback_and_recompute",
-                "lineno": 609
-              },
-              {
-                "name": "feats_at",
-                "lineno": 618
-              },
-              {
-                "name": "on_region_changed",
-                "lineno": 641
-              },
-              {
-                "name": "on_pick_ast",
-                "lineno": 646
-              },
-              {
-                "name": "on_click_any",
-                "lineno": 656
-              },
-              {
-                "name": "repaint",
-                "lineno": 679
-              },
-              {
-                "name": "main",
-                "lineno": 725
-              }
-            ],
-            "classes": [
-              {
-                "name": "AstNodeMeta",
-                "lineno": 44
-              },
-              {
-                "name": "Mosaic",
-                "lineno": 62
-              },
-              {
-                "name": "App",
-                "lineno": 444
+                "lineno": 131
               }
             ]
           },
@@ -13575,8 +13484,188 @@
             ]
           },
           {
+            "path": "glitchlab/gui/mosaic/tests/ast_mosaic_coupled.py",
+            "loc": 732,
+            "defs": [
+              {
+                "name": "energy",
+                "lineno": 53
+              },
+              {
+                "name": "entropy",
+                "lineno": 57
+              },
+              {
+                "name": "_node_label",
+                "lineno": 75
+              },
+              {
+                "name": "_attach_parents_and_depths",
+                "lineno": 91
+              },
+              {
+                "name": "walk",
+                "lineno": 92
+              },
+              {
+                "name": "_group_of",
+                "lineno": 111
+              },
+              {
+                "name": "_coords_for_tree",
+                "lineno": 119
+              },
+              {
+                "name": "walk",
+                "lineno": 122
+              },
+              {
+                "name": "_meta_for_node",
+                "lineno": 148
+              },
+              {
+                "name": "ast_nodes_from_code",
+                "lineno": 164
+              },
+              {
+                "name": "group_centroids",
+                "lineno": 193
+              },
+              {
+                "name": "coords_for_lambda",
+                "lineno": 204
+              },
+              {
+                "name": "build_base_mosaic",
+                "lineno": 219
+              },
+              {
+                "name": "_norm01",
+                "lineno": 231
+              },
+              {
+                "name": "_sobel_mag",
+                "lineno": 238
+              },
+              {
+                "name": "mosaic_from_ast",
+                "lineno": 255
+              },
+              {
+                "name": "_pos_lam",
+                "lineno": 269
+              },
+              {
+                "name": "region_indices",
+                "lineno": 296
+              },
+              {
+                "name": "region_centroid",
+                "lineno": 302
+              },
+              {
+                "name": "region_feats",
+                "lineno": 310
+              },
+              {
+                "name": "fuse_meta",
+                "lineno": 322
+              },
+              {
+                "name": "draw_ast",
+                "lineno": 331
+              },
+              {
+                "name": "draw_mosaic",
+                "lineno": 345
+              },
+              {
+                "name": "draw_region_frame",
+                "lineno": 360
+              },
+              {
+                "name": "draw_fusion",
+                "lineno": 371
+              },
+              {
+                "name": "draw_infographic",
+                "lineno": 406
+              },
+              {
+                "name": "__init__",
+                "lineno": 445
+              },
+              {
+                "name": "_font_step",
+                "lineno": 540
+              },
+              {
+                "name": "reset_views",
+                "lineno": 547
+              },
+              {
+                "name": "render",
+                "lineno": 553
+              },
+              {
+                "name": "on_lambda_changed",
+                "lineno": 581
+              },
+              {
+                "name": "on_node_changed",
+                "lineno": 585
+              },
+              {
+                "name": "recompute_mosaic_from_ast",
+                "lineno": 590
+              },
+              {
+                "name": "apply_feedback_and_recompute",
+                "lineno": 609
+              },
+              {
+                "name": "feats_at",
+                "lineno": 618
+              },
+              {
+                "name": "on_region_changed",
+                "lineno": 641
+              },
+              {
+                "name": "on_pick_ast",
+                "lineno": 646
+              },
+              {
+                "name": "on_click_any",
+                "lineno": 656
+              },
+              {
+                "name": "repaint",
+                "lineno": 679
+              },
+              {
+                "name": "main",
+                "lineno": 725
+              }
+            ],
+            "classes": [
+              {
+                "name": "AstNodeMeta",
+                "lineno": 44
+              },
+              {
+                "name": "Mosaic",
+                "lineno": 62
+              },
+              {
+                "name": "App",
+                "lineno": 444
+              }
+            ]
+          },
+          {
             "path": "glitchlab/.githooks/post-commit.py",
-            "loc": 653,
+            "loc": 640,
             "defs": [
               {
                 "name": "_is_git_repo",
@@ -13603,249 +13692,221 @@
                 "lineno": 114
               },
               {
-                "name": "_parse_env_file",
+                "name": "_load_env",
                 "lineno": 127
               },
               {
-                "name": "_load_env",
-                "lineno": 140
-              },
-              {
                 "name": "_expand_vars_and_user",
-                "lineno": 160
+                "lineno": 147
               },
               {
                 "name": "_resolve_path",
-                "lineno": 165
+                "lineno": 152
               },
               {
                 "name": "_norm_paths_in_env",
-                "lineno": 179
+                "lineno": 166
               },
               {
                 "name": "_log",
-                "lineno": 203
+                "lineno": 190
               },
               {
                 "name": "_fail",
-                "lineno": 207
+                "lineno": 194
               },
               {
                 "name": "_git",
-                "lineno": 213
+                "lineno": 200
               },
               {
                 "name": "_git_top",
-                "lineno": 217
+                "lineno": 204
               },
               {
                 "name": "_rev_parse",
-                "lineno": 229
+                "lineno": 216
               },
               {
                 "name": "_rev_ok",
-                "lineno": 234
+                "lineno": 221
               },
               {
                 "name": "_empty_tree_oid",
-                "lineno": 243
+                "lineno": 230
               },
               {
                 "name": "_detect_base",
-                "lineno": 259
+                "lineno": 246
               },
               {
                 "name": "_dirs_chain_up",
-                "lineno": 297
+                "lineno": 284
               },
               {
                 "name": "_req",
-                "lineno": 326
+                "lineno": 313
               },
               {
                 "name": "_as_int",
-                "lineno": 332
+                "lineno": 319
               },
               {
                 "name": "_as_float01",
-                "lineno": 339
+                "lineno": 326
               },
               {
                 "name": "_redact_env",
-                "lineno": 350
+                "lineno": 337
               },
               {
                 "name": "_module_exists",
-                "lineno": 361
+                "lineno": 348
               },
               {
                 "name": "_module_cmd_from_candidates",
-                "lineno": 368
+                "lineno": 355
               },
               {
                 "name": "_child_env",
-                "lineno": 392
+                "lineno": 379
               },
               {
                 "name": "_run_gateway",
-                "lineno": 399
+                "lineno": 386
               },
               {
                 "name": "_run_mosaic",
-                "lineno": 437
+                "lineno": 424
               },
               {
                 "name": "_send_mail",
-                "lineno": 489
+                "lineno": 476
               },
               {
                 "name": "_should_zip",
-                "lineno": 529
+                "lineno": 516
               },
               {
                 "name": "_writestr_deterministic",
-                "lineno": 536
+                "lineno": 523
               },
               {
                 "name": "_make_zip",
-                "lineno": 543
+                "lineno": 530
               },
               {
                 "name": "main",
-                "lineno": 592
+                "lineno": 579
               }
             ],
             "classes": []
           },
           {
-            "path": "glitchlab/gui/mosaic/tests/metarelation_scaling_test.py",
-            "loc": 591,
+            "path": "glitchlab/analysis/autonomy/gateway.py",
+            "loc": 637,
             "defs": [
               {
-                "name": "energy",
-                "lineno": 49
+                "name": "_strip_inline_comment",
+                "lineno": 46
               },
               {
-                "name": "entropy",
-                "lineno": 53
+                "name": "_clean_value",
+                "lineno": 61
               },
               {
-                "name": "build_demo_mosaic",
-                "lineno": 70
+                "name": "_simple_parse_env",
+                "lineno": 68
               },
               {
-                "name": "region_indices",
-                "lineno": 89
+                "name": "_dirs_chain_up",
+                "lineno": 82
               },
               {
-                "name": "region_centroid",
-                "lineno": 95
+                "name": "_load_dotenv_chain_into_environ",
+                "lineno": 102
               },
               {
-                "name": "region_feats",
-                "lineno": 103
+                "name": "_norm_from",
+                "lineno": 134
               },
               {
-                "name": "fuse_meta",
-                "lineno": 118
+                "name": "_best_guess_package_root",
+                "lineno": 141
               },
               {
-                "name": "_node_label",
-                "lineno": 131
+                "name": "_int_env",
+                "lineno": 165
               },
               {
-                "name": "_group_of",
-                "lineno": 149
+                "name": "_utc_iso",
+                "lineno": 227
               },
               {
-                "name": "_attach_parents_and_depths",
-                "lineno": 167
+                "name": "_safe_read_json",
+                "lineno": 231
               },
               {
-                "name": "walk",
-                "lineno": 171
+                "name": "_read_text",
+                "lineno": 240
               },
               {
-                "name": "_coords_for_tree",
-                "lineno": 190
+                "name": "_rel_to_project",
+                "lineno": 247
               },
               {
-                "name": "walk",
-                "lineno": 198
+                "name": "_is_binary_like",
+                "lineno": 254
               },
               {
-                "name": "_meta_for_node",
-                "lineno": 228
+                "name": "_redact_env_snapshot",
+                "lineno": 264
               },
               {
-                "name": "ast_nodes_from_code",
-                "lineno": 248
-              },
-              {
-                "name": "group_centroids",
+                "name": "scan_repository",
                 "lineno": 280
               },
               {
-                "name": "coords_for_lambda",
-                "lineno": 291
+                "name": "_excluded",
+                "lineno": 295
               },
               {
-                "name": "draw_ast",
-                "lineno": 306
+                "name": "_run_git",
+                "lineno": 382
               },
               {
-                "name": "draw_mosaic",
-                "lineno": 317
+                "name": "git_snapshot",
+                "lineno": 393
               },
               {
-                "name": "draw_region_frame",
-                "lineno": 332
+                "name": "make_prompt_pack",
+                "lineno": 437
               },
               {
-                "name": "draw_fusion",
-                "lineno": 342
+                "name": "build_selfdoc",
+                "lineno": 474
               },
               {
-                "name": "draw_infographic",
-                "lineno": 381
+                "name": "write_outputs",
+                "lineno": 522
               },
               {
-                "name": "__init__",
-                "lineno": 419
-              },
-              {
-                "name": "_font_step",
-                "lineno": 492
-              },
-              {
-                "name": "render",
-                "lineno": 502
-              },
-              {
-                "name": "reset_views",
-                "lineno": 530
-              },
-              {
-                "name": "repaint",
-                "lineno": 535
+                "name": "_parse_argv",
+                "lineno": 562
               },
               {
                 "name": "main",
-                "lineno": 584
+                "lineno": 589
               }
             ],
             "classes": [
               {
-                "name": "AstNodeMeta",
-                "lineno": 41
+                "name": "Telemetry",
+                "lineno": 190
               },
               {
-                "name": "Mosaic",
-                "lineno": 58
-              },
-              {
-                "name": "App",
-                "lineno": 418
+                "name": "SelfDocPack",
+                "lineno": 208
               }
             ]
           },
@@ -13982,58 +14043,134 @@
             ]
           },
           {
-            "path": "glitchlab/core/pipeline.py",
-            "loc": 545,
+            "path": "glitchlab/gui/mosaic/tests/metarelation_scaling_test.py",
+            "loc": 591,
             "defs": [
               {
-                "name": "normalize_preset",
-                "lineno": 123
+                "name": "energy",
+                "lineno": 49
               },
               {
-                "name": "_resize_float01",
-                "lineno": 196
+                "name": "entropy",
+                "lineno": 53
               },
               {
-                "name": "_build_amplitude",
-                "lineno": 204
+                "name": "build_demo_mosaic",
+                "lineno": 70
               },
               {
-                "name": "_build_edge_mask",
-                "lineno": 265
+                "name": "region_indices",
+                "lineno": 89
               },
               {
-                "name": "build_ctx",
-                "lineno": 285
+                "name": "region_centroid",
+                "lineno": 95
               },
               {
-                "name": "_thumb_rgb",
-                "lineno": 339
+                "name": "region_feats",
+                "lineno": 103
               },
               {
-                "name": "_compute_diff",
-                "lineno": 350
+                "name": "fuse_meta",
+                "lineno": 118
               },
               {
-                "name": "_gather_metrics",
-                "lineno": 374
+                "name": "_node_label",
+                "lineno": 131
               },
               {
-                "name": "_apply_wrapper_mask_amp",
-                "lineno": 383
+                "name": "_group_of",
+                "lineno": 149
               },
               {
-                "name": "apply_pipeline",
-                "lineno": 428
+                "name": "_attach_parents_and_depths",
+                "lineno": 167
+              },
+              {
+                "name": "walk",
+                "lineno": 171
+              },
+              {
+                "name": "_coords_for_tree",
+                "lineno": 190
+              },
+              {
+                "name": "walk",
+                "lineno": 198
+              },
+              {
+                "name": "_meta_for_node",
+                "lineno": 228
+              },
+              {
+                "name": "ast_nodes_from_code",
+                "lineno": 248
+              },
+              {
+                "name": "group_centroids",
+                "lineno": 280
+              },
+              {
+                "name": "coords_for_lambda",
+                "lineno": 291
+              },
+              {
+                "name": "draw_ast",
+                "lineno": 306
+              },
+              {
+                "name": "draw_mosaic",
+                "lineno": 317
+              },
+              {
+                "name": "draw_region_frame",
+                "lineno": 332
+              },
+              {
+                "name": "draw_fusion",
+                "lineno": 342
+              },
+              {
+                "name": "draw_infographic",
+                "lineno": 381
+              },
+              {
+                "name": "__init__",
+                "lineno": 419
+              },
+              {
+                "name": "_font_step",
+                "lineno": 492
+              },
+              {
+                "name": "render",
+                "lineno": 502
+              },
+              {
+                "name": "reset_views",
+                "lineno": 530
+              },
+              {
+                "name": "repaint",
+                "lineno": 535
+              },
+              {
+                "name": "main",
+                "lineno": 584
               }
             ],
             "classes": [
               {
-                "name": "Step",
-                "lineno": 105
+                "name": "AstNodeMeta",
+                "lineno": 41
               },
               {
-                "name": "Ctx",
-                "lineno": 111
+                "name": "Mosaic",
+                "lineno": 58
+              },
+              {
+                "name": "App",
+                "lineno": 418
               }
             ]
           }
@@ -14044,627 +14181,474 @@
         ]
       },
       "attachments": {
-        "schema": "glx.selfdoc.v1",
-        "when": "2025-10-02T00:35:27Z",
+        "schema": "glx.selfdoc",
+        "when": "2025-10-02T20:13:20Z",
         "telemetry": {
           "ok": true,
           "error": "",
-          "scan_ms": 1296.1275,
-          "ast_ms": 1116.6822999999997,
-          "files_scanned": 199,
-          "mods": 199,
-          "defs": 2036,
+          "scan_ms": 1598.8996000000002,
+          "ast_ms": 1131.206,
+          "files_scanned": 200,
+          "mods": 200,
+          "defs": 2050,
           "classes": 223,
-          "git_ok": false
-        }
+          "git_ok": false,
+          "skipped_too_big": 0,
+          "skipped_binary_hint": 0,
+          "parse_errors": 0,
+          "largest_file_bytes": 57134,
+          "python_ver": "3.9.2rc1"
+        },
+        "python": "3.9.2rc1"
       }
     },
     "risk_brief": {
       "system": "Jesteś asystentem inżynierskim GlitchLab. Twoja analiza ma być deterministyczna, konkretna, bez wprowadzania losowości. Oceniaj wpływ zmian na architekturę i HUD/Mosaic⇄AST.",
-      "user": "Cel: risk_brief. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=41416, modules=199, defs=2036, classes=223.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
+      "user": "Cel: risk_brief. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=41735, modules=200, defs=2050, classes=223.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
       "context": {
         "glx_state": {},
         "git_head": null,
+        "git_branch": null,
         "recent_commits": [],
         "delta_last": [],
         "top_modules": [
           {
             "path": "glitchlab/gui/mosaic/hybrid_ast_mosaic.py",
-            "loc": 1288,
+            "loc": 1382,
             "defs": [
               {
                 "name": "_rng_for_meta",
-                "lineno": 149
+                "lineno": 150
               },
               {
                 "name": "_meta_for",
-                "lineno": 157
+                "lineno": 158
               },
               {
                 "name": "ast_deltas",
-                "lineno": 177
+                "lineno": 178
               },
               {
                 "name": "add",
-                "lineno": 185
+                "lineno": 186
               },
               {
                 "name": "compress_ast",
-                "lineno": 235
+                "lineno": 236
               },
               {
                 "name": "build_mosaic_grid",
-                "lineno": 266
+                "lineno": 267
               },
               {
                 "name": "build_mosaic_hex",
-                "lineno": 281
+                "lineno": 282
               },
               {
                 "name": "build_mosaic",
-                "lineno": 297
+                "lineno": 298
               },
               {
                 "name": "region_ids",
-                "lineno": 303
+                "lineno": 304
               },
               {
                 "name": "_xy_of_idx",
-                "lineno": 311
+                "lineno": 312
               },
               {
                 "name": "_sigmoid",
-                "lineno": 318
+                "lineno": 319
               },
               {
                 "name": "_soft_label",
-                "lineno": 328
+                "lineno": 329
+              },
+              {
+                "name": "_only_py",
+                "lineno": 334
+              },
+              {
+                "name": "_abs",
+                "lineno": 338
               },
               {
                 "name": "tile_dist",
-                "lineno": 333
+                "lineno": 343
               },
               {
                 "name": "_dm_greedy_oneway",
-                "lineno": 350
+                "lineno": 360
               },
               {
                 "name": "_length_penalty",
-                "lineno": 364
+                "lineno": 374
               },
               {
                 "name": "_pair_cost",
-                "lineno": 378
+                "lineno": 388
               },
               {
                 "name": "D_M",
-                "lineno": 403
+                "lineno": 413
               },
               {
                 "name": "phi_region_for",
-                "lineno": 425
+                "lineno": 435
               },
               {
                 "name": "phi_region_for_balanced",
-                "lineno": 433
+                "lineno": 443
               },
               {
                 "name": "phi_region_for_entropy",
-                "lineno": 466
+                "lineno": 476
               },
               {
                 "name": "near_thr",
-                "lineno": 467
+                "lineno": 477
               },
               {
                 "name": "load_policy_json",
-                "lineno": 478
+                "lineno": 488
               },
               {
                 "name": "make_selector_policy_aware",
-                "lineno": 508
+                "lineno": 518
               },
               {
                 "name": "_sel",
-                "lineno": 524
+                "lineno": 534
               },
               {
                 "name": "centroid",
-                "lineno": 543
+                "lineno": 553
               },
               {
                 "name": "phi_cost",
-                "lineno": 551
+                "lineno": 561
               },
               {
                 "name": "psi_feedback",
-                "lineno": 572
+                "lineno": 582
               },
               {
                 "name": "_neighbors_grid",
-                "lineno": 599
-              },
-              {
-                "name": "_neighbors_hex_oddr",
                 "lineno": 609
               },
               {
+                "name": "_neighbors_hex_oddr",
+                "lineno": 619
+              },
+              {
                 "name": "_adjacency_indices",
-                "lineno": 622
+                "lineno": 632
               },
               {
                 "name": "_connected_components",
-                "lineno": 636
+                "lineno": 645
               },
               {
                 "name": "mosaic_profile",
-                "lineno": 670
+                "lineno": 679
               },
               {
                 "name": "couple_alpha_beta",
-                "lineno": 706
+                "lineno": 715
               },
               {
                 "name": "distance_ast_mosaic",
-                "lineno": 728
+                "lineno": 736
               },
               {
                 "name": "invariants_check",
-                "lineno": 735
+                "lineno": 743
               },
               {
                 "name": "_selector_from_args",
-                "lineno": 758
+                "lineno": 766
               },
               {
                 "name": "run_once",
-                "lineno": 771
+                "lineno": 779
               },
               {
                 "name": "sweep",
-                "lineno": 805
+                "lineno": 813
               },
               {
                 "name": "sign_test_phi2_better",
-                "lineno": 821
+                "lineno": 829
               },
               {
                 "name": "_ast_summary_for_source_det",
-                "lineno": 854
+                "lineno": 862
               },
               {
                 "name": "_file_selector_filter",
-                "lineno": 880
+                "lineno": 888
               },
               {
                 "name": "run_from_git",
-                "lineno": 890
+                "lineno": 898
               },
               {
                 "name": "_pretty_table",
-                "lineno": 1023
+                "lineno": 1031
               },
               {
                 "name": "rowfmt",
-                "lineno": 1027
+                "lineno": 1035
               },
               {
                 "name": "line",
-                "lineno": 1038
+                "lineno": 1046
               },
               {
                 "name": "cmd_run",
-                "lineno": 1047
+                "lineno": 1055
               },
               {
                 "name": "cmd_sweep",
-                "lineno": 1067
+                "lineno": 1075
               },
               {
                 "name": "cmd_test",
-                "lineno": 1079
+                "lineno": 1087
               },
               {
                 "name": "_normpath_under_project",
-                "lineno": 1092
+                "lineno": 1100
               },
               {
                 "name": "_emit_fallback_artifacts",
-                "lineno": 1097
+                "lineno": 1105
               },
               {
                 "name": "cmd_from_git_dump",
-                "lineno": 1149
+                "lineno": 1157
+              },
+              {
+                "name": "_git_run",
+                "lineno": 1281
+              },
+              {
+                "name": "_git_show_file",
+                "lineno": 1287
+              },
+              {
+                "name": "_git_top",
+                "lineno": 1294
               },
               {
                 "name": "cmd_from_git",
-                "lineno": 1210
+                "lineno": 1304
               },
               {
                 "name": "build_cli",
-                "lineno": 1227
+                "lineno": 1321
               },
               {
                 "name": "main",
-                "lineno": 1281
+                "lineno": 1375
               }
             ],
             "classes": [
               {
                 "name": "AstNode",
-                "lineno": 126
+                "lineno": 127
               },
               {
                 "name": "AstSummary",
-                "lineno": 137
+                "lineno": 138
               },
               {
                 "name": "Mosaic",
-                "lineno": 255
+                "lineno": 256
               }
             ]
           },
           {
             "path": "glitchlab/gui/app.py",
-            "loc": 913,
+            "loc": 921,
             "defs": [
               {
                 "name": "init_styles",
-                "lineno": 29
+                "lineno": 28
               },
               {
                 "name": "__init__",
-                "lineno": 85
-              },
-              {
-                "name": "publish",
-                "lineno": 86
-              },
-              {
-                "name": "subscribe",
                 "lineno": 87
               },
               {
+                "name": "publish",
+                "lineno": 89
+              },
+              {
+                "name": "subscribe",
+                "lineno": 91
+              },
+              {
                 "name": "request",
-                "lineno": 88
+                "lineno": 93
               },
               {
                 "name": "__init__",
-                "lineno": 112
+                "lineno": 117
               },
               {
                 "name": "__init__",
-                "lineno": 127
+                "lineno": 132
               },
               {
                 "name": "_build_ui",
-                "lineno": 163
+                "lineno": 168
               },
               {
                 "name": "_init_sash",
-                "lineno": 226
+                "lineno": 232
               },
               {
                 "name": "_wire_bus",
-                "lineno": 251
+                "lineno": 258
               },
               {
                 "name": "_on_preset_parsed",
-                "lineno": 318
+                "lineno": 325
               },
               {
                 "name": "_load_image_path",
-                "lineno": 327
+                "lineno": 334
               },
               {
                 "name": "_save_image_path",
-                "lineno": 374
+                "lineno": 382
               },
               {
                 "name": "_pil_to_u8",
-                "lineno": 393
+                "lineno": 401
               },
               {
                 "name": "_array_to_pil",
-                "lineno": 406
+                "lineno": 414
               },
               {
                 "name": "run_step",
-                "lineno": 420
+                "lineno": 428
               },
               {
                 "name": "run_preset",
-                "lineno": 457
+                "lineno": 465
               },
               {
                 "name": "_on_progress",
-                "lineno": 507
+                "lineno": 515
               },
               {
                 "name": "_on_run_done",
-                "lineno": 519
+                "lineno": 527
               },
               {
                 "name": "_on_run_error",
-                "lineno": 556
+                "lineno": 564
               },
               {
                 "name": "_update_bottom_from_cache",
-                "lineno": 570
-              },
-              {
-                "name": "_update_edit_menu_state",
                 "lineno": 578
               },
               {
-                "name": "_on_undo",
+                "name": "_update_edit_menu_state",
                 "lineno": 586
               },
               {
+                "name": "_on_undo",
+                "lineno": 594
+              },
+              {
                 "name": "_on_redo",
-                "lineno": 615
+                "lineno": 623
               },
               {
                 "name": "_toggle_left",
-                "lineno": 645
+                "lineno": 653
               },
               {
                 "name": "_toggle_right",
-                "lineno": 665
+                "lineno": 673
               },
               {
                 "name": "_toggle_hud",
-                "lineno": 681
+                "lineno": 689
               },
               {
                 "name": "_toggle_fullscreen",
-                "lineno": 697
+                "lineno": 705
               },
               {
                 "name": "_get_active_layer_pil",
-                "lineno": 711
+                "lineno": 719
               },
               {
                 "name": "_get_composite_np",
-                "lineno": 733
+                "lineno": 741
               },
               {
                 "name": "_refresh_composite",
-                "lineno": 748
+                "lineno": 756
               },
               {
                 "name": "_layers_snapshot",
-                "lineno": 761
+                "lineno": 769
               },
               {
                 "name": "_calc_layers_sig",
-                "lineno": 776
+                "lineno": 784
               },
               {
                 "name": "_publish_layers_snapshot",
-                "lineno": 785
+                "lineno": 793
               },
               {
                 "name": "_on_layers_changed",
-                "lineno": 798
+                "lineno": 806
               },
               {
                 "name": "_on_layer_add",
-                "lineno": 804
+                "lineno": 812
               },
               {
                 "name": "_on_layer_remove",
-                "lineno": 837
+                "lineno": 845
               },
               {
                 "name": "_on_layer_set_active",
-                "lineno": 848
+                "lineno": 856
               },
               {
                 "name": "_on_layer_update",
-                "lineno": 857
+                "lineno": 865
               },
               {
                 "name": "_on_layers_reorder",
-                "lineno": 874
+                "lineno": 882
               },
               {
                 "name": "main",
-                "lineno": 894
+                "lineno": 902
               }
             ],
             "classes": [
               {
                 "name": "EventBus",
-                "lineno": 84
+                "lineno": 86
               },
               {
                 "name": "AppState",
-                "lineno": 111
+                "lineno": 116
               },
               {
                 "name": "App",
-                "lineno": 126
-              }
-            ]
-          },
-          {
-            "path": "glitchlab/gui/mosaic/tests/ast_mosaic_coupled.py",
-            "loc": 732,
-            "defs": [
-              {
-                "name": "energy",
-                "lineno": 53
-              },
-              {
-                "name": "entropy",
-                "lineno": 57
-              },
-              {
-                "name": "_node_label",
-                "lineno": 75
-              },
-              {
-                "name": "_attach_parents_and_depths",
-                "lineno": 91
-              },
-              {
-                "name": "walk",
-                "lineno": 92
-              },
-              {
-                "name": "_group_of",
-                "lineno": 111
-              },
-              {
-                "name": "_coords_for_tree",
-                "lineno": 119
-              },
-              {
-                "name": "walk",
-                "lineno": 122
-              },
-              {
-                "name": "_meta_for_node",
-                "lineno": 148
-              },
-              {
-                "name": "ast_nodes_from_code",
-                "lineno": 164
-              },
-              {
-                "name": "group_centroids",
-                "lineno": 193
-              },
-              {
-                "name": "coords_for_lambda",
-                "lineno": 204
-              },
-              {
-                "name": "build_base_mosaic",
-                "lineno": 219
-              },
-              {
-                "name": "_norm01",
-                "lineno": 231
-              },
-              {
-                "name": "_sobel_mag",
-                "lineno": 238
-              },
-              {
-                "name": "mosaic_from_ast",
-                "lineno": 255
-              },
-              {
-                "name": "_pos_lam",
-                "lineno": 269
-              },
-              {
-                "name": "region_indices",
-                "lineno": 296
-              },
-              {
-                "name": "region_centroid",
-                "lineno": 302
-              },
-              {
-                "name": "region_feats",
-                "lineno": 310
-              },
-              {
-                "name": "fuse_meta",
-                "lineno": 322
-              },
-              {
-                "name": "draw_ast",
-                "lineno": 331
-              },
-              {
-                "name": "draw_mosaic",
-                "lineno": 345
-              },
-              {
-                "name": "draw_region_frame",
-                "lineno": 360
-              },
-              {
-                "name": "draw_fusion",
-                "lineno": 371
-              },
-              {
-                "name": "draw_infographic",
-                "lineno": 406
-              },
-              {
-                "name": "__init__",
-                "lineno": 445
-              },
-              {
-                "name": "_font_step",
-                "lineno": 540
-              },
-              {
-                "name": "reset_views",
-                "lineno": 547
-              },
-              {
-                "name": "render",
-                "lineno": 553
-              },
-              {
-                "name": "on_lambda_changed",
-                "lineno": 581
-              },
-              {
-                "name": "on_node_changed",
-                "lineno": 585
-              },
-              {
-                "name": "recompute_mosaic_from_ast",
-                "lineno": 590
-              },
-              {
-                "name": "apply_feedback_and_recompute",
-                "lineno": 609
-              },
-              {
-                "name": "feats_at",
-                "lineno": 618
-              },
-              {
-                "name": "on_region_changed",
-                "lineno": 641
-              },
-              {
-                "name": "on_pick_ast",
-                "lineno": 646
-              },
-              {
-                "name": "on_click_any",
-                "lineno": 656
-              },
-              {
-                "name": "repaint",
-                "lineno": 679
-              },
-              {
-                "name": "main",
-                "lineno": 725
-              }
-            ],
-            "classes": [
-              {
-                "name": "AstNodeMeta",
-                "lineno": 44
-              },
-              {
-                "name": "Mosaic",
-                "lineno": 62
-              },
-              {
-                "name": "App",
-                "lineno": 444
+                "lineno": 131
               }
             ]
           },
@@ -14849,8 +14833,188 @@
             ]
           },
           {
+            "path": "glitchlab/gui/mosaic/tests/ast_mosaic_coupled.py",
+            "loc": 732,
+            "defs": [
+              {
+                "name": "energy",
+                "lineno": 53
+              },
+              {
+                "name": "entropy",
+                "lineno": 57
+              },
+              {
+                "name": "_node_label",
+                "lineno": 75
+              },
+              {
+                "name": "_attach_parents_and_depths",
+                "lineno": 91
+              },
+              {
+                "name": "walk",
+                "lineno": 92
+              },
+              {
+                "name": "_group_of",
+                "lineno": 111
+              },
+              {
+                "name": "_coords_for_tree",
+                "lineno": 119
+              },
+              {
+                "name": "walk",
+                "lineno": 122
+              },
+              {
+                "name": "_meta_for_node",
+                "lineno": 148
+              },
+              {
+                "name": "ast_nodes_from_code",
+                "lineno": 164
+              },
+              {
+                "name": "group_centroids",
+                "lineno": 193
+              },
+              {
+                "name": "coords_for_lambda",
+                "lineno": 204
+              },
+              {
+                "name": "build_base_mosaic",
+                "lineno": 219
+              },
+              {
+                "name": "_norm01",
+                "lineno": 231
+              },
+              {
+                "name": "_sobel_mag",
+                "lineno": 238
+              },
+              {
+                "name": "mosaic_from_ast",
+                "lineno": 255
+              },
+              {
+                "name": "_pos_lam",
+                "lineno": 269
+              },
+              {
+                "name": "region_indices",
+                "lineno": 296
+              },
+              {
+                "name": "region_centroid",
+                "lineno": 302
+              },
+              {
+                "name": "region_feats",
+                "lineno": 310
+              },
+              {
+                "name": "fuse_meta",
+                "lineno": 322
+              },
+              {
+                "name": "draw_ast",
+                "lineno": 331
+              },
+              {
+                "name": "draw_mosaic",
+                "lineno": 345
+              },
+              {
+                "name": "draw_region_frame",
+                "lineno": 360
+              },
+              {
+                "name": "draw_fusion",
+                "lineno": 371
+              },
+              {
+                "name": "draw_infographic",
+                "lineno": 406
+              },
+              {
+                "name": "__init__",
+                "lineno": 445
+              },
+              {
+                "name": "_font_step",
+                "lineno": 540
+              },
+              {
+                "name": "reset_views",
+                "lineno": 547
+              },
+              {
+                "name": "render",
+                "lineno": 553
+              },
+              {
+                "name": "on_lambda_changed",
+                "lineno": 581
+              },
+              {
+                "name": "on_node_changed",
+                "lineno": 585
+              },
+              {
+                "name": "recompute_mosaic_from_ast",
+                "lineno": 590
+              },
+              {
+                "name": "apply_feedback_and_recompute",
+                "lineno": 609
+              },
+              {
+                "name": "feats_at",
+                "lineno": 618
+              },
+              {
+                "name": "on_region_changed",
+                "lineno": 641
+              },
+              {
+                "name": "on_pick_ast",
+                "lineno": 646
+              },
+              {
+                "name": "on_click_any",
+                "lineno": 656
+              },
+              {
+                "name": "repaint",
+                "lineno": 679
+              },
+              {
+                "name": "main",
+                "lineno": 725
+              }
+            ],
+            "classes": [
+              {
+                "name": "AstNodeMeta",
+                "lineno": 44
+              },
+              {
+                "name": "Mosaic",
+                "lineno": 62
+              },
+              {
+                "name": "App",
+                "lineno": 444
+              }
+            ]
+          },
+          {
             "path": "glitchlab/.githooks/post-commit.py",
-            "loc": 653,
+            "loc": 640,
             "defs": [
               {
                 "name": "_is_git_repo",
@@ -14877,249 +15041,221 @@
                 "lineno": 114
               },
               {
-                "name": "_parse_env_file",
+                "name": "_load_env",
                 "lineno": 127
               },
               {
-                "name": "_load_env",
-                "lineno": 140
-              },
-              {
                 "name": "_expand_vars_and_user",
-                "lineno": 160
+                "lineno": 147
               },
               {
                 "name": "_resolve_path",
-                "lineno": 165
+                "lineno": 152
               },
               {
                 "name": "_norm_paths_in_env",
-                "lineno": 179
+                "lineno": 166
               },
               {
                 "name": "_log",
-                "lineno": 203
+                "lineno": 190
               },
               {
                 "name": "_fail",
-                "lineno": 207
+                "lineno": 194
               },
               {
                 "name": "_git",
-                "lineno": 213
+                "lineno": 200
               },
               {
                 "name": "_git_top",
-                "lineno": 217
+                "lineno": 204
               },
               {
                 "name": "_rev_parse",
-                "lineno": 229
+                "lineno": 216
               },
               {
                 "name": "_rev_ok",
-                "lineno": 234
+                "lineno": 221
               },
               {
                 "name": "_empty_tree_oid",
-                "lineno": 243
+                "lineno": 230
               },
               {
                 "name": "_detect_base",
-                "lineno": 259
+                "lineno": 246
               },
               {
                 "name": "_dirs_chain_up",
-                "lineno": 297
+                "lineno": 284
               },
               {
                 "name": "_req",
-                "lineno": 326
+                "lineno": 313
               },
               {
                 "name": "_as_int",
-                "lineno": 332
+                "lineno": 319
               },
               {
                 "name": "_as_float01",
-                "lineno": 339
+                "lineno": 326
               },
               {
                 "name": "_redact_env",
-                "lineno": 350
+                "lineno": 337
               },
               {
                 "name": "_module_exists",
-                "lineno": 361
+                "lineno": 348
               },
               {
                 "name": "_module_cmd_from_candidates",
-                "lineno": 368
+                "lineno": 355
               },
               {
                 "name": "_child_env",
-                "lineno": 392
+                "lineno": 379
               },
               {
                 "name": "_run_gateway",
-                "lineno": 399
+                "lineno": 386
               },
               {
                 "name": "_run_mosaic",
-                "lineno": 437
+                "lineno": 424
               },
               {
                 "name": "_send_mail",
-                "lineno": 489
+                "lineno": 476
               },
               {
                 "name": "_should_zip",
-                "lineno": 529
+                "lineno": 516
               },
               {
                 "name": "_writestr_deterministic",
-                "lineno": 536
+                "lineno": 523
               },
               {
                 "name": "_make_zip",
-                "lineno": 543
+                "lineno": 530
               },
               {
                 "name": "main",
-                "lineno": 592
+                "lineno": 579
               }
             ],
             "classes": []
           },
           {
-            "path": "glitchlab/gui/mosaic/tests/metarelation_scaling_test.py",
-            "loc": 591,
+            "path": "glitchlab/analysis/autonomy/gateway.py",
+            "loc": 637,
             "defs": [
               {
-                "name": "energy",
-                "lineno": 49
+                "name": "_strip_inline_comment",
+                "lineno": 46
               },
               {
-                "name": "entropy",
-                "lineno": 53
+                "name": "_clean_value",
+                "lineno": 61
               },
               {
-                "name": "build_demo_mosaic",
-                "lineno": 70
+                "name": "_simple_parse_env",
+                "lineno": 68
               },
               {
-                "name": "region_indices",
-                "lineno": 89
+                "name": "_dirs_chain_up",
+                "lineno": 82
               },
               {
-                "name": "region_centroid",
-                "lineno": 95
+                "name": "_load_dotenv_chain_into_environ",
+                "lineno": 102
               },
               {
-                "name": "region_feats",
-                "lineno": 103
+                "name": "_norm_from",
+                "lineno": 134
               },
               {
-                "name": "fuse_meta",
-                "lineno": 118
+                "name": "_best_guess_package_root",
+                "lineno": 141
               },
               {
-                "name": "_node_label",
-                "lineno": 131
+                "name": "_int_env",
+                "lineno": 165
               },
               {
-                "name": "_group_of",
-                "lineno": 149
+                "name": "_utc_iso",
+                "lineno": 227
               },
               {
-                "name": "_attach_parents_and_depths",
-                "lineno": 167
+                "name": "_safe_read_json",
+                "lineno": 231
               },
               {
-                "name": "walk",
-                "lineno": 171
+                "name": "_read_text",
+                "lineno": 240
               },
               {
-                "name": "_coords_for_tree",
-                "lineno": 190
+                "name": "_rel_to_project",
+                "lineno": 247
               },
               {
-                "name": "walk",
-                "lineno": 198
+                "name": "_is_binary_like",
+                "lineno": 254
               },
               {
-                "name": "_meta_for_node",
-                "lineno": 228
+                "name": "_redact_env_snapshot",
+                "lineno": 264
               },
               {
-                "name": "ast_nodes_from_code",
-                "lineno": 248
-              },
-              {
-                "name": "group_centroids",
+                "name": "scan_repository",
                 "lineno": 280
               },
               {
-                "name": "coords_for_lambda",
-                "lineno": 291
+                "name": "_excluded",
+                "lineno": 295
               },
               {
-                "name": "draw_ast",
-                "lineno": 306
+                "name": "_run_git",
+                "lineno": 382
               },
               {
-                "name": "draw_mosaic",
-                "lineno": 317
+                "name": "git_snapshot",
+                "lineno": 393
               },
               {
-                "name": "draw_region_frame",
-                "lineno": 332
+                "name": "make_prompt_pack",
+                "lineno": 437
               },
               {
-                "name": "draw_fusion",
-                "lineno": 342
+                "name": "build_selfdoc",
+                "lineno": 474
               },
               {
-                "name": "draw_infographic",
-                "lineno": 381
+                "name": "write_outputs",
+                "lineno": 522
               },
               {
-                "name": "__init__",
-                "lineno": 419
-              },
-              {
-                "name": "_font_step",
-                "lineno": 492
-              },
-              {
-                "name": "render",
-                "lineno": 502
-              },
-              {
-                "name": "reset_views",
-                "lineno": 530
-              },
-              {
-                "name": "repaint",
-                "lineno": 535
+                "name": "_parse_argv",
+                "lineno": 562
               },
               {
                 "name": "main",
-                "lineno": 584
+                "lineno": 589
               }
             ],
             "classes": [
               {
-                "name": "AstNodeMeta",
-                "lineno": 41
+                "name": "Telemetry",
+                "lineno": 190
               },
               {
-                "name": "Mosaic",
-                "lineno": 58
-              },
-              {
-                "name": "App",
-                "lineno": 418
+                "name": "SelfDocPack",
+                "lineno": 208
               }
             ]
           },
@@ -15256,58 +15392,134 @@
             ]
           },
           {
-            "path": "glitchlab/core/pipeline.py",
-            "loc": 545,
+            "path": "glitchlab/gui/mosaic/tests/metarelation_scaling_test.py",
+            "loc": 591,
             "defs": [
               {
-                "name": "normalize_preset",
-                "lineno": 123
+                "name": "energy",
+                "lineno": 49
               },
               {
-                "name": "_resize_float01",
-                "lineno": 196
+                "name": "entropy",
+                "lineno": 53
               },
               {
-                "name": "_build_amplitude",
-                "lineno": 204
+                "name": "build_demo_mosaic",
+                "lineno": 70
               },
               {
-                "name": "_build_edge_mask",
-                "lineno": 265
+                "name": "region_indices",
+                "lineno": 89
               },
               {
-                "name": "build_ctx",
-                "lineno": 285
+                "name": "region_centroid",
+                "lineno": 95
               },
               {
-                "name": "_thumb_rgb",
-                "lineno": 339
+                "name": "region_feats",
+                "lineno": 103
               },
               {
-                "name": "_compute_diff",
-                "lineno": 350
+                "name": "fuse_meta",
+                "lineno": 118
               },
               {
-                "name": "_gather_metrics",
-                "lineno": 374
+                "name": "_node_label",
+                "lineno": 131
               },
               {
-                "name": "_apply_wrapper_mask_amp",
-                "lineno": 383
+                "name": "_group_of",
+                "lineno": 149
               },
               {
-                "name": "apply_pipeline",
-                "lineno": 428
+                "name": "_attach_parents_and_depths",
+                "lineno": 167
+              },
+              {
+                "name": "walk",
+                "lineno": 171
+              },
+              {
+                "name": "_coords_for_tree",
+                "lineno": 190
+              },
+              {
+                "name": "walk",
+                "lineno": 198
+              },
+              {
+                "name": "_meta_for_node",
+                "lineno": 228
+              },
+              {
+                "name": "ast_nodes_from_code",
+                "lineno": 248
+              },
+              {
+                "name": "group_centroids",
+                "lineno": 280
+              },
+              {
+                "name": "coords_for_lambda",
+                "lineno": 291
+              },
+              {
+                "name": "draw_ast",
+                "lineno": 306
+              },
+              {
+                "name": "draw_mosaic",
+                "lineno": 317
+              },
+              {
+                "name": "draw_region_frame",
+                "lineno": 332
+              },
+              {
+                "name": "draw_fusion",
+                "lineno": 342
+              },
+              {
+                "name": "draw_infographic",
+                "lineno": 381
+              },
+              {
+                "name": "__init__",
+                "lineno": 419
+              },
+              {
+                "name": "_font_step",
+                "lineno": 492
+              },
+              {
+                "name": "render",
+                "lineno": 502
+              },
+              {
+                "name": "reset_views",
+                "lineno": 530
+              },
+              {
+                "name": "repaint",
+                "lineno": 535
+              },
+              {
+                "name": "main",
+                "lineno": 584
               }
             ],
             "classes": [
               {
-                "name": "Step",
-                "lineno": 105
+                "name": "AstNodeMeta",
+                "lineno": 41
               },
               {
-                "name": "Ctx",
-                "lineno": 111
+                "name": "Mosaic",
+                "lineno": 58
+              },
+              {
+                "name": "App",
+                "lineno": 418
               }
             ]
           }
@@ -15318,35 +15530,74 @@
         ]
       },
       "attachments": {
-        "schema": "glx.selfdoc.v1",
-        "when": "2025-10-02T00:35:27Z",
+        "schema": "glx.selfdoc",
+        "when": "2025-10-02T20:13:20Z",
         "telemetry": {
           "ok": true,
           "error": "",
-          "scan_ms": 1296.1275,
-          "ast_ms": 1116.6822999999997,
-          "files_scanned": 199,
-          "mods": 199,
-          "defs": 2036,
+          "scan_ms": 1598.8996000000002,
+          "ast_ms": 1131.206,
+          "files_scanned": 200,
+          "mods": 200,
+          "defs": 2050,
           "classes": 223,
-          "git_ok": false
-        }
+          "git_ok": false,
+          "skipped_too_big": 0,
+          "skipped_binary_hint": 0,
+          "parse_errors": 0,
+          "largest_file_bytes": 57134,
+          "python_ver": "3.9.2rc1"
+        },
+        "python": "3.9.2rc1"
       }
     }
   },
   "telemetry": {
     "ok": true,
     "error": "",
-    "scan_ms": 1296.1275,
-    "ast_ms": 1116.6822999999997,
-    "files_scanned": 199,
-    "mods": 199,
-    "defs": 2036,
+    "scan_ms": 1598.8996000000002,
+    "ast_ms": 1131.206,
+    "files_scanned": 200,
+    "mods": 200,
+    "defs": 2050,
     "classes": 223,
-    "git_ok": false
+    "git_ok": false,
+    "skipped_too_big": 0,
+    "skipped_binary_hint": 0,
+    "parse_errors": 0,
+    "largest_file_bytes": 57134,
+    "python_ver": "3.9.2rc1"
   },
   "notes": [
     "GLX: brak .glx/state.json — używam pustych wartości.",
     "GIT: niedostępny — historie Δ ograniczone."
-  ]
+  ],
+  "env_hint": {
+    "GLX_RUN": "MEAZ",
+    "GLX_ROOT": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project",
+    "GLX_PKG": "glitchlab",
+    "GLX_OUT": "glitchlab/analysis/last",
+    "GLX_AUTONOMY_OUT": "glitchlab/analysis/last/autonomy",
+    "GLX_PROJECT": "glitchlab",
+    "GLX_BRANCH": "master",
+    "GLX_VER": "v4.5",
+    "GLX_OWNER": "DonkeyJJLove",
+    "GLX_REPO": "glitchlab",
+    "GLX_VIS": "PUB",
+    "GLX_ADVANCE_BASE": "1",
+    "GLX_SMTP_HOST": "smtp.gmail.com",
+    "GLX_SMTP_PORT": "587",
+    "GLX_SMTP_USER": "ghglitchlab@gmail.com",
+    "GLX_SMTP_PASS": "******",
+    "GLX_MAIL_TO": "ghglitchlab@gmail.com",
+    "GLX_MOSAIC": "grid",
+    "GLX_ROWS": "6",
+    "GLX_COLS": "6",
+    "GLX_EDGE_THR": "0.55",
+    "GLX_DELTA": "0.25",
+    "GLX_KAPPA": "0.35",
+    "GLX_PHI": "balanced",
+    "GLX_POLICY": "analysis/policy.json",
+    "GLX_VERBOSE": "1"
+  }
 }
