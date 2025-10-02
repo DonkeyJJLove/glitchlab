@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="pl" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mosaic Report</title>
+<style>
+  :root {
+    --bg:#0b1021; --panel:#11162b; --text:#e6e9f2; --muted:#9aa3b2; --accent:#6ea8fe;
+    --ok:#1db954; --bad:#ff5470; --grid:#2a3150; --card-radius:14px; --shadow:0 6px 24px rgba(0,0,0,.25);
+    --chip:#182042;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:#f6f8fb; --panel:#ffffff; --text:#1b2a41; --muted:#506079; --accent:#2a6df4;
+      --ok:#0fa968; --bad:#d63b4a; --grid:#eaeef6; --shadow:0 6px 18px rgba(27,42,65,.08); --chip:#eef3ff;
+    }
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,"Helvetica Neue",Ubuntu,Cantarell,Noto Sans,Arial;}
+  a{color:var(--accent);text-decoration:none;} a:hover{text-decoration:underline;}
+  .wrap{max-width:1280px;margin:28px auto 80px;padding:0 18px;}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:16px;}
+  .title h1{margin:0;font-size:22px;letter-spacing:.2px;}
+  .meta{color:var(--muted);font-size:13px;display:flex;gap:8px;flex-wrap:wrap;}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;border:1px solid var(--grid);color:var(--muted);font-size:12px;background:var(--chip);}
+  .grid{display:grid;grid-template-columns:1fr;gap:18px;}
+  @media(min-width:1100px){.grid{grid-template-columns:1.2fr .8fr;}}
+  .card{background:var(--panel);border:1px solid var(--grid);border-radius:var(--card-radius);box-shadow:var(--shadow);}
+  .card h2{margin:0;padding:14px 16px;border-bottom:1px solid var(--grid);font-size:16px;font-weight:600;}
+  .card .body{padding:12px 14px 16px;}
+  .chart{height:380px;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media(max-width:899px){.row{grid-template-columns:1fr;}}
+  table{width:100%;border-collapse:collapse;}
+  th,td{padding:10px 8px;border-bottom:1px dashed var(--grid);font-variant-numeric:tabular-nums;}
+  th{text-align:left;color:var(--muted);font-weight:600;}
+  .num{text-align:right;}
+  .gain-pos{color:var(--ok);font-weight:600;} .gain-neg{color:var(--bad);font-weight:600;}
+  .kpis{display:flex;flex-wrap:wrap;gap:10px;padding:10px 14px 0;}
+  .kpi{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:10px 12px;min-width:160px;box-shadow:var(--shadow);}
+  .kpi .lbl{color:var(--muted);font-size:12px;} .kpi .val{font-size:20px;font-weight:700;}
+  .legend{color:var(--muted);font-size:12px;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 14px 12px;border-bottom:1px solid var(--grid);}
+  .toolbar input[type="search"]{background:transparent;border:1px solid var(--grid);padding:8px 10px;border-radius:10px;color:var(--text);}
+  .toolbar .btn{background:transparent;border:1px solid var(--grid);padding:8px 10px;border-radius:10px;color:var(--text);cursor:pointer;}
+  .toolbar .btn:hover{background:var(--chip);}
+  .hint{color:var(--muted);font-size:13px;padding:8px 14px 6px;}
+  .jsonbox{max-height:240px;overflow:auto;background:#00000020;border-radius:10px;padding:10px;border:1px dashed var(--grid);display:none;}
+  footer{margin-top:22px;color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title">
+      <h1>Mosaic Report</h1>
+      <div class="meta">
+        <span class="pill">BASE: <code>HEAD~1</code></span>
+        <span class="pill">HEAD: <code>HEAD</code></span>
+        <span class="pill">Mozaika: grid 6×6, thr=0.55</span>
+        <span class="pill">Selector Φ: balanced</span>
+        <span class="pill">Renderer: <code id="rendLbl">svg</code></span>
+      </div>
+    </div>
+    <div class="legend">GLX • Hybrid AST⇄Mosaic</div>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">Zmodyfikowane pliki</div><div class="val" id="kpiFiles">0</div></div>
+    <div class="kpi"><div class="lbl">Σ Align gain</div><div class="val" id="kpiGain">+0.000</div></div>
+    <div class="kpi"><div class="lbl">ΔS / ΔH / ΔZ</div><div class="val" id="kpiDelta">0 / 0 / 0</div></div>
+  </div>
+
+  <div class="card" id="ctl">
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Filtruj po nazwie pliku…">
+      <button class="btn" id="toggleTheme">Motyw</button>
+      <button class="btn" id="toggleRenderer">SVG ⇄ Canvas</button>
+      <button class="btn" id="toggleJSON">Pokaż/ukryj JSON</button>
+      <button class="btn" id="saveHTML">Zapisz jako HTML</button>
+      <span class="hint">Filtr wpływa na tabelę i wykresy.</span>
+    </div>
+    <div class="body">
+      <div class="jsonbox" id="jsonBox"><pre id="jsonText" style="white-space:pre-wrap"></pre></div>
+    </div>
+  </div>
+
+  <div class="grid" id="app-root" style="margin-top:16px">
+    <div class="card">
+      <h2>Align gain per file</h2>
+      <div id="chart-align" class="chart"></div>
+      <div class="hint">Dodatni gain = lepsze dopasowanie AST ⇄ Mozaika (po Ψ & (α,β)).</div>
+    </div>
+    <div class="card">
+      <h2>Koszty Φ per plik (niżej lepiej)</h2>
+      <div id="chart-phi" class="chart"></div>
+      <div class="hint">Warianty Φ: basic / balanced / entropy.</div>
+    </div>
+    <div class="card">
+      <h2>Delta per plik</h2>
+      <div class="body">
+        <table id="tbl-files">
+          <thead><tr>
+            <th>Plik</th>
+            <th class="num">ΔS</th>
+            <th class="num">ΔH</th>
+            <th class="num">ΔZ</th>
+            <th class="num">Align (before → after)</th>
+            <th class="num">Gain</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Rozkład zysków (histogram)</h2>
+      <div id="chart-hist" class="chart"></div>
+    </div>
+    <div class="card">
+      <h2>Before vs After (scatter)</h2>
+      <div id="chart-scatter" class="chart"></div>
+    </div>
+  </div>
+
+  <footer>
+    Wygenerowano automatycznie. Renderer: <code id="rendFoot">svg</code>. ECharts © Apache-2.0.
+    <span style="flex:1"></span>
+    <span class="hint" id="footSummary"></span>
+  </footer>
+</div>
+
+<script id="reportData" type="application/json">{"base": "HEAD~1", "head": "HEAD", "branch": null, "repo_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project", "mosaic": {"kind": "grid", "grid": {"rows": 6, "cols": 6}, "thr": 0.55}, "delta": {"files": 0}, "phi_selector": "balanced", "policy_file": null, "files": [], "totals": {"dS": 0, "dH": 0, "dZ": 0, "align_gain": 0.0}}</script>
+<script>
+(function(){
+  // ===== Helpers =====
+  const data = JSON.parse(document.getElementById('reportData').textContent || "{}");
+  let renderer = "svg";
+  const $ = (sel) => document.querySelector(sel);
+  const fmt = (v, d=3) => (v==null? "0" : (+v).toFixed(d));
+  const clamp = (x,a,b) => Math.max(a, Math.min(b,x));
+
+  // ===== Extract base series =====
+  const files0 = (data.files || []);
+  function derive(files) {
+    const labels = files.map(f => f.path || "(unknown)");
+    const gains = files.map(f => {
+      const a = f.align || {};
+      return (parseFloat(a.after||0)-parseFloat(a.before||0)) || 0;
+    });
+    const dS = files.map(f => ((f.delta||{}).dS || 0));
+    const dH = files.map(f => ((f.delta||{}).dH || 0));
+    const dZ = files.map(f => ((f.delta||{}).dZ || 0));
+    const before = files.map(f => ((f.align||{}).before || 0));
+    const after  = files.map(f => ((f.align||{}).after  || 0));
+    const j1 = files.map(f => ((f.phi||{}).J1 || 0));
+    const j2 = files.map(f => ((f.phi||{}).J2 || 0));
+    const j3 = files.map(f => ((f.phi||{}).J3 || 0));
+    const jp = files.map(f => ((f.phi||{}).J_policy ?? null));
+    const hasPolicy = jp.some(v => v !== null);
+    return { labels, gains, dS, dH, dZ, before, after, j1, j2, j3, jp, hasPolicy };
+  }
+  let S = derive(files0);
+
+  // ===== Table render (filter-aware) =====
+  const tbody = document.querySelector("#tbl-files tbody");
+  function renderTable(S, filter="") {
+    tbody.innerHTML = "";
+    const f = (filter||"").toLowerCase();
+    S.labels.forEach((name, i) => {
+      if (f && !name.toLowerCase().includes(f)) return;
+      const gain = (S.after[i] - S.before[i]);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><code>${name}</code></td>
+        <td class="num">${S.dS[i]}</td>
+        <td class="num">${S.dH[i]}</td>
+        <td class="num">${S.dZ[i]}</td>
+        <td class="num">${(S.before[i]||0).toFixed(3)} → ${(S.after[i]||0).toFixed(3)}</td>
+        <td class="num ${gain >= 0 ? 'gain-pos' : 'gain-neg'}">${gain.toFixed(3)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ===== ECharts helpers =====
+  function mk(el){ return echarts.init(document.getElementById(el), null, { renderer: renderer }); }
+  let chAlign = mk('chart-align'), chPhi = mk('chart-phi'), chHist = mk('chart-hist'), chScat = mk('chart-scatter');
+
+  function setAlign(S, filter="") {
+    const f = (filter||"").toLowerCase();
+    const idx = S.labels.map((n,i)=>[n,i]).filter(([n])=>!f || n.toLowerCase().includes(f)).map(([,i])=>i);
+    const lab = idx.map(i => S.labels[i]);
+    const dat = idx.map(i => S.gains[i]);
+    chAlign.setOption({
+      grid: { top:24, left:54, right:12, bottom:76 },
+      tooltip: { trigger:'axis', axisPointer:{type:'shadow'},
+                 formatter:(params)=>{const p=params[0]; return `<b>${p.name}</b><br/>Gain: <b>${fmt(p.value)}</b>`;} },
+      xAxis: { type:'category', data:lab, axisLabel:{ rotate:38, color:'#9aa3b2' } },
+      yAxis: { type:'value', name:'Align gain', splitLine:{ lineStyle:{ color:'rgba(128,140,173,.25)' } } },
+      series: [{ type:'bar', data:dat, itemStyle:{ borderRadius:[6,6,0,0] },
+                 markLine:{ symbol:'none', data:[{yAxis:0}], lineStyle:{ type:'dashed', opacity:.7 } } }]
+    });
+  }
+
+  function setPhi(S, filter="") {
+    const f = (filter||"").toLowerCase();
+    const idx = S.labels.map((n,i)=>[n,i]).filter(([n])=>!f || n.toLowerCase().includes(f)).map(([,i])=>i);
+    const lab = idx.map(i=>S.labels[i]);
+    const s = [
+      { name:'Jφ1', type:'bar', data: idx.map(i=>S.j1[i]), barGap:0 },
+      { name:'Jφ2', type:'bar', data: idx.map(i=>S.j2[i]) },
+      { name:'Jφ3', type:'bar', data: idx.map(i=>S.j3[i]) },
+    ];
+    if (S.hasPolicy) s.push({ name:'Jφ(policy)', type:'bar', data: idx.map(i=>S.jp[i]==null?0:S.jp[i]) });
+    chPhi.setOption({
+      grid:{ top:28, left:56, right:12, bottom:76 },
+      tooltip:{ trigger:'axis', axisPointer:{type:'shadow'}, valueFormatter:v=>(v==null?'-':fmt(v,4)) },
+      legend:{ top:4 },
+      xAxis:{ type:'category', data:lab, axisLabel:{ rotate:38, color:'#9aa3b2' } },
+      yAxis:{ type:'value', name:'Koszt Φ', splitLine:{ lineStyle:{ color:'rgba(128,140,173,.25)' } } },
+      series:s
+    });
+  }
+
+  function setHist(S, filter="") {
+    const f = (filter||"").toLowerCase();
+    const gains = S.labels.map((n,i)=>[n,i]).filter(([n])=>!f || n.toLowerCase().includes(f)).map(([,i])=>S.gains[i]);
+    const min = Math.min(...gains, 0), max = Math.max(...gains, 0);
+    const bins = 12, step = (max-min)/Math.max(1,bins);
+    const edges = Array.from({length:bins+1}, (_,k)=>min+k*step);
+    const counts = Array.from({length:bins}, ()=>0);
+    gains.forEach(g=>{ const k = clamp(Math.floor((g-min)/Math.max(step,1e-9)),0,bins-1); counts[k]++; });
+    chHist.setOption({
+      grid:{ top:28, left:56, right:12, bottom:56 },
+      tooltip:{ trigger:'axis', valueFormatter:v=>String(v) },
+      xAxis:{ type:'category', data:edges.slice(0,-1).map(e=>fmt(e)), axisLabel:{ rotate:38, color:'#9aa3b2' } },
+      yAxis:{ type:'value', name:'Liczność', splitLine:{ lineStyle:{ color:'rgba(128,140,173,.25)' } } },
+      series:[{ type:'bar', data:counts, itemStyle:{ borderRadius:[6,6,0,0] } }]
+    });
+  }
+
+  function setScatter(S, filter="") {
+    const f = (filter||"").toLowerCase();
+    const pts = S.labels.map((n,i)=>[n,i]).filter(([n])=>!f || n.toLowerCase().includes(f)).map(([,i])=>[S.before[i], S.after[i], S.labels[i]]);
+    chScat.setOption({
+      grid:{ top:28, left:56, right:12, bottom:56 },
+      tooltip:{ trigger:'item', formatter:p=>`<b>${p.value[2]}</b><br/>before=${fmt(p.value[0])}<br/>after=${fmt(p.value[1])}` },
+      xAxis:{ type:'value', name:'before', splitLine:{ lineStyle:{ color:'rgba(128,140,173,.25)' } } },
+      yAxis:{ type:'value', name:'after',  splitLine:{ lineStyle:{ color:'rgba(128,140,173,.25)' } } },
+      series:[{ type:'scatter', data:pts, symbolSize:8,
+                markLine:{ data:[{xAxis:0},{yAxis:0}] } }]
+    });
+  }
+
+  function refreshAll(filter="") {
+    renderTable(S, filter);
+    setAlign(S, filter);
+    setPhi(S, filter);
+    setHist(S, filter);
+    setScatter(S, filter);
+    const shown = (filter? S.labels.filter(n=>n.toLowerCase().includes(filter.toLowerCase())).length : S.labels.length);
+    document.getElementById("kpiFiles").textContent = shown;
+    document.getElementById("footSummary").textContent = `Widoczne pliki: ${shown} / ${S.labels.length}`;
+  }
+
+  // Controls
+  document.getElementById("search").addEventListener("input", (e)=> refreshAll(e.target.value||""));
+  document.getElementById("toggleTheme").addEventListener("click", ()=>{
+    const cur = document.documentElement.getAttribute("data-theme");
+    const next = (cur==="light" ? "auto" : cur==="auto" ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", next);
+  });
+  document.getElementById("toggleRenderer").addEventListener("click", ()=>{
+    renderer = (renderer==="svg" ? "canvas" : "svg");
+    document.getElementById("rendLbl").textContent = renderer;
+    document.getElementById("rendFoot").textContent = renderer;
+    chAlign.dispose(); chPhi.dispose(); chHist.dispose(); chScat.dispose();
+    chAlign = mk('chart-align'); chPhi = mk('chart-phi'); chHist = mk('chart-hist'); chScat = mk('chart-scatter');
+    refreshAll(document.getElementById("search").value||"");
+  });
+  document.getElementById("toggleJSON").addEventListener("click", ()=>{
+    const box = document.getElementById("jsonBox");
+    const vis = box.style.display !== "none";
+    if (vis) box.style.display = "none";
+    else { box.style.display = "block"; document.getElementById("jsonText").textContent = JSON.stringify(data, null, 2); }
+  });
+  document.getElementById("saveHTML").addEventListener("click", ()=>{
+    const blob = new Blob([document.documentElement.outerHTML], {type:"text/html;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (document.title.replace(/\s+/g,'_') + ".html");
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+  });
+
+  // First paint + resize
+  refreshAll("");
+  window.addEventListener('resize', () => { chAlign.resize(); chPhi.resize(); chHist.resize(); chScat.resize(); });
+})();
+</script>
+</body>
+</html>

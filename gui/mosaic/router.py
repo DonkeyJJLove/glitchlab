@@ -4,7 +4,7 @@ version: 2
 kind: module
 id: "mosaic-router"
 created_at: "2025-09-13"
-name: "glitchlab.mosaic.router"
+name: "glitchlab.gui.mosaic.router"
 author: "GlitchLab v2"
 role: "HUD/Mosaic Routing Resolver"
 description: >

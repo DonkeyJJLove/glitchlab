@@ -1,5 +1,5 @@
-4 file(s) staged: [Δ] Zakres
-- files: 4 (post-commit, commit_analysis.json, commit_snippet.txt, state.json)
+3 file(s) staged: [Δ] Zakres
+- files: 3 (commit_analysis.json, commit_snippet.txt, state.json)
 - typ: auto (pre-diff)
 
 [Φ/Ψ] Mozaika (semantyka kodu)
@@ -14,4 +14,4 @@
 - decyzja: NO-OP
 
 Meta
-- Generated-by: pre-diff/AST-mosaic @ 2025-10-01 14:29:02Z
+- Generated-by: pre-diff/AST-mosaic @ 2025-10-01 14:29:53Z

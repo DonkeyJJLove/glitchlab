@@ -1,5 +1,7 @@
 #!/usr/bin/env python
+# glitchlab/scripts/ast_mosaic_analyzer.py
 # -*- coding: utf-8 -*-
+# Python 3.9+
 """
 Lekki analizator AST⇄Mozaika na staged pliki .py:
 - AST delty (S/H/Z + alpha/beta)

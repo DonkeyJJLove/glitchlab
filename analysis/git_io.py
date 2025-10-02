@@ -12,8 +12,12 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Bezpieczne uruchomienie git (cross-platform, bez backticków)
+# Stałe i narzędzia
 # ──────────────────────────────────────────────────────────────────────────────
+
+# SHA „pustego drzewa” (gdy repo ma 0/1 commit i HEAD~1 nie istnieje)
+EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
 
 def repo_root(start: Optional[Path] = None) -> Path:
     """
@@ -40,7 +44,8 @@ def repo_root(start: Optional[Path] = None) -> Path:
 
 def _git(args: List[str], cwd: Optional[Path] = None, check: bool = True) -> str:
     """
-    Uruchamia 'git <args>' i zwraca stdout (text). Przy błędzie – rzuca CalledProcessError.
+    Uruchamia 'git <args>' i zwraca stdout (text). Przy błędzie – rzuca CalledProcessError,
+    chyba że check=False, wtedy zwraca stdout (może być pusty).
     """
     cwd = cwd or repo_root()
     res = subprocess.run(["git", *args], cwd=str(cwd),
@@ -50,17 +55,70 @@ def _git(args: List[str], cwd: Optional[Path] = None, check: bool = True) -> str
     return res.stdout
 
 
+def _git_ok(args: List[str], cwd: Optional[Path] = None) -> bool:
+    """Zwraca True jeśli 'git <args>' kończy się rc==0."""
+    try:
+        _git(args, cwd=cwd, check=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def _rev_ok(rev: str, cwd: Optional[Path] = None) -> bool:
+    """
+    Czy referencja istnieje? Akceptujemy commit/annotated tag.
+    UWAGA: empty-tree nie jest revem gita – traktujemy ją jako „ok”, jeśli równa EMPTY_TREE_SHA.
+    """
+    if not rev:
+        return False
+    if rev == EMPTY_TREE_SHA:
+        return True
+    try:
+        # 'rev^{commit}' – zweryfikuj, że to parsuje się do commita (lub annotated tag -> commit)
+        subprocess.check_output(
+            ["git", "rev-parse", "--verify", f"{rev}^{{commit}}"],
+            cwd=str(cwd or repo_root()), text=True, stderr=subprocess.DEVNULL
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _empty_tree_sha(cwd: Optional[Path] = None) -> str:
+    """Pobiera SHA pustego drzewa z gita, z bezpiecznym fallbackiem na stałą."""
+    try:
+        out = subprocess.check_output(
+            ["git", "hash-object", "-t", "tree", "/dev/null"],
+            cwd=str(cwd or repo_root()), text=True, stderr=subprocess.DEVNULL
+        ).strip()
+        return out or EMPTY_TREE_SHA
+    except Exception:
+        return EMPTY_TREE_SHA
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Podstawowe operacje GIT
 # ──────────────────────────────────────────────────────────────────────────────
 
 def git_merge_base(head: str = "HEAD", other: str = "origin/master") -> Optional[str]:
-    """Zwraca sha wspólnego przodka (merge-base). Gdy brak – None."""
-    try:
-        sha = _git(["merge-base", head, other]).strip()
-        return sha or None
-    except subprocess.CalledProcessError:
-        return None
+    """
+    Zwraca sha wspólnego przodka (merge-base). Gdy brak – None.
+    Próbuje 'origin/<branch>', 'origin/master', 'origin/main'.
+    """
+    # spróbuj z bieżącą gałęzią
+    br = current_branch()
+    candidates = []
+    if br:
+        candidates.append(f"origin/{br}")
+    candidates.extend(["origin/master", "origin/main"])
+    for remote in candidates:
+        try:
+            sha = _git(["merge-base", head, remote]).strip()
+            if sha:
+                return sha
+        except subprocess.CalledProcessError:
+            continue
+    return None
 
 
 def current_branch() -> Optional[str]:
@@ -87,28 +145,73 @@ def list_tracked_files() -> List[str]:
     return [ln.strip() for ln in out if ln.strip()]
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Fallback-odporny diff (kluczowa poprawka)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _diff_name_status_safe(base: str, head: str, cwd: Optional[Path] = None) -> List[Tuple[str, str]]:
+    """
+    Zwraca listę (status, path) z `git diff --name-status base..head`, z fallbackami:
+      1) jeśli base nie istnieje → spróbuj merge-base(HEAD, origin/<branch|master|main>)
+      2) jeśli dalej nie działa → użyj pustego drzewa jako base (pierwszy commit)
+      3) jeśli nadal błąd → zwróć pustą listę (bez wysadzania procesu)
+    """
+    root = cwd or repo_root()
+    # 1) szybka ścieżka
+    try:
+        out = _git(["diff", "--name-status", f"{base}..{head}"], cwd=root, check=True).splitlines()
+        return _parse_diff_name_status_lines(out)
+    except subprocess.CalledProcessError:
+        pass
+
+    # 2) spróbuj merge-base
+    mb = git_merge_base(head, f"origin/{current_branch() or 'master'}")
+    candidate = mb or base
+    if not _rev_ok(candidate, cwd=root):
+        # 3) spróbuj HEAD~1 dla pewności
+        if _rev_ok("HEAD~1", cwd=root):
+            candidate = "HEAD~1"
+        else:
+            # 4) ostatnia deska ratunku – empty tree
+            candidate = _empty_tree_sha(cwd=root)
+
+    try:
+        out = _git(["diff", "--name-status", f"{candidate}..{head}"], cwd=root, check=True).splitlines()
+        return _parse_diff_name_status_lines(out)
+    except subprocess.CalledProcessError:
+        # 5) ostatecznie nie podnoś wyjątku – pusta Δ
+        return []
+
+
+def _parse_diff_name_status_lines(lines: List[str]) -> List[Tuple[str, str]]:
+    items: List[Tuple[str, str]] = []
+    for ln in lines:
+        if not ln.strip():
+            continue
+        parts = ln.split("\t")
+        if len(parts) == 2:
+            st, p = parts
+        elif len(parts) == 3:
+            st, _, p = parts
+        else:
+            st, p = parts[0], parts[-1]
+        st = st.strip()
+        p = (p or "").strip()
+        if p:
+            items.append((st, p))
+    return items
+
+
 def changed_files(base: str, head: str = "HEAD",
                   filters: Optional[Iterable[str]] = None) -> List[str]:
     """
-    Lista zmienionych ścieżek (A/M/D/R/T) między base..head (git diff --name-status).
+    Lista zmienionych ścieżek (A/M/D/R/T) między base..head (odporna na brak base).
     filters: np. (".py", "glitchlab/") – proste startswith/endswith; None = bez filtra.
     """
-    args = ["diff", "--name-status", f"{base}..{head}"]
-    out = _git(args).splitlines()
+    name_status = _diff_name_status_safe(base, head)
     paths: List[str] = []
-    for ln in out:
-        if not ln.strip():
-            continue
-        # format: "M\tpath" lub "R100\told\tnew"
-        parts = ln.split("\t")
-        if len(parts) == 2:
-            _, p = parts
-        elif len(parts) == 3:
-            # renames: bierzemy nową ścieżkę
-            _, _, p = parts
-        else:
-            p = parts[-1]
-        p = p.strip()
+    for st_code, path in name_status:
+        p = path.strip()
         if not p:
             continue
         if filters:
@@ -120,12 +223,13 @@ def changed_files(base: str, head: str = "HEAD",
                     ok |= p.startswith(f)
             if not ok:
                 continue
+        # rename-y mają status Rxxx – bierz nową ścieżkę (już zparsowane w _parse_diff_name_status_lines)
         paths.append(p)
     return paths
 
 
 def changed_py_files(base: str, head: str = "HEAD") -> List[str]:
-    """Skrót: tylko .py z diffu base..head."""
+    """Skrót: tylko .py z diffu base..head (odporny na brak base)."""
     return changed_files(base, head, filters=(".py",))
 
 
@@ -238,29 +342,13 @@ def _edge_score_for_path(path: str, status: str) -> float:
 
 
 def _roi_flag_for_path(path: str, status: str) -> float:
-    """
-    Heurystyka 'roi' (0/1): .py oraz zmienione (A/M/R/C/D) → 1.0, inaczej 0.0
-    """
+    """Heurystyka 'roi' (0/1): .py oraz zmienione (A/M/R/C/D) → 1.0, inaczej 0.0"""
     return 1.0 if path.endswith(".py") and status[:1] in {"A", "M", "R", "C", "D"} else 0.0
 
 
 def _diff_name_status(base: str, head: str) -> List[Tuple[str, str]]:
-    """
-    Zwraca listę (status, path) z git diff --name-status base..head
-    Status przykładowo: 'A', 'M', 'D', 'R100', ...
-    """
-    out = _git(["diff", "--name-status", f"{base}..{head}"]).splitlines()
-    items: List[Tuple[str, str]] = []
-    for ln in out:
-        parts = ln.split("\t")
-        if len(parts) == 2:
-            st, p = parts
-        elif len(parts) == 3:
-            st, _, p = parts
-        else:
-            st, p = parts[0], parts[-1]
-        items.append((st.strip(), p.strip()))
-    return items
+    """Zachowana sygnatura pomocnicza (wykorzystuje wersję bezpieczną)."""
+    return _diff_name_status_safe(base, head)
 
 
 def build_repo_mosaic(
@@ -270,7 +358,8 @@ def build_repo_mosaic(
 ) -> Tuple[RepoInfo, RepoMosaic, Dict[str, int]]:
     """
     Buduje RepoMosaic dla zakresu base..head.
-    - base: gdy None → .glx/state.json:base_sha, w ostateczności merge-base(HEAD, origin/<branch>)
+    - base: gdy None → .glx/state.json:base_sha, w ostateczności merge-base(HEAD, origin/<branch>),
+            a jeśli brak – empty-tree (pierwszy commit)
     - include_unstaged: jeśli True, traktuje 'git diff' jako HEAD + working tree (porównuje z HEAD)
     Zwraca: (RepoInfo, RepoMosaic, churn_counters)
     """
@@ -283,13 +372,15 @@ def build_repo_mosaic(
     except subprocess.CalledProcessError:
         head_sha = head
 
-    # base sha (state → merge-base)
+    # base sha (state → merge-base → empty-tree)
     st = read_glx_state()
     base_sha = base or st.get("base_sha")
     if not base_sha:
-        # spróbuj merge-base z origin/<branch>
         fallback = git_merge_base("HEAD", f"origin/{branch}")
-        base_sha = fallback or head_sha  # w skrajnym razie (brak zdalnej gałęzi)
+        base_sha = fallback or "HEAD~1"
+    if not _rev_ok(base_sha, cwd=root):
+        base_sha = _empty_tree_sha(cwd=root)
+
     base7 = rev_short(base_sha)
     head7 = rev_short(head_sha)
 
@@ -316,7 +407,7 @@ def build_repo_mosaic(
                 ns.append((status, rest))
         name_status = ns
     else:
-        name_status = _diff_name_status(base_sha, head_sha)
+        name_status = _diff_name_status_safe(base_sha, head_sha, cwd=root)
 
     # metryki ruchu
     churn = {"A": 0, "M": 0, "D": 0, "R": 0, "C": 0, "other": 0}
@@ -373,7 +464,7 @@ def _cli(argv: Optional[List[str]] = None) -> None:
     import argparse
 
     p = argparse.ArgumentParser(prog="git_io", description="Git I/O + RepoMosaic")
-    p.add_argument("--base", type=str, default=None, help="base sha (domyślnie z .glx/state.json lub merge-base)")
+    p.add_argument("--base", type=str, default=None, help="base sha (domyślnie z .glx/state.json lub merge-base/empty-tree)")
     p.add_argument("--head", type=str, default="HEAD", help="head rev (domyślnie HEAD)")
     p.add_argument("--unstaged", action="store_true", help="uwzględnij zmiany w working tree")
     p.add_argument("--json", action="store_true", help="wypisz JSON (skrót)")
