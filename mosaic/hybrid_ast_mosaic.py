@@ -1382,18 +1382,27 @@ def cmd_from_git_dump(args) -> Dict[str, Any]:
     """
     Analiza BASE..HEAD, zapis artefaktów (report.json, mosaic_map.json, summary.md).
     Relatywne --out liczymy względem repo-top. Wspiera GLX_OUT z .env.
+    Priorytety repo-root:  --repo-root > .env(GLX_ROOT) > analysis.git_io.repo_root() > fallback (szukanie .git).
     """
+    # 0) .env (best-effort; uzupełnia tylko brakujące os.environ)
     _load_env(Path.cwd())
 
-    # repo-root: .env → analysis.git_io → fallback
-    try:
-        repo_top = _repo_top_from_env() or ana_repo_root()
-    except Exception:
-        repo_top = None
+    # 1) repo-root: preferuj jawny --repo-root, potem .env, potem analysis.git_io, na koniec heurystyka
+    repo_top: Optional[Path] = None
+    if getattr(args, "repo_root", None):
+        try:
+            repo_top = Path(args.repo_root).resolve()
+        except Exception:
+            repo_top = None
+    if not isinstance(repo_top, Path) or not repo_top:
+        try:
+            repo_top = _repo_top_from_env() or (_repo_root_ana() if _repo_root_ana else None)
+        except Exception:
+            repo_top = None
     if not isinstance(repo_top, Path) or not repo_top:
         repo_top = _repo_top_fallback(Path.cwd())
 
-    # parametry (CLI nie nadpisuje wartości jawnie ustawionych)
+    # 2) Parametry: wartości z .env NIE są nadpisywane przez CLI (CLI to tylko default)
     base        = str(getattr(args, "base", "") or "HEAD~1")
     head        = str(getattr(args, "head", "") or "HEAD")
     rows        = int(_env_get("GLX_ROWS",       getattr(args, "rows", 6),          int))
@@ -1406,26 +1415,49 @@ def cmd_from_git_dump(args) -> Dict[str, Any]:
     policy_file = _env_get("GLX_POLICY",         getattr(args, "policy_file", None), str)
     paths       = getattr(args, "paths", None) or None
 
-    # .py (robust)
+    # Jeżeli podano policy_file względnie → przelicz względem repo_top i sprawdź istnienie
+    if policy_file:
+        pol = Path(policy_file)
+        if not pol.is_absolute():
+            pol = (repo_top / pol).resolve()
+        policy_file = str(pol) if pol.exists() else None
+
+    # 3) Lista zmienionych .py (robust chain: alias → analysis → git diff → git diff-tree → ls-files)
     changed_py, attempts = _collect_changed_py_robust(repo_top, base, head, paths)
 
-    # mozaika + selektor
+    # 4) Mozaika + selektor Φ (uwzględnia wariant policy)
     M = build_mosaic(rows, cols, seed=7, kind=mosaic_kind, edge_thr=thr)
-    sel_label, selector, _ = _selector_from_args(phi_name, policy_file)
+    sel_label, selector, _policy = _selector_from_args(phi_name, policy_file)
+
+    # 5) Helper do pobierania treści z GIT: preferuj analysis.show_file_at_rev TYLKO gdy jego repo jest prawidłowe
+    def _show(rel_path: str, rev: str) -> str:
+        use_local = True
+        if _show_file_at_rev_ana is not None and _repo_root_ana is not None:
+            try:
+                ana_root = _repo_root_ana()
+            except Exception:
+                ana_root = None
+            if isinstance(ana_root, Path) and (ana_root / ".git").exists():
+                use_local = False
+        if use_local:
+            return _git_show_file(repo_top, rev, rel_path)
+        try:
+            return _show_file_at_rev_ana(rel_path, rev) or ""
+        except Exception:
+            return _git_show_file(repo_top, rev, rel_path)
 
     files_out: List[Dict[str, Any]] = []
     totals = dict(dS=0, dH=0, dZ=0, align_gain=0.0)
 
+    # 6) Pętla po plikach: ΔS/ΔH/ΔZ, koszty Φ, Align przed/po Ψ + sprzężeniu κ
     for rel_path in changed_py:
-        # treść pliku w base/head
-        base_src = ana_show_file_at_rev(rel_path, base) or _git_show_file(repo_top, base, rel_path)
-        head_src = ana_show_file_at_rev(rel_path, head) or _git_show_file(repo_top, head, rel_path)
+        base_src = _show(rel_path, base)
+        head_src = _show(rel_path, head)
 
-        # AstSummary
         a_base = _ast_summary_for_source_det(base_src, rel_path)
         a_head = _ast_summary_for_source_det(head_src, rel_path)
 
-        # Δ
+        # Δ (preferencja idx_ast_delta, fallback różnice surowe)
         if idx_ast_delta is not None:
             try:
                 d = idx_ast_delta(a_base, a_head)
@@ -1440,7 +1472,7 @@ def cmd_from_git_dump(args) -> Dict[str, Any]:
         else:
             dS = a_head.S - a_base.S; dH = a_head.H - a_base.H; dZ = a_head.Z - a_base.Z
 
-        # Φ
+        # Φ (trzy warianty + opcjonalny policy)
         J1, _ = phi_cost(a_head, M, thr, selector=phi_region_for)
         J2, _ = phi_cost(a_head, M, thr, selector=phi_region_for_balanced)
         J3, _ = phi_cost(a_head, M, thr, selector=phi_region_for_entropy)
@@ -1448,7 +1480,7 @@ def cmd_from_git_dump(args) -> Dict[str, Any]:
         if sel_label == "policy":
             Jp, _ = phi_cost(a_head, M, thr, selector=selector)
 
-        # Align
+        # Align przed/po Ψ i sprzężeniu (κ)
         Align_before = 1.0 - min(1.0, distance_ast_mosaic(a_head, M, thr))
         a_after = psi_feedback(a_head, M, delta, thr)
         a_cpl = couple_alpha_beta(a_after, M, thr, delta=delta, kappa_ab=kappa)
@@ -1469,6 +1501,7 @@ def cmd_from_git_dump(args) -> Dict[str, Any]:
         totals["dS"] += dS; totals["dH"] += dH; totals["dZ"] += dZ
         totals["align_gain"] += (Align_after - Align_before)
 
+    # 7) Raport JSON (stdout) + notatka, jeśli brak plików
     out: Dict[str, Any] = {
         "base": base, "head": head, "branch": _env_get("GLX_BRANCH", None, str),
         "repo_root": str(repo_top),
@@ -1482,7 +1515,7 @@ def cmd_from_git_dump(args) -> Dict[str, Any]:
     if not changed_py:
         out["note"] = f"git-delta-empty: próbowano {', '.join(attempts)}; żadnych .py do analizy."
 
-    # katalog wyjściowy: --out > GLX_OUT > 'analysis/last'
+    # 8) Artefakty: --out > GLX_OUT > 'analysis/last' (relatywny → względem repo_top)
     out_dir_str = getattr(args, "out", None) or _env_get("GLX_OUT", "analysis/last", str)
     out_dir = Path(out_dir_str)
     if not out_dir.is_absolute():
@@ -1490,11 +1523,13 @@ def cmd_from_git_dump(args) -> Dict[str, Any]:
 
     try:
         if _emit_artifacts is not None:
-            _emit_artifacts(out, out_dir)  # jeżeli istnieje warstwa reporting
+            _emit_artifacts(out, out_dir)  # jeśli dostępna warstwa reporting
     except Exception:
         pass
+
     artifacts = _emit_fallback_artifacts(out, out_dir)
 
+    # 9) Tryb ścisły artefaktów (CI-friendly)
     if getattr(args, "strict_artifacts", False):
         missing = [k for k, v in artifacts.items() if not Path(v).exists()]
         if missing:
@@ -1502,7 +1537,6 @@ def cmd_from_git_dump(args) -> Dict[str, Any]:
 
     print(json.dumps(out, ensure_ascii=False, indent=2))
     return out
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CLI (run/sweep/test/from-git/from-git-dump)
