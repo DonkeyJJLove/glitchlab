@@ -13,10 +13,16 @@ try:
     from .ast_index import AstSummary, ast_summary_of_source, ast_summary_of_rev, ast_summary_of_file
 except Exception as _e:
     AstSummary = object  # type: ignore
+
+
     def ast_summary_of_source(*a, **k):  # type: ignore
         raise RuntimeError("ast_index not available")  # pragma: no cover
+
+
     def ast_summary_of_rev(*a, **k):  # type: ignore
         return None  # pragma: no cover
+
+
     def ast_summary_of_file(*a, **k):  # type: ignore
         return None  # pragma: no cover
 
@@ -32,15 +38,16 @@ __all__ = [
     "to_jsonable",
 ]
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Dataclasses
 # ──────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class LabelDelta:
-    add: int = 0      # ile etykiet doszło w head vs base (nadwyżka head)
-    delete: int = 0   # ile etykiet ubyło (nadwyżka base)
-    same: int = 0     # ile „wspólnych” (min(base, head))
+    add: int = 0  # ile etykiet doszło w head vs base (nadwyżka head)
+    delete: int = 0  # ile etykiet ubyło (nadwyżka base)
+    same: int = 0  # ile „wspólnych” (min(base, head))
 
     @property
     def total(self) -> int:
@@ -81,6 +88,7 @@ class AstDelta:
     n_labels_base: int
     n_labels_head: int
     changed_labels: int  # liczba etykiet z add>0 lub delete>0
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Główna logika Δ
@@ -141,6 +149,7 @@ def ast_delta(base: AstSummary, head: AstSummary,
         n_labels_head=len(head.per_label),
         changed_labels=int(changed),
     )
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Wygodne wywołania pomocnicze
@@ -215,7 +224,7 @@ def merge_deltas(deltas: List[AstDelta], file_path: str = "<multi>") -> AstDelta
     # α/β base – policzmy podobnie ważone
     Wb = sum(max(1.0, float(d.S_base + d.H_base)) for d in deltas)
     alpha_base_w = sum(max(1.0, float(d.S_base + d.H_base)) * d.alpha_base for d in deltas) / max(1.0, Wb)
-    beta_base_w  = sum(max(1.0, float(d.S_base + d.H_base)) * d.beta_base  for d in deltas) / max(1.0, Wb)
+    beta_base_w = sum(max(1.0, float(d.S_base + d.H_base)) * d.beta_base for d in deltas) / max(1.0, Wb)
 
     # per-label agregacja
     labels: Dict[str, LabelDelta] = {}
@@ -252,6 +261,7 @@ def merge_deltas(deltas: List[AstDelta], file_path: str = "<multi>") -> AstDelta
         changed_labels=int(changed),
     )
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Serializacja (lekka)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -276,6 +286,7 @@ def to_jsonable(delta: AstDelta) -> Dict:
         n_labels_head=delta.n_labels_head,
         changed_labels=delta.changed_labels,
     )
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Minimalne self-testy CLI (opcjonalnie)

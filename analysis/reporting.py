@@ -383,7 +383,7 @@ def _send_mail(env: Dict[str, str]) -> None:
 
     try:
         try:
-            from glitchlab.scripts.send_patch import main as glx_main
+            from scripts.send_patch import main as glx_main
         except Exception:
             from scripts.send_patch import main as glx_main  # type: ignore
     except Exception as e:
