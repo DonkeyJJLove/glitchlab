@@ -1,0 +1,29 @@
+From ab80845ea1cb8ff0f47cb9c3e343acaa366337b7 Mon Sep 17 00:00:00 2001
+From: d2j3 <donkeyjjlove@protonmail.com>
+Date: Mon, 29 Sep 2025 00:47:45 +0200
+Subject: [PATCH] hook auto test
+
+---
+ .githooks/post-commit | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+ create mode 100755 .githooks/post-commit
+
+diff --git a/.githooks/post-commit b/.githooks/post-commit
+new file mode 100755
+index 0000000..ab612f4
+--- /dev/null
++++ b/.githooks/post-commit
+@@ -0,0 +1,10 @@
++#!/usr/bin/env bash
++set -euo pipefail
++ROOT="$(git rev-parse --show-toplevel)"
++cd "$ROOT"
++
++# wybór Pythona (py na Windows, inaczej python)
++if command -v py >/dev/null 2>&1; then PY=py; else PY=python; fi
++
++# uruchom Twoją logikę
++"$PY" scripts/send_patch.py || true
+-- 
+2.45.1.windows.1
+

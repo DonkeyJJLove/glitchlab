@@ -1,0 +1,60 @@
+From c4e0703e731d5f6d1417879a76e9a526bb0f36f7 Mon Sep 17 00:00:00 2001
+From: d2j3 <donkeyjjlove@protonmail.com>
+Date: Mon, 29 Sep 2025 01:28:38 +0200
+Subject: [PATCH] =?UTF-8?q?[=CE=94]=20Zakres=20(cdn=E2=80=A6)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+files: 3 (app.py, canvas_container.py, state.py)
+
+typ: test / weryfikacja / kosmetyczne (fake)
+
+[Φ/Ψ] Mozaika (semantyka kodu)
+
+Align(mean .py): niska (typowe dla zmian nie-funkcjonalnych)
+
+Hint: brak wpływu na strukturę sąsiednich kafli / przepływy GUI
+
+[AST] Deltas
+
+brak zmian strukturalnych wymagających dokumentacji
+
+traktowane jako modyfikacje pomocnicze (no-op dla logiki)
+
+[GUI/Kontekst]
+
+app.py, canvas_container.py, state.py: testowe dotknięcia plików, weryfikacja ścieżek i pipeline’u
+
+[Dokumentacja]
+
+decyzja: NO-OP (zmiany testowo-kosmetyczne; brak wpływu na opis modułów)
+
+[Testy / Ryzyko]
+
+smoke: uruchomienie aplikacji + otwarcie widoków (manual)
+
+ryzyko: minimalne
+
+Meta
+
+Generated-by: mosaic/AST review
+---
+ gui/app.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/gui/app.py b/gui/app.py
+index a05f135..70ab02c 100644
+--- a/gui/app.py
++++ b/gui/app.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ 
++
+ import os
+ import sys
+ 
+-- 
+2.45.1.windows.1
+

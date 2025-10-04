@@ -1,9 +1,9 @@
 # Domyślnie Git wykrywa tekst, ale wymuszamy profile per rozszerzenie
 * text=auto
-*.sh text eol=lf
 pre-commit text eol=lf
 post-commit text eol=lf
-
+prepare-commit-msg    text eol=lf
+.githooks/*           text eol=lf
 # --- LF dla kodu i docs ---
 *.py        text eol=lf
 *.pyi       text eol=lf
@@ -36,3 +36,16 @@ post-commit text eol=lf
 *.pdfx      binary
 *.exe       binary
 *.dll       binary
+
+*.py        text eol=lf
+*.pyi       text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.json      text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.toml      text eol=lf
+*.ini       text eol=lf
+*.cfg       text eol=lf
+*.patch     text eol=lf
+*.diff      text eol=lf

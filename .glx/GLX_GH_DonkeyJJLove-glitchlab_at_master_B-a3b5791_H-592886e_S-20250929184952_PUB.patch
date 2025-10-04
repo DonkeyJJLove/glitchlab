@@ -1,0 +1,1294 @@
+From 592886e8f9c41cd79f1ab64a1acce777866e2a2b Mon Sep 17 00:00:00 2001
+From: d2j3 <donkeyjjlove@protonmail.com>
+Date: Mon, 29 Sep 2025 20:49:50 +0200
+Subject: [PATCH] =?UTF-8?q?8=20file(s)=20staged:=20[=CE=94]=20Zakres=20-?=
+ =?UTF-8?q?=20files:=208=20(commit=5F20250929-043402.json,=20commit=5F2025?=
+ =?UTF-8?q?0929-164411.json,=20commit=5F20250929-165443.json,=20commit=5F2?=
+ =?UTF-8?q?0250929-183139.json,=20README.md,=20cstudy.md=20(+2))=20-=20typ?=
+ =?UTF-8?q?:=20auto=20(pre-diff)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+[Φ/Ψ] Mozaika (semantyka kodu)
+- Align(mean .py): 0.43
+- Hint: brak wpływu na strukturę sąsiednich kafli
+
+[AST] Deltas (staged .py)
+- S: 150  H: 547
+- uwagi: wartości przybliżone (heurystyki)
+
+[Dokumentacja]
+- decyzja: NO-OP
+
+Meta
+- Generated-by: pre-diff/AST-mosaic @ 2025-09-29 18:49:51Z
+
+…
+---
+ analysis/logs/commit_20250929-043402.json | 555 ++++++++++++++++++++++
+ analysis/logs/commit_20250929-164411.json |  23 +
+ analysis/logs/commit_20250929-165443.json |  50 ++
+ analysis/logs/commit_20250929-183139.json |  19 +
+ gui/mosaic/README.md                      |   9 +-
+ gui/mosaic/cstudy.md                      | 269 +++++++++++
+ structure.md => gui/mosaic/structure.md   |   2 +-
+ gui/mosaic/vis_ast_kites_all.py           | 248 ++++++++++
+ 8 files changed, 1172 insertions(+), 3 deletions(-)
+ create mode 100644 analysis/logs/commit_20250929-043402.json
+ create mode 100644 analysis/logs/commit_20250929-164411.json
+ create mode 100644 analysis/logs/commit_20250929-165443.json
+ create mode 100644 analysis/logs/commit_20250929-183139.json
+ create mode 100644 gui/mosaic/cstudy.md
+ rename structure.md => gui/mosaic/structure.md (99%)
+ create mode 100644 gui/mosaic/vis_ast_kites_all.py
+
+diff --git a/analysis/logs/commit_20250929-043402.json b/analysis/logs/commit_20250929-043402.json
+new file mode 100644
+index 0000000..de02fb8
+--- /dev/null
++++ b/analysis/logs/commit_20250929-043402.json
+@@ -0,0 +1,555 @@
++{
++  "when": "2025-09-29 04:34:02Z",
++  "files": [
++    [
++      "D",
++      "analysis/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "analysis/__pycache__/diff.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "analysis/__pycache__/exporters.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "analysis/__pycache__/metrics.cpython-39.pyc"
++    ],
++    [
++      "A",
++      "analysis/logs/commit_20250929-043151.json"
++    ],
++    [
++      "D",
++      "core/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "core/__pycache__/graph.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "core/__pycache__/pipeline.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "core/__pycache__/registry.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "core/__pycache__/roi.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "core/__pycache__/symbols.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "core/__pycache__/utils.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "core/metrics/__pycache__/basic.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/anisotropic_contour_warp.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/block_mosh.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/block_mosh_grid.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/default_identity.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/depth_displace.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/depth_parallax.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/gamma_gain.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/phase_glitch.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/pixel_sort_adaptive.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/rgb_glow.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/rgb_offset.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/spectral_shaper.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "filters/__pycache__/tile_tess_probe.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/app.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/controls.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/docking.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/event_bus.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/exporters.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/generic_form_panel.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/image_canvas.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/log_window.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/panel_base.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/panel_loader.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/paths.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/preset_manager.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/state.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/__pycache__/welcome_panel.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/__pycache__/ab_runner.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/__pycache__/judge.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/__pycache__/metrics.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/__pycache__/stats.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/__pycache__/templates.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/agents/__pycache__/agent_mozaika.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/agents/__pycache__/agent_ms_like.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/e2e/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/e2e/__pycache__/test_ab_runner.cpython-39-pytest-8.4.2.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/e2e/__pycache__/test_plot_results.cpython-39-pytest-8.4.2.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/fuzz/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/fuzz/__pycache__/test_fuzz_tasks.cpython-39-pytest-8.4.2.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/perf/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/perf/__pycache__/test_perf_timings.cpython-39-pytest-8.4.2.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/property/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/property/__pycache__/test_tasks_property.cpython-39-pytest-8.4.2.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/unit/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/unit/__pycache__/test_stats.cpython-39-pytest-8.4.2.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/tests/unit/__pycache__/test_templates.cpython-39-pytest-8.4.2.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/utils/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/bench/utils/__pycache__/plot_results.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/mosaic/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/mosaic/__pycache__/hybrid_ast_mosaic.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/mosaic/__pycache__/router.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/base.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_anisotropic_contour_warp.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_block_mosh.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_block_mosh_grid.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_default_identity.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_depth_displace.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_gamma_gain.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_phase_glitch.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_pixel_sort_adaptive.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_rgb_glow.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_rgb_offset.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_spectral_shaper.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/panels/__pycache__/panel_tile_tess_probe.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/services/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/services/__pycache__/compositor.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/services/__pycache__/files.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/services/__pycache__/image_history.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/services/__pycache__/layer_manager.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/services/__pycache__/masks.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/services/__pycache__/pipeline_runner.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/services/__pycache__/presets.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/bottom_area.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/bottom_panel.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/hud.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/layer_panel.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/left_dummy.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/left_toolbar.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/menu.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/notebook.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/statusbar.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/tab_filter.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/tab_general.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/tab_preset.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/views/__pycache__/viewport.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/canvas_container.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/diag_console.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/graph_view.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/hud.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/image_canvas.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/image_layers.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/layer_canvas.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/mask_browser.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/mask_chooser.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/mask_picker.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/mosaic_view.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/overlay_renderer.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/param_form.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/pipeline_preview.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/preset_folder.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/preset_manager.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/ruler.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/toolbox.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/__pycache__/welcome_panel.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/__init__.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/base.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/tool_brush.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/tool_ellipse_select.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/tool_eraser.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/tool_measure.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/tool_move_layer.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/tool_pipette.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/tool_rect_select.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "gui/widgets/tools/__pycache__/tool_view.cpython-39.pyc"
++    ],
++    [
++      "D",
++      "tests/__pycache__/test_hybrid_mosaic_algo.cpython-39-pytest-8.4.2.pyc"
++    ]
++  ],
++  "py_results": [],
++  "aggregate": {
++    "files": 0,
++    "S": 0,
++    "H": 0,
++    "avg_align": 0.0
++  },
++  "doc_decision": "NO-OP",
++  "commit": "c7e94adf25d23110d3101f6b5c9a8eb6a7057295",
++  "range": "5dc9eef..c7e94ad"
++}
+\ No newline at end of file
+diff --git a/analysis/logs/commit_20250929-164411.json b/analysis/logs/commit_20250929-164411.json
+new file mode 100644
+index 0000000..3135864
+--- /dev/null
++++ b/analysis/logs/commit_20250929-164411.json
+@@ -0,0 +1,23 @@
++{
++  "when": "2025-09-29 16:44:10Z",
++  "files": [
++    [
++      "A",
++      "resources/img/model.png"
++    ],
++    [
++      "A",
++      "structure.md"
++    ]
++  ],
++  "py_results": [],
++  "aggregate": {
++    "files": 0,
++    "S": 0,
++    "H": 0,
++    "avg_align": 0.0
++  },
++  "doc_decision": "NO-OP",
++  "commit": "6c0007c9744fa31fecff26baa9a9918b3358b753",
++  "range": "c7e94ad..6c0007c"
++}
+\ No newline at end of file
+diff --git a/analysis/logs/commit_20250929-165443.json b/analysis/logs/commit_20250929-165443.json
+new file mode 100644
+index 0000000..e2b163c
+--- /dev/null
++++ b/analysis/logs/commit_20250929-165443.json
+@@ -0,0 +1,50 @@
++{
++  "when": "2025-09-29 16:54:42Z",
++  "files": [
++    [
++      "M",
++      "gui/mosaic/hybrid_ast_mosaic.py"
++    ],
++    [
++      "M",
++      "structure.md"
++    ]
++  ],
++  "py_results": [
++    {
++      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\gui\\mosaic\\hybrid_ast_mosaic.py",
++      "ok": true,
++      "ast": {
++        "S": 696,
++        "H": 2699,
++        "Z": 0,
++        "alpha": 0.20500736377025036,
++        "beta": 0.7949926362297496,
++        "maxZ": 13
++      },
++      "mosaic": {
++        "edge_p": 1.0,
++        "align": 0.41001472754050083
++      },
++      "meta": [
++        "# glitchlab/mosaic/hybrid_ast_mosaic.py",
++        "# Hybrydowy algorytm AST ⇄ Mozaika (Φ/Ψ), ΔS/ΔH/ΔZ, λ-kompresja,",
++        "# warianty Φ, Ψ-feedback, metryki, inwarianty, sweep λ×Δ, CLI.",
++        "# Python 3.9+  (deps: numpy; stdlib: ast, math, json, argparse, itertools, hashlib)",
++        "# ──────────────────────────────────────────────────────────────────────────────",
++        "# 0) PARAMS / PUBLIC API",
++        "# ──────────────────────────────────────────────────────────────────────────────",
++        "# soft-labels dla krawędzi"
++      ]
++    }
++  ],
++  "aggregate": {
++    "files": 1,
++    "S": 696,
++    "H": 2699,
++    "avg_align": 0.41001472754050083
++  },
++  "doc_decision": "NO-OP",
++  "commit": "3a5cebedf6bc8cba076af54633a7935dd8712473",
++  "range": "6c0007c..3a5cebe"
++}
+\ No newline at end of file
+diff --git a/analysis/logs/commit_20250929-183139.json b/analysis/logs/commit_20250929-183139.json
+new file mode 100644
+index 0000000..c7ceb8c
+--- /dev/null
++++ b/analysis/logs/commit_20250929-183139.json
+@@ -0,0 +1,19 @@
++{
++  "when": "2025-09-29 18:31:38Z",
++  "files": [
++    [
++      "M",
++      "gui/mosaic/README.md"
++    ]
++  ],
++  "py_results": [],
++  "aggregate": {
++    "files": 0,
++    "S": 0,
++    "H": 0,
++    "avg_align": 0.0
++  },
++  "doc_decision": "NO-OP",
++  "commit": "a3b5791205bbe9c596f7ad02a813e495d73dd207",
++  "range": "3a5cebe..a3b5791"
++}
+\ No newline at end of file
+diff --git a/gui/mosaic/README.md b/gui/mosaic/README.md
+index 4bd63da..6c80483 100644
+--- a/gui/mosaic/README.md
++++ b/gui/mosaic/README.md
+@@ -4,8 +4,9 @@
+ 
+ > Ten README zastępuje poprzednie „PRZEDAWNIONE README.MD”.
+ > Spina algorytm `hybrid_ast_mosaic.py`, wizualizacje `vis_ast_kites_all.py` i praktyki sterowania generacją kodu.
+-> Nacisk: **działanie w łańcuchu** (lekka telemetria per-node), **modalność** płaszczyzn/latawców i **miary**.
++> Nacisk: **działanie w łańcuchu** (lekka telemetria per-node), **modalność** płaszczyzn/latawców i **miary**. 
+ 
++>[Struktura](structure.md) | [Case Study](cstudy.md)
+ ---
+ 
+ ## Spis treści
+@@ -233,4 +234,8 @@ Sprawdź `CR_TO` (higiena progu). Jeśli rozkład `edge` jest skrajny, Φ/Ψ bę
+ * **Relacja** jest **per-węzeł, modalna** (płaszczyzny O–A–R).
+ * **Łańcuch Φ/Ψ** to lekkie, iteracyjne dociąganie meta do kontekstu mozaiki.
+ * **Miary** (Align, J_φ, CR_TO) pozwalają **mierzyć i sterować** generacją.
+-* **Meta-tagi** i **przepisy** (wstrzymanie, Fabryka) dają praktyczny uchwyt na ontologię kodu.
+\ No newline at end of file
++* **Meta-tagi** i **przepisy** (wstrzymanie, Fabryka) dają praktyczny uchwyt na ontologię kodu.
++
++---
++
++
+diff --git a/gui/mosaic/cstudy.md b/gui/mosaic/cstudy.md
+new file mode 100644
+index 0000000..c2bf00a
+--- /dev/null
++++ b/gui/mosaic/cstudy.md
+@@ -0,0 +1,269 @@
++# Case Study: Generacja i transformacja kodu z AST ⇄ Mozaika (Φ/Ψ)
++
++>[Moziaka](README.md) | [Struktura](structure.md) | [Case Study](cstudy.md)
++
++> **Schemat wizualny:**
++> ![Model – schemat](../../resources/img/model.png)
++
++To studium przypadku pokazuje **praktyczny** przepływ pracy: od analizy kodu (AST + meta), przez mapowanie Φ i feedback Ψ, po **reguły sterujące** (meta-tagi) i **wymuszenia architektoniczne** (np. *Dependency Injection*, *Factory*, wstrzymanie generacji). Całość opiera się na referencyjnych plikach:
++
++* `glitchlab/mosaic/hybrid_ast_mosaic.py` – algorytm Φ/Ψ (AST⇄Mozaika)
++* `vis_ast_kites_all.py` – produkcyjna wizualizacja „latawców” (polityk) per węzeł
++
++---
++
++## 1) Cel i skrót działania
++
++**Chcemy**: sterować generacją/transformacją kodu tak, aby zbiegał do ustalonej ontologii (stylu/architektury) i **mierzalnych** celów.
++
++**Jak to działa (w skrócie):**
++
++1. **AST + meta**: każdy węzeł dostaje wektor `[L,S,Sel,Stab,Cau,H]`.
++2. **Φ (phi)**: na bazie etykiety węzła i profilu mozaiki wybieramy region (`edges`, `~edges`, `roi`, `all`).
++3. **Ψ (psi)**: miękko aktualizujemy meta wektor węzła zgodnie z charakterem regionu.
++4. **Sprzężenie α/β**: balansujemy globalnie udział `α=S/(S+H)` i `β=H/(S+H)` z profilem mozaiki.
++5. **Decyzja**: mierzymy `Align` (zgodność), koszty Φ (`J_phi`) i zgodność tagów (`J_meta`) — wybieramy wariant z najlepszą wartością wg kryteriów.
++
++> Algorytm jest **łańcuchowy**: nie potrzebujesz „miliona warstw” — liczy się kolejność i proporcje nacisków (Φ/Ψ/αβ/λ).
++
++---
++
++## 2) Parametry, które naprawdę „robią różnicę”
++
++* **`λ` (lambda)** – kompresja AST (spłaszczanie liści).
++  *Wysokie* λ → mniej detali (nazwy/konstanty), mocniejszy szkielet.
++
++* **`Δ` (delta)** – intensywność Ψ (jak mocno region koryguje meta).
++  *Wyższe* Δ → szybsze dopasowanie do sceny/mozaiki.
++
++* **`κ_ab` (kappa_ab)** – sprzężenie globalne α/β z mozaiką.
++  *Wyższe* κ → generator chętniej „idzie za kontekstem”.
++
++* **`edge_thr`** – próg tnący mozaikę na `edges` i `~edges`.
++  Wyższy próg → `edges` są rzadsze (system preferuje stabilność).
++
++* **Meta-tagi (`@meta …`)** – lokalne/globalne priorytety/ograniczenia (patrz §5).
++
++---
++
++## 3) Pipeline (reprodukowany)
++
++```bash
++# 1) Uruchom wizualizację (zapisz obraz)
++python vis_ast_kites_all.py --rows 6 --cols 6 --edge-thr 0.55 --seed 7 --out out.png
++
++# 2) Pojedynczy przebieg metryk (λ, Δ, itp.)
++python -m glitchlab.mosaic.hybrid_ast_mosaic run --lmbd 0.60 --delta 0.25 --rows 6 --cols 6 --edge-thr 0.55
++
++# 3) Sweep λ×Δ + tabela i JSON
++python -m glitchlab.mosaic.hybrid_ast_mosaic sweep --rows 6 --cols 6 --edge-thr 0.55 --json
++```
++
++Wyniki: `Align` (↑ lepiej), `J_phi*` (↓ lepiej), `CR_AST`, `CR_TO`, `α`, `β` — do podejmowania decyzji.
++
++---
++
++## 4) Meta-tagi: pozytywne/negatywne priorytety
++
++> **Po co?** Żeby deklaratywnie wpływać na Φ/Ψ (lokalnie lub globalnie).
++
++**Składnia (przykłady):**
++
++```python
++# @meta +Sel>=0.75 in:edges       # promuj selektywność w edges
++# @meta -Stab<0.40 in:edges       # demotywuj niską stabilność w edges
++# @meta prefer:roi weight=0.6     # Φ preferuje ROI dla danego węzła
++# @meta forbid:edges              # Φ nie może przypisać do edges
++# @meta goal Align>=0.85          # globalny cel zgodności
++```
++
++Efekty:
++
++* Φ: *prefer/forbid* → przełącza/priorytetyzuje region.
++* Ψ: `dψ(tag)` → dosypuje lub zdejmuje komponent meta (np. Sel/Stab/Cau).
++* global: koryguje `(α,β)` i/lub wagi `W_DEFAULT` w mierze `Align`.
++
++**Ocena zgodności tagów:** `J_meta = Σ penalty(tag)·(1 − score_tag)` — można dodać do podpisu obrazu i/lub optymalizacji.
++
++---
++
++## 5) Case Study A — **Dependency Injection** (DI)
++
++**Problem**: funkcja sama tworzy zależność (np. `Database()`), co miesza stabilizację i „akcję”.
++
++**Kod wejściowy**
++
++```python
++def get_data():
++    db = Database()
++    return db.query("SELECT * FROM users")
++```
++
++**AST + Φ**
++
++* `Assign(db=Database())` → `~edges` (utrwalenie), wysoka **Stab**.
++* `Call(Database)` → `edges` (tworzenie), **Sel/Cau** wyżej.
++* `Return` → `roi`.
++
++**Ψ i konflikt**
++Edges „ciągną” **Sel** w górę, ~edges „pompuje” **Stab** — to *rozjazd* meta.
++
++**Transformacja (DI)**
++Przenosimy zależność do parametru funkcji (do ROI):
++
++```python
++def get_data(db: Database):
++    return db.query("SELECT * FROM users")
++```
++
++**Efekt metryczny**
++
++* `Align` ↑ (mniej konfliktu, czystsza przyczynowość w ROI).
++* `α` ↑ (więcej strukturalnej stabilności), `β` ↓ (mniej „nerwowych” Call w środku).
++* `J_phi` ↓ (Call przestaje „krzyczeć” w złym regionie).
++
++**Meta-tagi (opcjonalnie)**
++
++```python
++# @meta prefer:roi for:FunctionDef,Return
++# @meta +Stab>=0.8 in:~edges for:Assign
++# @meta forbid:edges for:Assign
++```
++
++---
++
++## 6) Case Study B — **Wymuszenie wzorca Factory** (Maksymalny Realizm)
++
++**Wejście** – jak w A, ale chcemy **architektonicznie** scentralizować tworzenie obiektów.
++
++**Reguła**
++
++* wykrycie powtarzających się `new()` / `Class()` w edges/~edges,
++* Φ przełącza tworzenie do `roi`,
++* generator dokleja **Factory**.
++
++**Wynik**
++
++```python
++class DatabaseFactory:
++    @staticmethod
++    def create() -> Database:
++        return Database()
++
++def get_data():
++    db = DatabaseFactory.create()
++    return db.query("SELECT * FROM users")
++```
++
++**Efekt metryczny**
++
++* `Cau` w ROI ↑ (przyczynowość w centrum konstrukcji),
++* `Sel` w edges spada (Call prostszy, mniej „nerwowy”),
++* `Align` ↑, `J_phi` ↓, często `CR_AST` bez zmian (struktura bardziej semantyczna, nie „cięższa”).
++
++**Meta-tagi (opcjonalnie)**
++
++```python
++# @meta enforce:factory for:Database,FileReader,Client
++# @meta +Cau>=0.7 in:roi for:FunctionDef
++```
++
++---
++
++## 7) Case Study C — **Wstrzymanie generacji** (kontrolowane „stuby”)
++
++**Motywacja**: sięgasz po zewnętrzne API/efekty uboczne w miejscu, gdzie nie masz danych lub chcesz zachować bezpieczeństwo.
++
++**Mechanizm**
++
++* jeśli `Sel`/`Cau` node’a w `edges` przekroczy próg (po Ψ), Φ **zamraża** poddrzewo (oznacza jako stub).
++
++**Przykład**
++
++```python
++def calc(x):
++    if x > 0:
++        return external_api(x)   # wysokie Sel w edges
++    return 0
++```
++
++**Wynik (stub)**
++
++```python
++# @meta stop:generate for:Call in:edges reason="external dependency"
++result = external_api(x)   # TODO: fill
++```
++
++**Efekt**
++
++* Zachowujesz spójność struktury (α), nie przesterowujesz `β`.
++* `Align` nie leci w dół „na siłę” — *świadome pominięcie* generacji.
++
++---
++
++## 8) Decyzje i kryteria „go/no-go”
++
++**Dobre sygnały:**
++
++* `Align` ↑ (≥0.72 dla konfiguracji referencyjnych).
++* `J_phi` ↓ (Φ trafia w regiony zgodnie z semantyką).
++* `J_meta` ↓ (tagi zaspokojone).
++* `CR_TO` sensowne (np. ≤20) — próg nie „psuje” dystrybucji.
++
++**Złe sygnały:**
++
++* `Align` spada przy wzroście Δ → Ψ zbyt silnie wypacza zamiast dopasowywać (zmniejsz `Δ`/`κ_ab`).
++* `J_phi` rośnie przy λ↑ → kompresja zgubiła informację, obniż λ.
++
++---
++
++## 9) Minimalny przepis wdrożeniowy
++
++1. **Ustawienia startowe**: `edge_thr=0.55`, `λ=0.0..0.25`, `Δ=0.25..0.5`, `κ_ab=0.35`.
++
++2. **Selektor**: `Φ2 (balanced)` + soft-labels (`τ≈0.08`).
++
++3. **Polityka tagów**:
++
++   * oddziel I/O od ROI:
++
++     ```python
++     # @meta forbid:roi for:Call,Expr
++     # @meta prefer:edges for:Call,Expr weight=0.7
++     ```
++   * DI/Fabryka:
++
++     ```python
++     # @meta prefer:roi for:FunctionDef,Return
++     # @meta enforce:factory for:Database,Client
++     ```
++   * wstrzymanie generacji punktowe:
++
++     ```python
++     # @meta stop:generate for:Call in:edges when:Sel>0.85
++     ```
++
++4. **Reprodukcja**: odpal `vis_ast_kites_all.py` i `hybrid_ast_mosaic.py run/sweep`, porównaj `Align`, `J_phi`, `J_meta`.
++
++---
++
++## 10) Co realnie „dowozi” system
++
++* **Relatywność** (kontekstowa) — to **mozaika** (dane/scena) dyktuje, które węzły „naciągać”.
++* **Miarodajność** — każde przesunięcie ma liczby (meta, centroidy, `D_M`, `Align`, `J_meta`).
++* **Sterowalność** — meta-tagi i parametry (`λ,Δ,κ_ab,edge_thr`) pozwalają przewidywalnie kształtować wynik.
++* **Architektura** — regułami wymusisz wzorce (*DI*, *Factory*) i bezpieczeństwo (*wstrzymanie*).
++* **Łańcuchowość** — najważniejsze są **kolejne kroki** (Φ→Ψ→α/β), nie liczba warstw.
++
++---
++
++### Załącznik: mini-checklista PR/CR
++
++* [ ] **Viz**: czy latawce kluczowych węzłów stoją w oczekiwanych regionach (kolor Φ)?
++* [ ] **Align** ≥ próg polityki (np. 0.72)
++* [ ] **J_phi** (balanced) ↓ vs poprzedni commit
++* [ ] **J_meta**: tagi spełnione / akceptowalne odstępstwa
++* [ ] **CR_TO** w normie (higiena progu)
++* [ ] Wymuszenia (DI/Factory/stop) zastosowane tam, gdzie reguły tego wymagają
++
++---
+\ No newline at end of file
+diff --git a/structure.md b/gui/mosaic/structure.md
+similarity index 99%
+rename from structure.md
+rename to gui/mosaic/structure.md
+index 075fc6e..5bbc855 100644
+--- a/structure.md
++++ b/gui/mosaic/structure.md
+@@ -1,6 +1,6 @@
+ # AST ⇄ Mozaika — „latawce”/płaszczyzny polityk (opis obrazu)
+ 
+-![Model – schemat](resources/img/model.png)
++![Model – schemat](../../resources/img/model.png)
+ 
+ ## Co widać
+ 
+diff --git a/gui/mosaic/vis_ast_kites_all.py b/gui/mosaic/vis_ast_kites_all.py
+new file mode 100644
+index 0000000..86dc39d
+--- /dev/null
++++ b/gui/mosaic/vis_ast_kites_all.py
+@@ -0,0 +1,248 @@
++#!/usr/bin/env python3
++# -*- coding: utf-8 -*-
++"""
++vis_ast_kites_all.py
++Produkcja: wizualizacja AST ⇄ Mozaika z "latawcami" (płaszczyzny polityk) dla KAŻDEGO węzła.
++- Spójna z algorytmem Φ/Ψ (balanced) z hybrid_ast_mosaic
++- Zawiera legendy, opisy osi, podsumowanie profilu mozaiki, zapis do pliku
++- CLI do ustawiania parametrów (rows/cols/thr/seed itp.)
++
++Uruchomienie:
++  python vis_ast_kites_all.py --rows 6 --cols 6 --edge-thr 0.55 --seed 7 --out out.png
++"""
++
++from __future__ import annotations
++import argparse
++from dataclasses import dataclass
++from typing import Dict, Tuple, List, Optional
++
++import numpy as np
++import matplotlib.pyplot as plt
++from mpl_toolkits.mplot3d.art3d import Poly3DCollection
++
++# Import z dwóch możliwych ścieżek (repo może mieć różne drzewo pakietów)
++try:
++    from glitchlab.gui.mosaic.hybrid_ast_mosaic import (
++        ast_deltas, build_mosaic_hex, region_ids, centroid,
++        phi_region_for_balanced, EXAMPLE_SRC, EDGE_THR_DEFAULT
++    )
++except Exception:
++    from glitchlab.gui.mosaic.hybrid_ast_mosaic import (
++        ast_deltas, build_mosaic_hex, region_ids, centroid,
++        phi_region_for_balanced, EXAMPLE_SRC, EDGE_THR_DEFAULT
++    )
++
++# ------------------------- Konfiguracja/Mapowania -----------------------------
++
++# Kolory dla regionów Φ
++REGION_COLOR: Dict[str, str] = {
++    "edges": "#d33",  # czerwony
++    "~edges": "#36c",  # niebieski
++    "roi": "#8233cc",  # fiolet
++    "all": "#f39c12"  # pomarańcz
++}
++
++
++# 0=L, 1=S, 2=Sel, 3=Stab, 4=Cau, 5=H
++def label2coeff(lbl: str) -> int:
++    """Dominujący meta-współczynnik dla węzła AST (semantyka zgodna z algorytmem)."""
++    if lbl in ("Call", "Expr"):
++        return 2  # Sel
++    if lbl == "Assign":
++        return 3  # Stab
++    if lbl in ("FunctionDef", "AsyncFunctionDef", "ClassDef", "Return", "Raise"):
++        return 4  # Cau
++    if lbl in ("If", "For", "While", "With", "Try"):
++        return 5  # H
++    return 3  # Fallback: Stab
++
++
++def label2region(lbl: str, M, thr: float) -> str:
++    """Region Φ (balanced) – uwzględnia kwantyle mozaiki."""
++    return phi_region_for_balanced(lbl, M, thr)
++
++
++# ------------------------------ Dane pomocnicze -------------------------------
++
++@dataclass
++class Kite:
++    """Reprezentacja jednego latawca (płaszczyzny polityki)."""
++    node_id: int
++    label: str
++    coeff_idx: int
++    region_kind: str
++    verts: List[Tuple[float, float, float]]  # [O, A(node), M(region)]
++    color: str
++
++
++def node_point(n, coeff_idx: int) -> Tuple[float, float, float]:
++    """Punkt dla węzła AST w osi dominującego współczynnika."""
++    return float(n.depth), float(n.id), float(n.meta[coeff_idx])
++
++
++def region_point(M, kind: str, thr: float) -> Optional[Tuple[float, float, float]]:
++    """Centroid regionu mozaiki + Z jako średnia edge."""
++    ids = region_ids(M, kind, thr)
++    if not ids:
++        return None
++    cx, cy = centroid(ids, M)
++    cz = float(np.mean([float(M.edge[i]) for i in ids]))
++    return float(cx), float(cy), cz
++
++
++def make_kite(n, M, thr: float) -> Optional[Kite]:
++    """Zbuduj latawiec dla węzła AST: O(0,0,0), A(node), M(region)."""
++    coeff = label2coeff(n.label)
++    kind = label2region(n.label, M, thr)
++    rp = region_point(M, kind, thr)
++    if rp is None:
++        return None
++    p0 = (0.0, 0.0, 0.0)
++    pa = node_point(n, coeff)
++    pm = rp
++    verts = [p0, pa, pm]
++    color = REGION_COLOR.get(kind, "#777")
++    return Kite(node_id=n.id, label=n.label, coeff_idx=coeff, region_kind=kind, verts=verts, color=color)
++
++
++def mosaic_profile_text(M, thr: float) -> str:
++    """Krótki opis profilu mozaiki do legendy."""
++    vals = np.asarray(M.edge, dtype=float)
++    p_edge = float(np.mean(vals > thr))
++    mu = float(np.mean(vals))
++    sd = float(np.std(vals))
++    return f"edge_thr={thr:.2f} | p(edge)≈{p_edge:.2f} | mean(edge)≈{mu:.2f} ± {sd:.2f}"
++
++
++# ------------------------------ Rysowanie sceny -------------------------------
++
++def draw_scene(ast, M, thr: float, annotate_n: int = 6, elev: float = 24, azim: float = -55):
++    """Rysuje pełną scenę: mozaika, węzły AST, latawce, legendy/opisy."""
++    fig = plt.figure(figsize=(13, 9))
++    ax = fig.add_subplot(111, projection='3d')
++    ax.view_init(elev=elev, azim=azim)
++    ax.set_title("AST ⇄ Mozaika — latawce (płaszczyzny polityk) per węzeł • Φ=balanced")
++
++    # 1) Mozaika: półprzezroczysta powierzchnia
++    if getattr(M, "hex_centers", None) is not None:
++        xs, ys = zip(*M.hex_centers)
++    else:
++        cols = int(M.cols);
++        rows = int(M.rows)
++        xs = [i % cols for i in range(rows * cols)]
++        ys = [i // cols for i in range(rows * cols)]
++    zs = np.asarray(M.edge, dtype=float)
++    try:
++        ax.plot_trisurf(xs, ys, zs, cmap='viridis', alpha=0.18, linewidth=0.2, antialiased=True)
++    except Exception:
++        ax.scatter(xs, ys, zs, s=6, alpha=0.3)
++
++    # 2) Latawce per węzeł
++    kites: List[Kite] = []
++    for n in ast.nodes.values():
++        k = make_kite(n, M, thr)
++        if k is None:
++            continue
++        kites.append(k)
++        # płaszczyzna
++        ax.add_collection3d(
++            Poly3DCollection([k.verts], alpha=0.33, facecolor=k.color, edgecolor="#222", linewidths=0.6))
++        # punkty A(node) i M(region)
++        _, A, Mpt = k.verts
++        ax.scatter(*A, c="#2ecc71", s=18, marker="o")  # AST node
++        ax.scatter(*Mpt, c="#111111", s=14, marker="^")  # mosaic centroid
++
++    # 3) Adnotacje: N węzłów o najwyższym Z (dominanta)
++    if annotate_n > 0 and kites:
++        scored = sorted(kites, key=lambda k: k.verts[1][2], reverse=True)[:annotate_n]
++        for k in scored:
++            _, A, _ = k.verts
++            ax.text(A[0], A[1], A[2],
++                    f"{k.label}#{k.node_id}\ncoeff={k.coeff_idx}",
++                    fontsize=8, color="#1b1b1b", ha="left", va="bottom")
++
++    # 4) Osi i podpisy
++    ax.set_xlabel("Depth (AST)")
++    ax.set_ylabel("Node ID / Mosaic X")
++    ax.set_zlabel("Dominanta meta / Edge")
++    ax.grid(False)
++
++    # 5) Panel legendy (po prawej)
++    legend_lines = [
++        "REGIONY Φ → kolory:",
++        f"  edges   → {REGION_COLOR['edges']}",
++        f"  ~edges  → {REGION_COLOR['~edges']}",
++        f"  roi     → {REGION_COLOR['roi']}",
++        f"  all     → {REGION_COLOR['all']}",
++        "",
++        "META (per węzeł): [L,S,Sel,Stab,Cau,H]",
++        "  0=L (liniowość) | 1=S (struktura)",
++        "  2=Sel (selektywność) | 3=Stab (stabilność)",
++        "  4=Cau (przyczynowość) | 5=H (heterogeniczność)",
++        "",
++        "Punkt latawca:",
++        "  O=(0,0,0), A=(depth,id,meta[coeff]),",
++        "  M=(cx,cy,mean(edge_region))",
++        "",
++        "Profil mozaiki:",
++        mosaic_profile_text(M, thr),
++    ]
++    fig.text(
++        0.74, 0.16, "\n".join(legend_lines),
++        fontsize=9, family="monospace", va="bottom", ha="left",
++        bbox=dict(boxstyle="round", fc="white", ec="#bbb", alpha=0.9)
++    )
++
++    # 6) Mini-legenda kolorów + markery
++    from matplotlib.lines import Line2D
++    handles = []
++    for kind, col in REGION_COLOR.items():
++        handles.append(Line2D([0], [0], color=col, lw=6, label=kind))
++    handles += [
++        Line2D([0], [0], marker='o', color='w', label='AST node', markerfacecolor='#2ecc71', markersize=7),
++        Line2D([0], [0], marker='^', color='w', label='Mosaic centroid', markerfacecolor='#111111', markersize=6)
++    ]
++    ax.legend(handles=handles, loc='upper left', bbox_to_anchor=(0.02, 0.98))
++
++    plt.tight_layout()
++    return fig, ax
++
++
++# ---------------------------------- CLI --------------------------------------
++
++def main():
++    ap = argparse.ArgumentParser(description="Produkcja: AST⇄Mozaika z latawcami (per węzeł) + legendy/opisy")
++    ap.add_argument("--rows", type=int, default=6, help="liczba wierszy mozaiki (hex)")
++    ap.add_argument("--cols", type=int, default=6, help="liczba kolumn mozaiki (hex)")
++    ap.add_argument("--edge-thr", type=float, default=EDGE_THR_DEFAULT, help="próg edge dla regionów Φ")
++    ap.add_argument("--seed", type=int, default=7, help="seed dla mozaiki (reprodukowalność)")
++    ap.add_argument("--hex-R", type=float, default=1.0, help="promień heksa (skala XY)")
++    ap.add_argument("--annotate-n", type=int, default=6, help="ile węzłów AST opisać etykietą")
++    ap.add_argument("--view-elev", type=float, default=24.0, help="kąt podniesienia kamery")
++    ap.add_argument("--view-azim", type=float, default=-55.0, help="kąt azymutu kamery")
++    ap.add_argument("--dpi", type=int, default=160, help="DPI zapisu")
++    ap.add_argument("--out", type=str, default="", help="ścieżka wyjściowa (png/svg). Puste = tylko podgląd.")
++    args = ap.parse_args()
++
++    # Dane
++    ast = ast_deltas(EXAMPLE_SRC)
++    M = build_mosaic_hex(args.rows, args.cols, seed=args.seed, R=args.hex_R)
++
++    # Rysuj
++    fig, _ = draw_scene(ast, M, thr=args.edge_thr, annotate_n=args.annotate_n,
++                        elev=args.view_elev, azim=args.view_azim)
++
++    # Zapis
++    if args.out:
++        fig.savefig(args.out, dpi=args.dpi, bbox_inches="tight")
++        print(f"[OK] Zapisano wizualizację do: {args.out}")
++
++    # Podgląd (jeśli środowisko pozwala)
++    try:
++        plt.show()
++    except Exception:
++        pass
++
++
++if __name__ == "__main__":
++    main()
+-- 
+2.45.1.windows.1
+

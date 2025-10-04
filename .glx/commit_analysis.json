@@ -1,67 +1,203 @@
 {
-  "when": "2025-10-03 18:50:36Z",
+  "when": "2025-10-04 07:50:57Z",
   "files": [
     [
-      "D",
-      "bench/tests/unit/__init__.py"
+      "A",
+      ".env.local"
     ],
     [
-      "R100",
-      "tests/bench/e2e/__init__.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-0b7978a_S-20250928035234_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/e2e/test_ab_runner.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-2c1d2a8_S-20250928013758_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/e2e/test_plot_results.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-30922d1_S-20250928040045_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/fuzz/__init__.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-59bddb5_S-20250928035644_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/fuzz/test_fuzz_tasks.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-6364e73_S-20250928033928_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/perf/__init__.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-6b94a17_S-20250928035832_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/perf/test_perf_timings.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-7593a73_S-20250928014203_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/property/__init__.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-8286b47_S-20250928033347_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/property/test_tasks_property.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-90a0f22_S-20250928033358_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/unit/__init__.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-90edd88_S-20250928034754_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/unit/test_stats.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-94f69e1_S-20250928013700_PUB.patch"
     ],
     [
-      "R100",
-      "tests/bench/unit/test_templates.py"
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-f735dae_S-20250928034305_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-3a5cebe_H-a3b5791_S-20250929183140_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-592886e_H-5d99a6d_S-20250929185523_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-5d99a6d_H-92e6d17_S-20250929185559_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-5dc9eef_H-c7e94ad_S-20250929043403_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-6c0007c_H-3a5cebe_S-20250929165443_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-74beff3_H-8c03131_S-20250928075936_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-7b1ee92_H-ab80845_S-20250928224746_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-8c03131_H-52643d4_S-20250928081541_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-92e6d17_H-9d9f399_S-20250929200133_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-95f386a_H-e0c5bee_S-20250928210441_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-9d9f399_H-f209ecd_S-20250929204016_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-a3b5791_H-592886e_S-20250929184952_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-ab80845_H-c4e0703_S-20250928232839_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-c4e0703_H-eab9cb0_S-20250929042037_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-c7e94ad_H-6c0007c_S-20250929164412_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-e0c5bee_H-7b1ee92_S-20250928223932_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-eab9cb0_H-5dc9eef_S-20250929043151_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_master_B-f209ecd_H-7d174a1_S-20250929212003_PUB.patch"
+    ],
+    [
+      "A",
+      ".glx/glx-glitchlab-main-SEQ-20250928001140-74beff3..2c8f5b1.patch"
+    ],
+    [
+      "A",
+      ".glx/glx-glitchlab-main-SEQ-20250928002833-74beff3..3cc2f1b.patch"
+    ],
+    [
+      "A",
+      ".glx/glx-glitchlab-main-SEQ-20250928003106-74beff3..3cc2f1b.patch"
+    ],
+    [
+      "A",
+      ".glx/glx-glitchlab-main-SEQ-20250928005509-74beff3..dec9fa9.patch"
+    ],
+    [
+      "A",
+      ".glx/glx-glitchlab-main-SEQ-20250928011053-74beff3..94f69e1.patch"
+    ],
+    [
+      "A",
+      "glitchlab/analysis/autonomy/gateway.py"
+    ],
+    [
+      "A",
+      "samples/t_ok.py"
+    ],
+    [
+      "A",
+      "tests/bench/__init__.py"
+    ],
+    [
+      "A",
+      "tests/hook_probe.py"
     ]
   ],
-  "py_results": [],
+  "py_results": [
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\glitchlab\\analysis\\autonomy\\gateway.py",
+      "S": 0,
+      "H": 0,
+      "Z": 0,
+      "align": 0.5
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\samples\\t_ok.py",
+      "S": 0,
+      "H": 0,
+      "Z": 0,
+      "align": 0.5
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\tests\\bench\\__init__.py",
+      "S": 0,
+      "H": 0,
+      "Z": 0,
+      "align": 0.35
+    },
+    {
+      "path": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab\\tests\\hook_probe.py",
+      "S": 0,
+      "H": 0,
+      "Z": 0,
+      "align": 0.5
+    }
+  ],
   "aggregate": {
-    "files": 0,
+    "files": 4,
+    "avg_align": 0.4625,
     "S": 0,
     "H": 0,
-    "avg_align": 0.0
+    "Z": 0
   },
-  "doc_decision": "NO-OP",
-  "commit": "7d9c4cc9957180204526cf5cd9e584e9b1c11c43",
-  "range": "ca26778..7d9c4cc"
+  "doc_decision": "REVIEW"
 }

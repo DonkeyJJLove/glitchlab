@@ -1,0 +1,250 @@
+From eab9cb0e59069a21f7111a2ee40d7d6b658271bc Mon Sep 17 00:00:00 2001
+From: d2j3 <donkeyjjlove@protonmail.com>
+Date: Mon, 29 Sep 2025 06:20:35 +0200
+Subject: [PATCH] =?UTF-8?q?6=20file(s)=20staged:=20[=CE=94]=20Zakres=20-?=
+ =?UTF-8?q?=20files:=206=20(post-commit,=20pre-commit,=20Path,=20state.jso?=
+ =?UTF-8?q?n,=20ast=5Fmosaic=5Fanalyzer.py,=20str)=20-=20typ:=20auto=20(pr?=
+ =?UTF-8?q?e-diff)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+[Φ/Ψ] Mozaika (semantyka kodu)
+- Align(mean .py): 0.43
+- Hint: brak wpływu na strukturę sąsiednich kafli
+
+[AST] Deltas (staged .py)
+- S: 108  H: 395
+- uwagi: wartości przybliżone (heurystyki)
+
+[Dokumentacja]
+- decyzja: NO-OP
+
+Meta
+- Generated-by: pre-diff/AST-mosaic @ 2025-09-29 04:20:36Z
+
+"<WIADOMOŚĆ>"
+---
+ .githooks/post-commit                         |  20 ++-
+ .githooks/pre-commit                          |  20 +++
+ Path                                          |   0
+ git rev-parse --show-toplevel/.glx/state.json |   1 -
+ scripts/ast_mosaic_analyzer.py                | 131 ++++++++++++++++++
+ str                                           |   0
+ 6 files changed, 167 insertions(+), 5 deletions(-)
+ create mode 100644 .githooks/pre-commit
+ delete mode 100644 Path
+ delete mode 100644 git rev-parse --show-toplevel/.glx/state.json
+ create mode 100644 scripts/ast_mosaic_analyzer.py
+ delete mode 100644 str
+
+diff --git a/.githooks/post-commit b/.githooks/post-commit
+index ab612f4..e1ef9e0 100755
+--- a/.githooks/post-commit
++++ b/.githooks/post-commit
+@@ -1,10 +1,22 @@
+ #!/usr/bin/env bash
+ set -euo pipefail
++
+ ROOT="$(git rev-parse --show-toplevel)"
+ cd "$ROOT"
+ 
+-# wybór Pythona (py na Windows, inaczej python)
+-if command -v py >/dev/null 2>&1; then PY=py; else PY=python; fi
++if command -v py >/dev/null 2>&1; then PY=(py -3); elif command -v python3 >/dev/null 2>&1; then PY=(python3); else PY=(python); fi
++
++# 1) post-diff: wzbogacenie raportu o hash/zakres
++if [[ -f "scripts/post_diff.py" ]]; then
++  "${PY[@]}" scripts/post_diff.py || true
++fi
++
++# 2) mail GLX (BODY-FIRST + FILES + PATCH)
++if [[ -f "scripts/send_patch.py" ]]; then
++  "${PY[@]}" scripts/send_patch.py || true
++fi
+ 
+-# uruchom Twoją logikę
+-"$PY" scripts/send_patch.py || true
++# 3) opcjonalny sync (gdy current_mail.txt istnieje)
++if [[ -f ".glx/current_mail.txt" && -f "scripts/glx_sync.py" ]]; then
++  "${PY[@]}" scripts/glx_sync.py || true
++fi
+diff --git a/.githooks/pre-commit b/.githooks/pre-commit
+new file mode 100644
+index 0000000..bf1ac69
+--- /dev/null
++++ b/.githooks/pre-commit
+@@ -0,0 +1,20 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++ROOT="$(git rev-parse --show-toplevel)"
++cd "$ROOT"
++
++# Python chooser
++if command -v py >/dev/null 2>&1; then PY=(py -3); elif command -v python3 >/dev/null 2>&1; then PY=(python3); else PY=(python); fi
++
++# 1) Walidacja .env (Twój pythonowy hook)
++if [[ -f ".githooks/pre-commit.py" ]]; then
++  "${PY[@]}" .githooks/pre-commit.py
++elif [[ -f "scripts/pre_commit.py" ]]; then
++  "${PY[@]}" scripts/pre_commit.py
++fi
++
++# 2) pre-diff analiza AST/Mosaic (staged)
++if [[ -f "scripts/pre_diff.py" ]]; then
++  "${PY[@]}" scripts/pre_diff.py
++fi
+diff --git a/Path b/Path
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/git rev-parse --show-toplevel/.glx/state.json b/git rev-parse --show-toplevel/.glx/state.json
+deleted file mode 100644
+index dc86e09..0000000
+--- a/git rev-parse --show-toplevel/.glx/state.json	
++++ /dev/null
+@@ -1 +0,0 @@
+-{"app":"glitchlab",^
+diff --git a/scripts/ast_mosaic_analyzer.py b/scripts/ast_mosaic_analyzer.py
+new file mode 100644
+index 0000000..99edb39
+--- /dev/null
++++ b/scripts/ast_mosaic_analyzer.py
+@@ -0,0 +1,131 @@
++#!/usr/bin/env python
++# -*- coding: utf-8 -*-
++"""
++Lekki analizator AST⇄Mozaika na staged pliki .py:
++- AST delty (S/H/Z + alpha/beta)
++- prosta "Align" (projekcja na mozaikę siatki 6x6; heurystyka bez NumPy)
++- metawarstwa (# komentarze, adnotacje @)
++- wynik: słownik per plik + agregaty
++"""
++from __future__ import annotations
++import ast, math, hashlib, json, re
++from pathlib import Path
++from typing import Dict, List, Tuple, Optional
++
++
++# ── Heurystyki AST (S/H/Z + α/β) ──────────────────────────────────────────────
++def ast_summary(src: str) -> Tuple[int, int, int, float, float, int]:
++    """
++    Zwraca: S,H,Z,alpha,beta,maxZ
++    S/H liczone prostymi regułami jak w poprzednich wariantach; Z = głębokość struktur.
++    """
++    try:
++        tree = ast.parse(src)
++    except Exception:
++        return 0, 0, 0, 0.5, 0.5, 0
++
++    S = H = Z = 0;
++    maxZ = 0
++
++    def walk(a: ast.AST, d: int):
++        nonlocal S, H, Z, maxZ
++        lab = a.__class__.__name__
++        # "Δ-reguły"
++        if isinstance(a, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
++            S += 1;
++            H += 1;
++            Z += 1
++        elif isinstance(a, (ast.If, ast.For, ast.While, ast.With, ast.Try)):
++            S += 1;
++            Z += 1
++        elif isinstance(a, ast.Assign):
++            S += 1;
++            H += 1
++        elif isinstance(a, ast.Call):
++            S += 1;
++            H += 2
++        elif isinstance(a, (ast.Import, ast.ImportFrom)):
++            S += 1;
++            H += len(getattr(a, 'names', []))
++        elif isinstance(a, ast.Name):
++            H += 1
++        maxZ = max(maxZ, d)
++        for ch in ast.iter_child_nodes(a):
++            walk(ch, d + 1)
++        if isinstance(a, (
++        ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.If, ast.For, ast.While, ast.With, ast.Try)):
++            Z -= 1
++
++    walk(tree, 0)
++    Z = max(0, Z)
++    tot = max(1, S + H)
++    alpha = float(S) / tot;
++    beta = float(H) / tot
++    return int(S), int(H), int(Z), alpha, beta, int(maxZ)
++
++
++# ── Prosta mozaika (grid 6x6) i Align ────────────────────────────────────────
++def edge_profile(src: str) -> float:
++    """
++    Surogat 'edge' – gęstość znaków "strukturalnych" ((),:;{}[]) względem długości.
++    """
++    if not src: return 0.0
++    tokens = "()[]{}:;,"
++    c = sum(src.count(t) for t in tokens)
++    return min(1.0, c / max(1, len(src) / 20.0))
++
++
++def mosaic_align(alpha: float, beta: float, edge_p: float, wS=1.0, wH=1.0) -> float:
++    """
++    Oddalone od zera = gorzej; Align = 1 - distance w [0..1]
++    """
++    aM = 0.5 + 0.3 * (1.0 - edge_p)  # im mniej edge'ów, tym "S" rośnie
++    bM = 1.0 - aM
++    dist = wS * abs(alpha - aM) + wH * abs(beta - bM)
++    return max(0.0, 1.0 - min(1.0, dist))
++
++
++# ── Metawarstwa: komentarze i adnotacje ──────────────────────────────────────
++_meta_re = re.compile(r'^\s*(#.*|@[\w.]+)', re.M)
++
++
++def meta_extract(src: str, max_lines=8) -> List[str]:
++    hits = _meta_re.findall(src)
++    if not hits: return []
++    # skracamy i porządkujemy
++    out = []
++    for h in hits[:max_lines]:
++        out.append(h.strip())
++    return out
++
++
++# ── Analiza jednego pliku ────────────────────────────────────────────────────
++def analyze_py(path: Path) -> Dict:
++    try:
++        src = path.read_text(encoding="utf-8", errors="ignore")
++    except Exception:
++        return dict(path=str(path), ok=False, reason="read_fail")
++
++    S, H, Z, alpha, beta, maxZ = ast_summary(src)
++    edge_p = edge_profile(src)
++    align = mosaic_align(alpha, beta, edge_p)
++    meta = meta_extract(src)
++
++    return dict(
++        path=str(path),
++        ok=True,
++        ast=dict(S=S, H=H, Z=Z, alpha=alpha, beta=beta, maxZ=maxZ),
++        mosaic=dict(edge_p=edge_p, align=align),
++        meta=meta
++    )
++
++
++# ── Agregacja ────────────────────────────────────────────────────────────────
++def aggregate(results: List[Dict]) -> Dict:
++    n = len([r for r in results if r.get("ok")])
++    if n == 0:
++        return dict(files=0, S=0, H=0, avg_align=0.0)
++    S = sum(r["ast"]["S"] for r in results if r.get("ok"))
++    H = sum(r["ast"]["H"] for r in results if r.get("ok"))
++    avg_align = sum(r["mosaic"]["align"] for r in results if r.get("ok")) / float(n)
++    return dict(files=n, S=S, H=H, avg_align=avg_align)
+diff --git a/str b/str
+deleted file mode 100644
+index e69de29..0000000
+-- 
+2.45.1.windows.1
+

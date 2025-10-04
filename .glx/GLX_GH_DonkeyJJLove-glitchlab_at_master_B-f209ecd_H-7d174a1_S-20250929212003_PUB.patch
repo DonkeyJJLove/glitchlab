@@ -1,0 +1,35 @@
+From 7d174a196ad515290ce8b90c278ef0ff5f55644e Mon Sep 17 00:00:00 2001
+From: d2j3 <donkeyjjlove@protonmail.com>
+Date: Mon, 29 Sep 2025 23:20:01 +0200
+Subject: [PATCH] =?UTF-8?q?1=20file(s)=20staged:=20[=CE=94]=20Zakres=20-?=
+ =?UTF-8?q?=20files:=201=20(bytes)=20-=20typ:=20auto=20(pre-diff)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+[Φ/Ψ] Mozaika (semantyka kodu)
+- Align(mean .py): 0.00
+- Hint: brak wpływu na strukturę sąsiednich kafli
+
+[AST] Deltas (staged .py)
+- S: 0  H: 0
+- uwagi: wartości przybliżone (heurystyki)
+
+[Dokumentacja]
+- decyzja: NO-OP
+
+Meta
+- Generated-by: pre-diff/AST-mosaic @ 2025-09-29 21:20:02Z
+
+…
+---
+ bytes | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ delete mode 100644 bytes
+
+diff --git a/bytes b/bytes
+deleted file mode 100644
+index e69de29..0000000
+-- 
+2.45.1.windows.1
+

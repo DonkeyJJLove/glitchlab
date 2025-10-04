@@ -1,0 +1,45 @@
+From 5dc9eef9f9533c29103aa6b8808dddf745121154 Mon Sep 17 00:00:00 2001
+From: d2j3 <donkeyjjlove@protonmail.com>
+Date: Mon, 29 Sep 2025 06:31:50 +0200
+Subject: [PATCH] =?UTF-8?q?1=20file(s)=20staged:=20[=CE=94]=20Zakres=20-?=
+ =?UTF-8?q?=20files:=201=20(=5F=5Finit=5F=5F.cpython-39.pyc)=20-=20typ:=20?=
+ =?UTF-8?q?auto=20(pre-diff)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+[Φ/Ψ] Mozaika (semantyka kodu)
+- Align(mean .py): 0.00
+- Hint: brak wpływu na strukturę sąsiednich kafli
+
+[AST] Deltas (staged .py)
+- S: 0  H: 0
+- uwagi: wartości przybliżone (heurystyki)
+
+[Dokumentacja]
+- decyzja: NO-OP
+
+Meta
+- Generated-by: pre-diff/AST-mosaic @ 2025-09-29 04:31:50Z
+
+Remove __pycache__ from repo and update .gitignore
+---
+ __pycache__/__init__.cpython-39.pyc | Bin 161 -> 0 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ delete mode 100644 __pycache__/__init__.cpython-39.pyc
+
+diff --git a/__pycache__/__init__.cpython-39.pyc b/__pycache__/__init__.cpython-39.pyc
+deleted file mode 100644
+index 00bfd134deb598f778a72468f5ddbca571bb7f6a..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 161
+zcmYe~<>g`kf<GTGXD|Zk#~=<e00}w(aWM;!NMQ(O&}8&m$xs9mMi9T;oULL)i&Kk=
+zV^Z?-vQuLMDw8u3i*f^s^0QKtONwLCb23YkGjbA>;tL=`2$7ih_{_Y_lK6PNg34PQ
+SHo5sJr8%i~AoD*1F#`bhY$|8~
+
+-- 
+2.45.1.windows.1
+
