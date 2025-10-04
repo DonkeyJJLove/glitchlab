@@ -10,7 +10,7 @@ from collections import defaultdict
 
 class EventBus:
     """
-    Prosty event bus z odpornością na reentrancję:
+    Prosty event services z odpornością na reentrancję:
       • subscribe(topic, cb) – rejestruje callback: (topic:str, payload:dict) -> None
       • publish(topic, payload) – ASYNCHRONICZNIE (tk.after_idle) emituje do subskrybentów
       • request(topic, payload) – SYNCHRONICZNE zapytanie: wywołuje pierwszą odpowiedź i zwraca wynik

@@ -31,7 +31,7 @@ class MenuBar:
       • ui.edit.redo             {}
 
     API:
-      • set_bus(bus)
+      • set_bus(services)
       • set_recent_files(paths)
       • set_edit_enabled(undo: bool, redo: bool)
       • set_tools_value(name)    # zsynchronizuj radiobuttony Tools

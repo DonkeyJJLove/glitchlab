@@ -86,7 +86,7 @@ except Exception:  # minimal stub
     class EventBus:
         def __init__(self, *_a, **_k): ...
 
-        def publish(self, t, p=None): print("[bus.publish]", t, p)
+        def publish(self, t, p=None): print("[services.publish]", t, p)
 
         def subscribe(self, *_a, **_k): ...
 

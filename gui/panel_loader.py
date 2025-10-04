@@ -9,7 +9,7 @@ Publiczne API (nowe):
   - PanelLoadError
   - PanelSpec
   - list_available_panels() -> list[PanelSpec]
-  - load_panel(key, parent, bus, on_apply) -> tk.Widget
+  - load_panel(key, parent, services, on_apply) -> tk.Widget
 
 Zachowana kompatybilność (stare):
   - get_panel_class(filter_name) -> Optional[type]
@@ -190,13 +190,13 @@ def _construct_fallback(parent: tk.Misc, bus: Any, on_apply: Callable[[dict], No
         raise PanelLoadError("GenericFormPanel not available")
 
     # Próbujemy kilku wariantów sygnatur:
-    # 1) (parent, bus, on_apply, filter_key, param_schema=None)
+    # 1) (parent, services, on_apply, filter_key, param_schema=None)
     try:
         return Generic(parent, bus, on_apply, key, None)
     except Exception:
         pass
 
-    # 2) (parent, bus=..., on_apply=..., filter_key=...)
+    # 2) (parent, services=..., on_apply=..., filter_key=...)
     try:
         return Generic(parent, bus=bus, on_apply=on_apply, filter_key=key)
     except Exception:
@@ -267,7 +267,7 @@ def get_panel_class(filter_name: str) -> Optional[Type]:
 def instantiate_panel(parent, filter_name: str, ctx: Optional[Any] = None):
     """
     STARE API: tworzy instancję panelu lub None.
-    Nie posiada bus/on_apply – przeznaczone do starszych wersji TabFilter.
+    Nie posiada services/on_apply – przeznaczone do starszych wersji TabFilter.
     """
     Cls = get_panel_class(filter_name)
     if Cls is None:

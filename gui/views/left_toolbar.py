@@ -16,8 +16,8 @@ class LeftToolBar(ttk.Frame):
       - run.progress {value: 0..1}
       - run.done / run.error
 
-    Minimalny kontrakt busa: bus.publish(topic: str, payload: dict)
-    (subskrypcja run.* jest opcjonalna — jeśli bus ma .subscribe, to się podpinamy)
+    Minimalny kontrakt busa: services.publish(topic: str, payload: dict)
+    (subskrypcja run.* jest opcjonalna — jeśli services ma .subscribe, to się podpinamy)
     """
 
     # Kolejność i definicja narzędzi (name -> label)
@@ -94,7 +94,7 @@ class LeftToolBar(ttk.Frame):
     # -------------------------------------------------------------- BUS / RUN
 
     def _wire_run_signals(self) -> None:
-        """Podłącz się do run.* jeśli bus exposes subscribe()."""
+        """Podłącz się do run.* jeśli services exposes subscribe()."""
         if self.bus is None or not hasattr(self.bus, "subscribe"):
             return
 

@@ -13,7 +13,7 @@ description: >
   obliczeń – publikuje zdarzenia na EventBus i renderuje dostarczone dane.
 
 inputs:
-  bus: {type: "EventBus-like", note: "subscribe/publish; wszystkie callbacki on_ui"}
+  services: {type: "EventBus-like", note: "subscribe/publish; wszystkie callbacki on_ui"}
   filters.available: {topic: "filters.available", payload: {names: list[str], select?: str}}
   masks.list:        {topic: "masks.list",        payload: {names: list[str]}}
   preset.loaded:     {topic: "preset.loaded",     payload: {text: str}}
@@ -32,8 +32,8 @@ outputs:
 
 interfaces:
   exports:
-    - "RightNotebook(master, bus=None, show_algorithms: bool=False)"
-    - "set_bus(bus)"
+    - "RightNotebook(master, services=None, show_algorithms: bool=False)"
+    - "set_bus(services)"
     - "set_seed(seed:int)"
     - "set_filter_list(names:list[str], select:str|None=None)"
     - "set_mask_names(names:list[str])"
@@ -392,7 +392,7 @@ class RightNotebook(ttk.Notebook):
             ttk.Label(frm_alg, text="Algorithms — w przygotowaniu").pack(anchor="w", padx=8, pady=8)
             self.add(frm_alg, text="Algorithms")
 
-        # subskrypcje bus (opcjonalnie)
+        # subskrypcje services (opcjonalnie)
         if self._bus:
             try:
                 self._bus.subscribe("preset.loaded", self._on_preset_loaded, on_ui=True)

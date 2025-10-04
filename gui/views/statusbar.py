@@ -18,7 +18,7 @@ class StatusBar(ttk.Frame):
       - set_right(coords: tuple[int,int]|tuple[int,int,int]|str|None) -> None
       - set_progress(value: float|None, text: str|None = None) -> None
       - start()/stop()  (skrót do animowanego progressu)
-      - bind_bus(bus)   (nasłuch: run.start/run.progress/run.done/run.error/ui.status.set/ui.cursor.pos)
+      - bind_bus(services)   (nasłuch: run.start/run.progress/run.done/run.error/ui.status.set/ui.cursor.pos)
 
     Zgodność:
       Obsługuje dwie konwencje payloadu „run.progress”:

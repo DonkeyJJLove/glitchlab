@@ -115,7 +115,7 @@ class PresetService:
 
         self._wire_bus()
 
-    # ------------------------------------------------------------------ bus
+    # ------------------------------------------------------------------ services
 
     def _wire_bus(self) -> None:
         if not hasattr(self.bus, "subscribe"):

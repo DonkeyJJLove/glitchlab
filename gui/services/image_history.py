@@ -14,7 +14,7 @@ Konwencje:
 - Wejścia API mogą być PIL.Image / ndarray / bytes -> konwertujemy do u8 RGB.
 - Kopiujemy tablice przy wstawianiu, aby unikać aliasowania pamięci.
 
-Zdarzenia (opcjonalne; jeśli bus ma .publish):
+Zdarzenia (opcjonalne; jeśli services ma .publish):
 - "history.changed" {size:int, index:int}
 - "history.push"    {index:int, label:str}
 - "history.undo"    {index:int}

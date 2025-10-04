@@ -138,7 +138,7 @@ class Viewport(ttk.Frame):
             self.canvas.grid(row=0, column=0, sticky="nsew")
             self.toolbar.grid(row=1, column=0, sticky="ew")
 
-        # Wiring bus
+        # Wiring services
         self._wire_bus()
 
     # ── BUS wiring ───────────────────────────────────────────────────────────

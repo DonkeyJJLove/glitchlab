@@ -269,7 +269,7 @@ def _module_cmd_from_candidates(candidates: List[str], root: Path) -> List[str]:
     # 2) fallback do plików .py
     for mod in candidates:
         rel = Path(*mod.split("."))
-        for cand in (root / f"{rel}.py", root / rel / "__main__.py"):
+        for cand in (root / f"{rel}.py", root / rel / "__init__.py"):
             if cand.exists():
                 return [sys.executable, str(cand)]
 

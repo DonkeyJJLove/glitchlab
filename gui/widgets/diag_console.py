@@ -18,7 +18,7 @@ class DiagConsole(ttk.Frame):
     Cechy:
       • Własny bufor Text z monospaced fontem, opcjonalny filtr poziomu logów.
       • Metody API:
-          - attach_bus(bus) / detach_bus() – subskrypcja EventBus (diag.log, run.*),
+          - attach_bus(services) / detach_bus() – subskrypcja EventBus (diag.log, run.*),
           - log(level, msg) – dopisz linię,
           - clear() – wyczyść,
           - get_text() – pobierz cały tekst.
@@ -101,7 +101,7 @@ class DiagConsole(ttk.Frame):
         sub("run.error", self._on_run_error)
         sub("ui.status.set", self._on_ui_status)
 
-        self.log("OK", "DiagConsole attached to bus")
+        self.log("OK", "DiagConsole attached to services")
 
     def detach_bus(self) -> None:
         """Odłącz EventBus (jeśli wspiera odsubskrybowanie)."""

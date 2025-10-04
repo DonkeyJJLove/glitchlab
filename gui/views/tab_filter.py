@@ -85,7 +85,7 @@ class TabFilter(ttk.Frame):
         self._refresh_filter_list()
         self._mount_panel(self.cmb_filter.get() or "")
 
-        # bus
+        # services
         self._wire_bus()
 
     # ------------------------------------------------------------------ UI ---
@@ -503,7 +503,7 @@ class TabFilter(ttk.Frame):
                 pass
 
     def _log(self, msg: str, level: str = "INFO") -> None:
-        # kieruj do konsoli diagnostycznej (bus → DiagConsole), albo stdout
+        # kieruj do konsoli diagnostycznej (services → DiagConsole), albo stdout
         if self.bus and hasattr(self.bus, "publish"):
             try:
                 self.bus.publish("diag.log", {"msg": f"[Filters] {msg}", "level": level})

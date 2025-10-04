@@ -289,7 +289,7 @@ class CanvasContainer(ttk.Frame):
         except Exception:
             pass
 
-    # ---------- bus ----------
+    # ---------- services ----------
     def _wire_bus(self) -> None:
         if not (self.bus and hasattr(self.bus, "subscribe")):
             return
