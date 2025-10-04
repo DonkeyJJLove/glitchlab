@@ -1,9 +1,9 @@
 1 file(s) staged: [Δ] Zakres
-- files: 1 (hook_probe.py)
+- files: 1 (commit_20251004-084945.json)
 - typ: auto (pre-diff)
 
 [Φ/Ψ] Mozaika (semantyka kodu)
-- Align(mean .py): 0.50
+- Align(mean .py): 0.00
 - Hint: brak wpływu na strukturę sąsiednich kafli
 
 [AST] Deltas (staged .py)
@@ -14,4 +14,4 @@
 - decyzja: NO-OP
 
 Meta
-- Generated-by: pre-diff/AST-mosaic @ 2025-10-04 08:36:26Z
+- Generated-by: pre-diff/AST-mosaic @ 2025-10-04 08:50:40Z
