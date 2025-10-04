@@ -1,4 +1,4 @@
-# GLX SelfDoc Pack (glx.selfdoc v1.1) — 2025-10-04T12:33:29Z
+# GLX SelfDoc Pack (glx.selfdoc v1.1) — 2025-10-04T12:39:11Z
 
 - Root: `.`
 - LOC: **34536**, modules: **174**, defs: **1756**, classes: **183**

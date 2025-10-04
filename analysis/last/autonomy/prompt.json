@@ -1324,12 +1324,12 @@
     },
     "attachments": {
       "schema": "glx.selfdoc",
-      "when": "2025-10-04T12:33:29Z",
+      "when": "2025-10-04T12:39:11Z",
       "telemetry": {
         "ok": true,
         "error": "",
-        "scan_ms": 1155.0533999999998,
-        "ast_ms": 917.8508000000006,
+        "scan_ms": 1129.2891,
+        "ast_ms": 908.2489999999996,
         "files_scanned": 176,
         "mods": 174,
         "defs": 1756,
@@ -2669,12 +2669,12 @@
     },
     "attachments": {
       "schema": "glx.selfdoc",
-      "when": "2025-10-04T12:33:29Z",
+      "when": "2025-10-04T12:39:11Z",
       "telemetry": {
         "ok": true,
         "error": "",
-        "scan_ms": 1155.0533999999998,
-        "ast_ms": 917.8508000000006,
+        "scan_ms": 1129.2891,
+        "ast_ms": 908.2489999999996,
         "files_scanned": 176,
         "mods": 174,
         "defs": 1756,
