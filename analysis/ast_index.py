@@ -14,7 +14,6 @@ import ast, math, hashlib, json, re
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
-
 # ── Heurystyki AST (S/H/Z + α/β) ──────────────────────────────────────────────
 def ast_summary(src: str) -> Tuple[int, int, int, float, float, int]:
     """
@@ -120,6 +119,7 @@ def analyze_py(path: Path) -> Dict:
         mosaic=dict(edge_p=edge_p, align=align),
         meta=meta
     )
+
 
 
 # ── Agregacja ────────────────────────────────────────────────────────────────

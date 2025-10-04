@@ -1,17 +1,17 @@
-40 file(s) staged: [Δ] Zakres
-- files: 40 (.env.local, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-0b7978a_S-20250928035234_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-2c1d2a8_S-20250928013758_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-30922d1_S-20250928040045_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-59bddb5_S-20250928035644_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-6364e73_S-20250928033928_PUB.patch (+34))
+1 file(s) staged: [Δ] Zakres
+- files: 1 (hook_probe.py)
 - typ: auto (pre-diff)
 
 [Φ/Ψ] Mozaika (semantyka kodu)
-- Align(mean .py): 0.46
-- Hint: lokalne dopasowanie; sprawdź sekcje dotkniętych modułów
+- Align(mean .py): 0.50
+- Hint: brak wpływu na strukturę sąsiednich kafli
 
 [AST] Deltas (staged .py)
 - S: 0  H: 0
 - uwagi: wartości przybliżone (heurystyki)
 
 [Dokumentacja]
-- decyzja: REVIEW
+- decyzja: NO-OP
 
 Meta
-- Generated-by: pre-diff/AST-mosaic @ 2025-10-04 07:50:57Z
+- Generated-by: pre-diff/AST-mosaic @ 2025-10-04 08:36:26Z
