@@ -1,1 +1,1 @@
-﻿print("hook ok")
+﻿print("hook probe " + __import__("datetime").datetime.utcnow().isoformat() + "Z")
