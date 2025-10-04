@@ -1,20 +1,29 @@
 #!/usr/bin/env bash
+# glitchlab/.githooks/pre-commit
+# Minimalny wrapper: wybór interpretera Pythona i uruchomienie hooka w Pythonie.
+
 set -euo pipefail
 
+# Windows/MSYS – wyłącz konwersję ścieżek
+if [[ -n "${MSYSTEM:-}" ]]; then
+  export MSYS2_ARG_CONV_EXCL="*"
+fi
+
+# Przejdź do korzenia repo
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-# Python chooser
-if command -v py >/dev/null 2>&1; then PY=(py -3); elif command -v python3 >/dev/null 2>&1; then PY=(python3); else PY=(python); fi
-
-# 1) Walidacja .env (Twój pythonowy hook)
-if [[ -f ".githooks/pre-commit.py" ]]; then
-  "${PY[@]}" .githooks/pre-commit.py
-elif [[ -f "scripts/pre_commit.py" ]]; then
-  "${PY[@]}" scripts/pre_commit.py
+# Wybór interpretera Pythona
+if command -v py >/dev/null 2>&1; then
+  PY=(py -3)
+elif command -v python3 >/dev/null 2>&1; then
+  PY=(python3)
+else
+  PY=(python)
 fi
 
-# 2) pre-diff analiza AST/Mosaic (staged)
-if [[ -f "scripts/pre_diff.py" ]]; then
-  "${PY[@]}" scripts/pre_diff.py
-fi
+# Stabilne UTF-8
+export PYTHONUTF8=1
+
+# Uruchom właściwy hook (cała logika jest w Pythonie)
+exec "${PY[@]}" .githooks/pre-commit.py

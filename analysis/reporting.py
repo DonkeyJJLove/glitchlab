@@ -383,9 +383,9 @@ def _send_mail(env: Dict[str, str]) -> None:
 
     try:
         try:
-            from scripts.send_patch import main as glx_main
+            from backup.scripts.send_patch import main as glx_main
         except Exception:
-            from scripts.send_patch import main as glx_main  # type: ignore
+            from backup.scripts.send_patch import main as glx_main  # type: ignore
     except Exception as e:
         _fail(f"Import modułu maila nieudany: {e}")
 
