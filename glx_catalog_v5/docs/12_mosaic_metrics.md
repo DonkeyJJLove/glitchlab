@@ -186,9 +186,7 @@ classDef db fill:#4c6ef5,stroke:#233,color:#fff;
 classDef guard fill:#e03131,stroke:#300,color:#fff;
 ```
 
-```
 <!-- @auto:egdb.schema.glx_mosaic_metrics -->
-```
 
 ---
 
@@ -212,14 +210,13 @@ flowchart LR
   AST[AST scope] -->|Φ map| MZ[Mosaic Graph]
   MZ -->|Ψ feedback| AST
   MZ --> METRICS[(glx_mosaic_metrics)]
-```
+
 %% Mermaid Styles
 classDef tile fill:#0b7285,stroke:#083344,color:#fff;
 classDef db fill:#4c6ef5,stroke:#233,color:#fff;
 classDef guard fill:#e03131,stroke:#300,color:#fff;
 
 
-```
 <!-- @auto:diagram:mosaic.heatmap -->
 <!-- @auto:diagram:mosaic.graphview -->
 <!-- @auto:diagram:mosaic.iteration_trend -->
