@@ -459,17 +459,17 @@ params:
 
 ## Czytaj dalej
 
-* **[Architektura](GlitchLab_Arch_v5.md)**
-* **[Katalog systemu](GLX_ARCHITEKTURA_KATALOG.md)** 
-* **[BUS](`glx_catalog_v5/docs/bus.md`)**
-* **[EGDB + EGQL](`glx_catalog_v5/docs/egdb.md`)**
-* **[Walidacja](`glx_catalog_v5/docs/validation.md`)**
-* **[Mozaika/metryki](`glx_catalog_v5/docs/12_mosaic_metrics.md`)**
-* **[GUI](`glx_catalog_v5/docs/gui.md`)**
-* **[Matematyka i Formalizm Mozaiki](`glx_catalog_v5/docs/GLX_Mosaika_Matematyka_v1.md`)**
-* **[Kontrakty danych](`glx_catalog_v5/docs/contracts.md`)**
-* **[Walidacja](`glx_catalog_v5/docs/validation.md`)**
-* **[Metryki i wizualizacje](`glx_catalog_v5/docs/12_mosaic_metrics.md`)**
+* **[Architektura](glx_catalog_v5/docs/GlitchLab_Arch_v5.md)**
+* **[Katalog systemu](glx_catalog_v5/docs/GLX_ARCHITEKTURA_KATALOG.md)** 
+* **[BUS](glx_catalog_v5/docs/bus.md)**
+* **[EGDB + EGQL](glx_catalog_v5/docs/egdb.md)**
+* **[Walidacja](glx_catalog_v5/docs/validation.md)**
+* **[Mozaika/metryki](glx_catalog_v5/docs/12_mosaic_metrics.md)**
+* **[GUI](glx_catalog_v5/docs/gui.md)**
+* **[Matematyka i Formalizm Mozaiki](glx_catalog_v5/docs/GLX_Mosaika_Matematyka_v1.md)**
+* **[Kontrakty danych](glx_catalog_v5/docs/contracts.md)**
+* **[Walidacja](glx_catalog_v5/docs/validation.md)**
+* **[Metryki i wizualizacje](glx_catalog_v5/docs/12_mosaic_metrics.md)**
 
 ---
 
