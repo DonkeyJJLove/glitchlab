@@ -155,7 +155,7 @@ Z **sum Δ** agent wylicza profil $\alpha = \frac{S}{S+H}$, $\beta = \frac{H}{S+
 * walidacji (**te same inwarianty** dla AST i Mozaiki),
 * sterowania **Φ/Ψ** (kontrakcja/ekspansja, bucket-shift).
 
-Dalsze formalizmy (Φ/Ψ, reguły Δ, dowody): [`GLX_Mosaika_Matematyka_v1.md`](GLX_Mosaika_Matematyka_v1.md), [`12_mosaic_metrics.md`](glx_catalog_v5/docs/12_mosaic_metrics.md).
+Dalsze formalizmy (Φ/Ψ, reguły Δ, dowody): [GLX_Mosaika_Matematyka_v5.md](glx_catalog_v5/docs/GLX_Mosaika_Matematyka_v5.md), [12_mosaic_metrics.md](glx_catalog_v5/docs/12_mosaic_metrics.md).
 
 ---
 
