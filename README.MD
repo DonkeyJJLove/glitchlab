@@ -291,15 +291,15 @@ To wystarcza agentom do: klastrów domen, wykrywania **hotspotów integracyjnych
 
 ## Funktory **Φ ⊣ Ψ** (AST ⇄ Mozaika)
 
-* **Φ (projekcja):** przekształca **ledger AST** do **ledger Mozaiki**
-  (zachowując rząd wielkości: (\lVert \Delta \rVert_{\text{AST}} \approx \lVert \Delta \rVert_{\text{shadow}})).
-* **Ψ (podnoszenie):** generuje kandydaty zmian w AST z planu Mozaiki (kontrakty, linki, bucket-shift).
+- **Φ (projekcja):** przekształca **ledger AST** do **ledger Mozaiki** (zachowując rząd wielkości: $\lVert \Delta \rVert_{\mathrm{AST}} \approx \lVert \Delta \rVert_{\mathrm{shadow}}$).
+- **Ψ (podnoszenie):** generuje kandydaty zmian w AST z planu Mozaiki (kontrakty, linki, bucket-shift).
 
 **Własności (robocze):**
 
-* **Monotoniczność:** (\Delta Z) w AST i Mozaice ma zgodny bilans na ścieżce (I1).
-* **Bliskie domknięcie:** (\Phi \circ \Psi \approx \text{id}) na przestrzeni planów, w granicach tolerancji polityk (progi dla α, β, Z).
-* **Komutacja z Δ:** (\Phi(\Delta_{\text{AST}}) \approx \Delta_{\text{MOZ}}) dla podstawowych zdarzeń (Import/Call/Define/Use).
+- **Monotoniczność:** $\Delta Z$ w AST i w Mozaice ma zgodny bilans na ścieżce (I1).
+- **Bliskie domknięcie:** $\Phi \circ \Psi \approx \operatorname{id}$ na przestrzeni planów, w granicach tolerancji polityk (progi dla $\alpha, \beta, Z$).
+- **Komutacja z $\Delta$:** $\Phi(\Delta_{\mathrm{AST}}) \approx \Delta_{\mathrm{MOZ}}$ dla podstawowych zdarzeń (Import/Call/Define/Use).
+
 
 > W praktyce **Ψ** jest heurystyczne (do czasu pełnej adjunkcji); dowody i tolerancje zapisujemy w EGDB.
 
@@ -310,7 +310,7 @@ To wystarcza agentom do: klastrów domen, wykrywania **hotspotów integracyjnych
 * `files`, `tags` — mapa źródeł i tagów (`glx:topic.publish`, `glx:event=enter_scope:...`, …),
 * `runtime_events` — koperty zdarzeń z BUS (topic, ts, payload, tags),
 * `grammar_events` — uogólnione zdarzenia gramatyki (enter/use/link/…),
-* `deltas` — projekcje do (\Delta(S/H/Z)) z wagami.
+- `deltas` — projekcje do $(\Delta S,\ \Delta H,\ \Delta Z)$ z wagami.
 
 **Reguły Δ** (konfigurowalne, `rules.yaml`): mapują kinds→Δ z wagami domenowymi (np. `schema_contract`, `rpc`, `telemetry`).
 **Widoki** (`views.sql`) liczą metryki per plik/kafelek i wykrywają naruszenia inwariantów.
