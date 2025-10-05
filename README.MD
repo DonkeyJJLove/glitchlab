@@ -276,12 +276,14 @@ $$
 Prosty dystans między obiektami (A,B):
 
 $$
-d(A,B)=
-w_S,|\alpha_A-\alpha_B|
+\begin{aligned}
+d(A,B)
+&= w_S\cdot\lvert\alpha_A-\alpha_B\rvert \\
+&\quad + w_H\cdot\lvert\beta_A-\beta_B\rvert \\
+&\quad + w_Z\cdot\lvert Z_A - Z_B\rvert
+\end{aligned}
+$$
 
-* w_H,|\beta_A-\beta_B|
-* w_Z,|Z_A-Z_B|
-  $$
 
 To wystarcza agentom do: klastrów domen, wykrywania **hotspotów integracyjnych** (β rośnie szybciej niż α), czy cięć wizualnych w GUI.
 
@@ -300,7 +302,6 @@ To wystarcza agentom do: klastrów domen, wykrywania **hotspotów integracyjnych
 * **Komutacja z Δ:** (\Phi(\Delta_{\text{AST}}) \approx \Delta_{\text{MOZ}}) dla podstawowych zdarzeń (Import/Call/Define/Use).
 
 > W praktyce **Ψ** jest heurystyczne (do czasu pełnej adjunkcji); dowody i tolerancje zapisujemy w EGDB.
-
 
 ## EGDB: zdarzenia gramatyczne i projekcja do Δ
 
