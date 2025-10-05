@@ -143,7 +143,7 @@ $$
 * **H** – mosty/semantyki (def–use, importy, kontrakty),
 * **Z** – głębokość (poziom/kubełek abstrakcji).
 
-Z **sum Δ** agent wylicza profil (\alpha = \frac{S}{S+H}), (\beta = \frac{H}{S+H}) oraz wybiera „zoom” (Z) – to wystarcza do:
+Z **sum Δ** agent wylicza profil $\alpha = \frac{S}{S+H}$, $\beta = \frac{H}{S+H}$ oraz wybiera „zoom” $Z$ – to wystarcza do:
 
 * klastrów domen (mapa świata),
 * priorytetyzacji (β rośnie szybciej niż α → integracje),
@@ -213,17 +213,18 @@ Więcej: [katalog](glx_catalog_v5/docs/index.md), [repozytorium](repo.md), [gui]
 
 Mamy **wektor stanu** i **wektor kroku**:
 
-[
-v = (S, H, Z), \qquad
-\Delta = (\Delta S, \Delta H, \Delta Z)
-]
+$$
+\mathbf{v} = (S,H,Z), \qquad
+\Delta = (\Delta S,\, \Delta H,\, \Delta Z)
+$$
 
 * **S** — struktura (zawieranie, hierarchie, szkielet);
 * **H** — mosty/semantyki (def–use, importy, kontrakty między grupami);
 * **Z** — głębokość/„kubełek” abstrakcji.
 
-**Ledger** (księga) to uporządkowany ciąg delt ((\Delta_t)), z którego liczymy sumy i metryki.
-W AST i w Mozaice stosujemy **ten sam** rachunek Δ — to klucz do spójności agentów.
+**Ledger** (księga) to uporządkowany ciąg delt $(\Delta_t)$, z którego liczymy sumy i metryki.  
+W AST i w Mozaice stosujemy **ten sam** rachunek $\Delta$ — to klucz do spójności agentów.
+
 
 > Rozwinięcie: [`GLX_Mosaika_Matematyka_v1.md`](GLX_Mosaika_Matematyka_v1.md), `glx_catalog_v5/docs/12_mosaic_metrics.md`.
 
@@ -265,17 +266,22 @@ W AST i w Mozaice stosujemy **ten sam** rachunek Δ — to klucz do spójności 
 
 Z sum Δ w jednostce (plik/katalog/kafelek) liczymy:
 
-[
-\alpha = \frac{S}{S+H}, \qquad \beta = \frac{H}{S+H}, \qquad
-\delta = \text{średnia głębokość/Z}, \qquad
-\varepsilon = \text{średnia semantyczna ścieżka}
-]
+$$
+\alpha=\frac{S}{S+H},\qquad
+\beta=\frac{H}{S+H},\qquad
+\delta=\text{średnia głębokość}/Z,\qquad
+\varepsilon=\text{średnia semantyczna ścieżka}
+$$
 
 Prosty dystans między obiektami (A,B):
 
-[
-d(A,B) = w_S \cdot |\alpha_A-\alpha_B| + w_H \cdot |\beta_A-\beta_B| + w_Z \cdot |Z_A - Z_B|
-]
+$$
+d(A,B)=
+w_S,|\alpha_A-\alpha_B|
+
+* w_H,|\beta_A-\beta_B|
+* w_Z,|Z_A-Z_B|
+  $$
 
 To wystarcza agentom do: klastrów domen, wykrywania **hotspotów integracyjnych** (β rośnie szybciej niż α), czy cięć wizualnych w GUI.
 
@@ -283,19 +289,18 @@ To wystarcza agentom do: klastrów domen, wykrywania **hotspotów integracyjnych
 
 ## Funktory **Φ ⊣ Ψ** (AST ⇄ Mozaika)
 
-* **Φ (projekcja)**: przekształca **ledger AST** do **ledger Mozaiki**
-  (zachowując rząd wielkości: (||\Delta||*{\text{AST}} \approx ||\Delta||*{\text{shadow}})).
-* **Ψ (podnoszenie)**: generuje kandydaty zmian w AST z planu Mozaiki (kontrakty, linki, bucket-shift).
+* **Φ (projekcja):** przekształca **ledger AST** do **ledger Mozaiki**
+  (zachowując rząd wielkości: (\lVert \Delta \rVert_{\text{AST}} \approx \lVert \Delta \rVert_{\text{shadow}})).
+* **Ψ (podnoszenie):** generuje kandydaty zmian w AST z planu Mozaiki (kontrakty, linki, bucket-shift).
 
 **Własności (robocze):**
 
-* **Monotoniczność:** ( \Delta Z ) w AST i Mozaice ma zgodny bilans na ścieżce (I1).
-* **Bliskie domknięcie:** ( \Phi \circ \Psi \approx \text{id} ) na przestrzeni planów, w granicach tolerancji polityk (progi dla α,β,Z).
-* **Komutacja z Δ:** ( \Phi(\Delta_{\text{AST}}) \approx \Delta_{\text{MOZ}} ) dla podstawowych zdarzeń (Import/Call/Define/Use).
+* **Monotoniczność:** (\Delta Z) w AST i Mozaice ma zgodny bilans na ścieżce (I1).
+* **Bliskie domknięcie:** (\Phi \circ \Psi \approx \text{id}) na przestrzeni planów, w granicach tolerancji polityk (progi dla α, β, Z).
+* **Komutacja z Δ:** (\Phi(\Delta_{\text{AST}}) \approx \Delta_{\text{MOZ}}) dla podstawowych zdarzeń (Import/Call/Define/Use).
 
 > W praktyce **Ψ** jest heurystyczne (do czasu pełnej adjunkcji); dowody i tolerancje zapisujemy w EGDB.
 
----
 
 ## EGDB: zdarzenia gramatyczne i projekcja do Δ
 
