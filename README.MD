@@ -129,15 +129,15 @@ Krótko: **agenci tworzą pętlę decyzyjną**, a człowiek **ustawia kierunek i
 
 W GlitchLab agent patrzy na świat przez **wektor stanu**:
 
-[
+$$
 v = (S, H, Z)
-]
+$$
 
 i **wektor kroku**:
 
-[
+$$
 \Delta = (\Delta S,\ \Delta H,\ \Delta Z)
-]
+$$
 
 * **S** – struktura (zawieranie, hierarchie, szkielet),
 * **H** – mosty/semantyki (def–use, importy, kontrakty),
