@@ -17,7 +17,6 @@
 9. **[09_observability.md](observability.md)** — Obserwowalność/HUD metryki  
 10. **[10_attachments.md](attachments.md)** — Załączniki, tagi automaty 
 11. **[GLX_Mosaika_Matematyka_v1.md](GLX_Mosaika_Matematyka_v1.md)** - Matematyka i Formalizm Mozaiki
-11. **[NAV](#nawigacja-szybka)** — szybkie przejścia
 
 ---
 
