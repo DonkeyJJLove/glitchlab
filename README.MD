@@ -51,8 +51,9 @@ Zamiast monolitu mamy **sieć agentów** mówiących przez **BUS**; każdy agent
 
 ## Mapa w 60 sekund (agent ⇄ BUS ⇄ EGDB ⇄ Mozaika/AST)
 
-```mermaid
+Masz tu działającą wersję (GitHub/Mermaid):
 
+```mermaid
 flowchart LR
   subgraph Agents[Agenci]
     A1[Perception Agent]:::a
@@ -66,17 +67,18 @@ flowchart LR
 
   subgraph EGDB[EGDB (Event Grammar DB)]
     D1[(files,tags)]:::db
-    D2[(runtime,grammar\nevents)]:::db
+    D2[(runtime,grammar<br/>events)]:::db
     D3[(deltas S/H/Z)]:::db
   end
 
   subgraph CODE[AST/Mozaika]
+    SRC[codebase]:::m
     M[Δ-algebra S/H/Z]:::m
     T[Tag Parser #glx:*]:::m
   end
 
   subgraph GUI[HUD/SCADA]
-    H[Δ-heatmapy,\npolityki, dowody]:::g
+    H[Δ-heatmapy,<br/>polityki, dowody]:::g
   end
 
   A1 -- publish --> B
@@ -90,14 +92,13 @@ flowchart LR
   D3 -- query --> H
   H -- control Φ/Ψ --> A2
   A2 -- requests AST/Mosaic --> M
-  T <-- parse code --> CODE
+  SRC -- parse code --> T
 
   classDef a fill:#2f9e44,color:#fff,stroke:#0a3;
   classDef b fill:#1c7ed6,color:#fff,stroke:#124;
   classDef db fill:#6741d9,color:#fff,stroke:#423;
   classDef m fill:#f08c00,color:#000,stroke:#742;
   classDef g fill:#e03131,color:#fff,stroke:#400;
-
 ```
 
 * **BUS** — kontrakt zdarzeń i egzekucja polityk (fail-closed).
