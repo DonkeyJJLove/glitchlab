@@ -204,25 +204,29 @@ classDef guard fill:#e03131,stroke:#300,color:#fff;
 ---
 
 ## Wizualizacje (placeholders)
-
 ```mermaid
 flowchart LR
-  AST[AST scope] -->|Φ map| MZ[Mosaic Graph]
+  %% Rdzeń
+  AST["AST scope"]:::tile -->|Φ map| MZ["Mosaic Graph"]:::tile
   MZ -->|Ψ feedback| AST
-  MZ --> METRICS[(glx_mosaic_metrics)]
+  MZ --> METRICS[(glx_mosaic_metrics)]:::db
 
-%% Mermaid Styles
-classDef tile fill:#0b7285,stroke:#083344,color:#fff;
-classDef db fill:#4c6ef5,stroke:#233,color:#fff;
-classDef guard fill:#e03131,stroke:#300,color:#fff;
+  %% Wizualizacje (placeholders)
+  subgraph VIZ["Wizualizacje (placeholders)"]
+    HEAT["Mosaic Heatmap"]:::tile
+    GRAPH["Graph View"]:::tile
+    TREND["Iteration Trend"]:::tile
+  end
 
+  %% Przepływy do wizualizacji
+  METRICS --> HEAT
+  METRICS --> TREND
+  MZ --> GRAPH
 
-<!-- @auto:diagram:mosaic.heatmap -->
-<!-- @auto:diagram:mosaic.graphview -->
-<!-- @auto:diagram:mosaic.iteration_trend -->
+  %% Style
+  classDef tile fill:#0b7285,stroke:#083344,color:#fff;
+  classDef db fill:#4c6ef5,stroke:#233,color:#fff;
 ```
-
----
 
 ## Nawigacja
 - W górę: [index.md](index.md) • [Pipelines (05)](pipelines.md) • [Obserwowalność (09)](observability.md)
