@@ -2,32 +2,60 @@
 # Python: 3.9  (ten kod uruchamia się tylko na 3.9.x)
 # Ścieżka: glitchlab/analysis/autonomy/gateway.py
 """
-glitchlab.analysis.autonomy.gateway
-Rola: Brama danych dla LLM (SelfDoc Pack + Prompt Pack)
+GLX-CTX:v2
+component: analysis.autonomy.gateway
+role: Brama danych dla LLM (SelfDoc Pack + Prompt Pack)
 
-Zasady:
-- Zero zależności zewnętrznych (python-dotenv opcjonalnie).
-- Zero I/O sieciowego.
-- Determinizm: brak losowości; w razie błędów → best-effort telemetry + plik diagnostyczny.
-- Główne ścieżki i defaulty czerpane z `.env`.
+# MOSAIC::PROFILE (S/H/Z)
+S: env_loader,fs_roots,ast_scanner,git_helpers,pack_builder
+H: env(.env project),repo.git,ast.parse,json.dumps
+Z: 1
 
-Wejścia (.env — wszystkie opcjonalne, mają bezpieczne fallbacki):
-  GLX_ROOT=.<repo_root>
-  GLX_PKG=glitchlab
-  GLX_AUTONOMY_OUT=glitchlab/analysis/last/autonomy
-  GLX_SCAN_MAX_BYTES=1572864   # 1.5 MB (limit rozmiaru pojedynczego .py)
+# AST::SURFACE
+imports: ast,json,os,sys,time,traceback,dataclasses,pathlib,typing
+public_api: main,build_selfdoc,write_outputs,make_prompt_pack
 
-Wyjścia:
-  pack.json   (SelfDoc Pack)
-  pack.md     (skrót dla ludzi)
-  prompt.json ({system,user,context,attachments})
+# CONTRACTS::EVENTS
+publish:
+  gateway.start: ctx:str
+  gateway.done: artifacts:list
+  gateway.error: error:str
 
-CLI:
-  python -m glitchlab.analysis.autonomy.gateway build [--out DIR]
-  # opcjonalnie: [--root PATH] [--pkg NAME] [--max-bytes N]
+# INVARIANTS
+- env_from_project_dir_only
+- glx_root_equals_project_dir
+- outputs_anchored_to_git_root
+- git_calls_from_git_root
+- no_network_io
+- deterministic_outputs
+
+# DATA::SOURCES
+env: <PROJECT_DIR>/.env | .env.local
+repo: <GIT_ROOT>/.git
+code: <GIT_ROOT>/<GLX_PKG>/**/*.py
+state: <PROJECT_DIR>/.glx/state.json
+
+# DATA::SINKS
+out: <GIT_ROOT>/<GLX_AUTONOMY_OUT>/{pack.json,pack.md,prompt.json}
+diag: <GIT_ROOT>/<GLX_AUTONOMY_OUT>/gateway_error.log
+
+# GRAMMAR::HOOKS (komentarze #glx:event=… → Δ)
+enter_scope/exit_scope, define/use, link, bucket_jump, reassign, contract/expand
+
+# TAG-SCHEMA
+- # glx:ast.fn=<Name>
+- # glx:mosaic.S=<csv>
+- # glx:mosaic.H=<csv>
+- # glx:contracts.publish=<csv>
+- # glx:data.in=<csv>   | # glx:data.out=<csv>
+- # glx:event=<kind[:args]>   # kind∈{enter_scope,exit_scope,define,use,link,bucket_jump,reassign,contract,expand}
+
+# PARSER
+- listy w tagach: CSV (bez spacji); wartości surowe; klucz=wartość
 """
 from __future__ import annotations
 
+# glx:event=enter_scope:module_imports
 import ast
 import json
 import os
@@ -37,13 +65,13 @@ import traceback
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+# glx:event=exit_scope
 
+# ----------------------------- ANCHORS & ENV ---------------------------------
 
-# ──────────────────────────────────────────────────────────────────────────────
-# .ENV — ładowanie (dotenv jeśli jest; inaczej prosty parser) + łańcuch przodków
-# ──────────────────────────────────────────────────────────────────────────────
-
+# glx:ast.fn=_strip_inline_comment
 def _strip_inline_comment(s: str) -> str:
+    # glx:event=enter_scope:_strip_inline_comment
     s = s or ""
     in_s = in_d = False
     out = []
@@ -55,9 +83,11 @@ def _strip_inline_comment(s: str) -> str:
         elif ch == '#' and not in_s and not in_d:
             break
         out.append(ch)
+    # glx:event=exit_scope
     return "".join(out).rstrip()
 
 
+# glx:ast.fn=_clean_value
 def _clean_value(v: str) -> str:
     v = _strip_inline_comment(v or "").strip()
     if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
@@ -65,6 +95,7 @@ def _clean_value(v: str) -> str:
     return v.rstrip(":").strip()
 
 
+# glx:ast.fn=_simple_parse_env
 def _simple_parse_env(path: Path) -> Dict[str, str]:
     env: Dict[str, str] = {}
     try:
@@ -79,112 +110,105 @@ def _simple_parse_env(path: Path) -> Dict[str, str]:
     return env
 
 
-def _dirs_chain_up(start: Path) -> List[Path]:
-    cur = Path(start).resolve()
-    chain_fwd: List[Path] = []
-    while True:
-        chain_fwd.append(cur)
-        parent = cur.parent
-        if parent == cur:
-            break
-        cur = parent
-    chain: List[Path] = list(reversed(chain_fwd))
-    # defensywna deduplikacja
-    seen = set()
-    uniq: List[Path] = []
-    for p in chain:
-        if p not in seen:
-            seen.add(p)
-            uniq.append(p)
-    return uniq
-
-
-def _load_dotenv_chain_into_environ(repo_root: Path) -> None:
-    # staramy się NIE nadpisywać istniejących zmiennych środowiskowych
-    # kolejność: root→…→repo_root, w każdym: .env potem .env.local (local > base)
-    for d in _dirs_chain_up(repo_root):
-        base = d / ".env"
-        loc = d / ".env.local"
-        if base.exists():
-            for k, v in _simple_parse_env(base).items():
+# glx:ast.fn=_load_env_project_only
+# glx:mosaic.S=env_loader
+# glx:data.in=PROJECT_DIR/.env,PROJECT_DIR/.env.local
+def _load_env_project_only(project_dir: Path) -> None:
+    """
+    Ładuj WYŁĄCZNIE .env/.env.local z katalogu PROJEKTU. Brak → twardy błąd.
+    Nie nadpisujemy istniejących zmiennych środowiskowych.
+    """
+    # glx:event=enter_scope:_load_env_project_only
+    base = project_dir / ".env"
+    loc = project_dir / ".env.local"
+    found = False
+    for p in (base, loc):
+        if p.exists():
+            for k, v in _simple_parse_env(p).items():
                 os.environ.setdefault(k, v)
-        if loc.exists():
-            for k, v in _simple_parse_env(loc).items():
-                os.environ.setdefault(k, v)
-    # jeśli jest python-dotenv — honorujemy, ale bez override
-    try:
-        from dotenv import load_dotenv  # type: ignore
-        top_env = repo_root / ".env"
-        if top_env.exists():
-            load_dotenv(top_env, override=False)
-    except Exception:
-        pass
+            found = True
+    if not found:
+        raise RuntimeError(f"[GLX][gateway] Brak .env/.env.local w katalogu projektu: {project_dir}")
+    # glx:event=exit_scope
 
 
-# Wylicz punkt odniesienia (3 poziomy w górę względem tego pliku)
-PKG_ANCHOR = Path(__file__).resolve()
-_default_repo_root = PKG_ANCHOR.parents[3]
-_load_dotenv_chain_into_environ(_default_repo_root)
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Standard .env → główne ścieżki
-# ──────────────────────────────────────────────────────────────────────────────
-
+# glx:ast.fn=_norm_from
 def _norm_from(root: Path, p: str) -> Path:
     if not p:
-        return root
+        return root.resolve()
     pp = Path(p)
-    return pp if pp.is_absolute() else (root / pp).resolve()
+    return pp.resolve() if pp.is_absolute() else (root / pp).resolve()
 
 
-def _best_guess_package_root(glx_root: Path, pkg_name: str) -> Path:
-    # Jeśli GLX_ROOT zawiera katalog pakietu → użyj GLX_ROOT/pkg
-    if (glx_root / pkg_name).is_dir():
-        return (glx_root / pkg_name).resolve()
-    # Jeśli GLX_ROOT to bezpośrednio katalog pakietu (nazwa zgodna) → użyj GLX_ROOT
-    if glx_root.name == pkg_name:
-        return glx_root.resolve()
-    # Inaczej — przyjmij GLX_ROOT/pkg (nawet jeśli chwilowo nie istnieje)
-    return (glx_root / pkg_name).resolve()
+# glx:ast.fn=_best_guess_package_root
+def _best_guess_package_root(anchor: Path, pkg_name: str) -> Path:
+    # Jeśli anchor zawiera katalog pakietu → użyj anchor/pkg
+    if (anchor / pkg_name).is_dir():
+        return (anchor / pkg_name).resolve()
+    # Jeśli anchor to bezpośrednio katalog pakietu (nazwa zgodna) → użyj anchor
+    if anchor.name == pkg_name:
+        return anchor.resolve()
+    # Inaczej — przyjmij anchor/pkg (nawet jeśli chwilowo nie istnieje)
+    return (anchor / pkg_name).resolve()
 
 
-GLX_ROOT = _norm_from(
-    _default_repo_root,
-    os.getenv("GLX_ROOT", str(_default_repo_root))
-)
-GLX_PKG = os.getenv("GLX_PKG", "glitchlab")
+# glx:ast.fn=_find_git_root
+def _find_git_root(start: Path) -> Path:
+    """Znajdź najbliższy katalog zawierający .git; fallback: rodzic[2] (…/glitchlab)."""
+    cur = start.resolve()
+    for p in [cur] + list(cur.parents):
+        if (p / ".git").exists():
+            return p
+    # heurystyka dla ścieżki …/glitchlab/analysis/autonomy/gateway.py
+    try:
+        return start.parents[2]
+    except Exception:
+        return start.parent
 
-GLX_AUTONOMY_OUT = _norm_from(
-    GLX_ROOT,
+
+# --- Wyprowadzenie PROJECT_DIR (poziom NAD repo) i GIT_ROOT (repo) -----------
+
+# glx:event=enter_scope:anchors
+PKG_ANCHOR: Path = Path(__file__).resolve()
+GIT_ROOT: Path = _find_git_root(PKG_ANCHOR)       # ← POPRAWKA: realne repo z .git
+PROJECT_DIR: Path = GIT_ROOT.parent               # katalog projektu, poziom wyżej
+PKG_NAME: str = PKG_ANCHOR.parents[2].name        # zwykle 'glitchlab'
+# glx:event=exit_scope
+
+# Ładowanie ENV tylko z katalogu projektu
+_load_env_project_only(PROJECT_DIR)
+
+# GLX_* z ENV + twarde inwarianty ścieżek
+GLX_PKG: str = os.getenv("GLX_PKG", PKG_NAME)
+
+# GLX_ROOT MUSI == PROJECT_DIR
+GLX_ROOT: Path = _norm_from(PROJECT_DIR, os.getenv("GLX_ROOT", str(PROJECT_DIR)))
+if GLX_ROOT != PROJECT_DIR:
+    raise RuntimeError(f"[GLX][gateway] GLX_ROOT={GLX_ROOT} ≠ PROJECT_DIR={PROJECT_DIR} — przerwano.")
+
+# OUTY kotwiczymy do GIT_ROOT (repo)
+GLX_AUTONOMY_OUT: Path = _norm_from(
+    GIT_ROOT,
     os.getenv("GLX_AUTONOMY_OUT", f"{GLX_PKG}/analysis/last/autonomy")
 )
 
-
-# Max rozmiar pojedynczego pliku .py do skanowania (bytes)
+# Max rozmiar pliku do skanowania (bytes)
 def _int_env(name: str, default: int) -> int:
     try:
         return int(os.getenv(name, str(default)))
     except Exception:
         return default
 
+GLX_SCAN_MAX_BYTES: int = _int_env("GLX_SCAN_MAX_BYTES", 1572864)  # 1.5MB
 
-GLX_SCAN_MAX_BYTES = _int_env("GLX_SCAN_MAX_BYTES", 1572864)  # 1.5MB
+# Katalog pakietu (skan kodu) — z repo
+GL_ROOT: Path = _best_guess_package_root(GIT_ROOT, GLX_PKG)
 
-# Katalog pakietu (do skanowania kodu)
-GL_ROOT = _best_guess_package_root(GLX_ROOT, GLX_PKG)
+# Ścieżki stanu/diag
+GLX_STATE: Path = (PROJECT_DIR / ".glx" / "state.json").resolve()
+LAST_DIR: Path = GLX_AUTONOMY_OUT  # diag i wyjścia w repo
 
-# Repo root (dla Gita i ścieżek względnych)
-PROJECT_ROOT = GLX_ROOT
-
-# Dla kompatybilności
-LAST_DIR = GLX_AUTONOMY_OUT
-GLX_STATE = PROJECT_ROOT / ".glx" / "state.json"
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Minimalne typy danych
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------ DATA TYPES -----------------------------------
 
 @dataclass
 class Telemetry:
@@ -219,14 +243,10 @@ class SelfDocPack:
     notes: List[str]
     env_hint: Dict[str, str]
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Utils
-# ──────────────────────────────────────────────────────────────────────────────
+# --------------------------------- UTILS -------------------------------------
 
 def _utc_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-
 
 def _safe_read_json(path: Path) -> Dict[str, Any]:
     try:
@@ -236,23 +256,19 @@ def _safe_read_json(path: Path) -> Dict[str, Any]:
         pass
     return {}
 
-
 def _read_text(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8", errors="replace")
     except Exception:
         return ""
 
-
-def _rel_to_project(p: Path) -> str:
+def _rel_to_repo(p: Path) -> str:
     try:
-        return str(p.relative_to(PROJECT_ROOT)).replace(os.sep, "/")
+        return str(p.relative_to(GIT_ROOT)).replace(os.sep, "/")
     except Exception:
         return str(p).replace(os.sep, "/")
 
-
 def _is_binary_like(path: Path, probe_bytes: int = 4096) -> bool:
-    # Prosty heurystyczny test: obecność bajta \x00 w pierwszych kilku KB
     try:
         with path.open("rb") as f:
             chunk = f.read(probe_bytes)
@@ -260,22 +276,15 @@ def _is_binary_like(path: Path, probe_bytes: int = 4096) -> bool:
     except Exception:
         return False
 
-
 def _redact_env_snapshot(d: Dict[str, str]) -> Dict[str, str]:
     secrets = ("PASS", "PASSWORD", "SECRET", "TOKEN", "KEY")
     out: Dict[str, str] = {}
     for k, v in d.items():
         if k.startswith("GLX_"):
-            if any(h in k.upper() for h in secrets):
-                out[k] = "******"
-            else:
-                out[k] = str(v)
+            out[k] = "******" if any(h in k.upper() for h in secrets) else str(v)
     return out
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Skan repo + AST
-# ──────────────────────────────────────────────────────────────────────────────
+# -------------------------- SCAN (FS + AST) ----------------------------------
 
 def scan_repository(pkg_root: Path, max_bytes: int) -> Tuple[Dict[str, Any], Telemetry]:
     """
@@ -311,7 +320,6 @@ def scan_repository(pkg_root: Path, max_bytes: int) -> Tuple[Dict[str, Any], Tel
                 telemetry.skipped_too_big += 1
                 continue
         except Exception:
-            # jeśli nie możemy odczytać stat — pomiń
             telemetry.skipped_too_big += 1
             continue
 
@@ -324,7 +332,7 @@ def scan_repository(pkg_root: Path, max_bytes: int) -> Tuple[Dict[str, Any], Tel
         loc = src.count("\n") + (1 if src else 0)
         t_ast0 = time.perf_counter()
 
-        rel_path = _rel_to_project(p)
+        rel_path = _rel_to_repo(p)
         n_defs = n_classes = 0
         defs: List[Dict[str, Any]] = []
         classes: List[Dict[str, Any]] = []
@@ -374,21 +382,17 @@ def scan_repository(pkg_root: Path, max_bytes: int) -> Tuple[Dict[str, Any], Tel
     }
     return code_summary, telemetry
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Git (best-effort, bez twardych wymagań)
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------- GIT -----------------------------------------
 
 def _run_git(args: List[str]) -> Tuple[int, str, str]:
     import subprocess
     try:
-        p = subprocess.run(["git"] + args, cwd=str(PROJECT_ROOT),
+        p = subprocess.run(["git"] + args, cwd=str(GIT_ROOT),
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                            text=True, check=False)
         return p.returncode, (p.stdout or "").strip(), (p.stderr or "").strip()
     except Exception as e:
         return 127, "", f"{e.__class__.__name__}: {e}"
-
 
 def git_snapshot(max_commits: int = 10) -> Dict[str, Any]:
     rc, head, _ = _run_git(["rev-parse", "HEAD"])
@@ -429,10 +433,7 @@ def git_snapshot(max_commits: int = 10) -> Dict[str, Any]:
         "delta_last": delta
     }
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Prompt Pack
-# ──────────────────────────────────────────────────────────────────────────────
+# ----------------------------- PROMPT PACK -----------------------------------
 
 def make_prompt_pack(pack: SelfDocPack, purpose: str = "architect_review") -> Dict[str, Any]:
     code = pack.code
@@ -445,7 +446,7 @@ def make_prompt_pack(pack: SelfDocPack, purpose: str = "architect_review") -> Di
     )
     user = (
         f"Cel: {purpose}. Przygotuj plan refaktoryzacji i mapę ryzyk.\n"
-        f"Repo: {_rel_to_project(Path(pack.project_root))} | LOC={totals.get('loc', 0)}, "
+        f"Repo: {_rel_to_repo(Path(pack.project_root))} | LOC={totals.get('loc', 0)}, "
         f"modules={totals.get('modules', 0)}, defs={totals.get('defs', 0)}, classes={totals.get('classes', 0)}.\n"
         "Zidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności."
     )
@@ -466,10 +467,7 @@ def make_prompt_pack(pack: SelfDocPack, purpose: str = "architect_review") -> Di
     }
     return {"system": system, "user": user, "context": ctx, "attachments": attachments}
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Składanie SelfDoc Pack + zapis
-# ──────────────────────────────────────────────────────────────────────────────
+# ---------------------- SELF DOC BUILD & OUTPUTS -----------------------------
 
 def build_selfdoc(max_bytes: int = GLX_SCAN_MAX_BYTES) -> SelfDocPack:
     glx = _safe_read_json(GLX_STATE)
@@ -502,7 +500,7 @@ def build_selfdoc(max_bytes: int = GLX_SCAN_MAX_BYTES) -> SelfDocPack:
         schema="glx.selfdoc",
         schema_ver="v1.1",
         generated_at=_utc_iso(),
-        project_root=str(PROJECT_ROOT),
+        project_root=str(GIT_ROOT),
         package_root=str(GL_ROOT),
         glx_state=glx,
         git=git,
@@ -535,7 +533,7 @@ def write_outputs(pack: SelfDocPack, out_dir: Path) -> Dict[str, str]:
     totals = pack.code.get("totals", {})
     md: List[str] = []
     md.append(f"# GLX SelfDoc Pack ({pack.schema} {pack.schema_ver}) — {pack.generated_at}\n")
-    md.append(f"- Root: `{_rel_to_project(Path(pack.project_root))}`")
+    md.append(f"- Root: `{_rel_to_repo(Path(pack.project_root))}`")
     md.append(
         f"- LOC: **{totals.get('loc', 0)}**, modules: **{totals.get('modules', 0)}**, "
         f"defs: **{totals.get('defs', 0)}**, classes: **{totals.get('classes', 0)}**"
@@ -554,10 +552,7 @@ def write_outputs(pack: SelfDocPack, out_dir: Path) -> Dict[str, str]:
 
     return {"pack.json": str(p_json), "pack.md": str(p_md), "prompt.json": str(p_prompt)}
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# CLI
-# ──────────────────────────────────────────────────────────────────────────────
+# ---------------------------------- CLI --------------------------------------
 
 def _parse_argv(argv: List[str]) -> Dict[str, Any]:
     # Minimalny parser: gateway.py build [--out DIR] [--root PATH] [--pkg NAME] [--max-bytes N]
@@ -568,14 +563,11 @@ def _parse_argv(argv: List[str]) -> Dict[str, Any]:
         if a == "build":
             out["cmd"] = "build"
         elif a in ("--out", "-o") and i + 1 < len(argv):
-            out["out"] = argv[i + 1];
-            i += 1
+            out["out"] = argv[i + 1]; i += 1
         elif a == "--root" and i + 1 < len(argv):
-            out["root"] = argv[i + 1];
-            i += 1
+            out["root"] = argv[i + 1]; i += 1
         elif a == "--pkg" and i + 1 < len(argv):
-            out["pkg"] = argv[i + 1];
-            i += 1
+            out["pkg"] = argv[i + 1]; i += 1
         elif a == "--max-bytes" and i + 1 < len(argv):
             try:
                 out["max_bytes"] = int(argv[i + 1])
@@ -587,42 +579,49 @@ def _parse_argv(argv: List[str]) -> Dict[str, Any]:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # global na początku, jeśli ktoś poda --root/--pkg
+    global GIT_ROOT, GL_ROOT, GLX_PKG
+
     argv = argv or sys.argv[1:]
     try:
         args = _parse_argv(argv)
         if args.get("cmd") != "build":
-            print(
-                "usage: python -m glitchlab.analysis.autonomy.gateway build [--out DIR] [--root PATH] [--pkg NAME] [--max-bytes N]")
+            print("usage: python -m glitchlab.analysis.autonomy.gateway build [--out DIR] [--root PATH] [--pkg NAME] [--max-bytes N]")
             return 2
 
-        # opcjonalne nadpisania z CLI (nie kolidują z testami)
+        # opcjonalne nadpisania z CLI (z zachowaniem inwariantów)
         root_override = args.get("root")
         pkg_override = args.get("pkg")
         max_bytes = args.get("max_bytes") or GLX_SCAN_MAX_BYTES
 
+        # Nadpisanie ROOT → przelicz GIT_ROOT i GL_ROOT
         if root_override:
-            global GLX_ROOT, PROJECT_ROOT
-            GLX_ROOT = Path(root_override).resolve()
-            PROJECT_ROOT = GLX_ROOT
+            new_root = Path(root_override).resolve()
+            if not new_root.exists():
+                raise RuntimeError(f"[GLX][gateway] --root nie istnieje: {new_root}")
+            # jeśli ktoś poda katalog projektu, spróbuj zejść do repo z .git:
+            GIT_ROOT = _find_git_root(new_root)
+            GL_ROOT = _best_guess_package_root(GIT_ROOT, GLX_PKG)
+
         if pkg_override:
-            global GLX_PKG, GL_ROOT
             GLX_PKG = str(pkg_override)
-            GL_ROOT = _best_guess_package_root(GLX_ROOT, GLX_PKG)
+            GL_ROOT = _best_guess_package_root(GIT_ROOT, GLX_PKG)
 
         pack = build_selfdoc(max_bytes=max_bytes)
 
         out_dir = Path(args.get("out") or GLX_AUTONOMY_OUT)
         if not out_dir.is_absolute():
-            out_dir = (PROJECT_ROOT / out_dir).resolve()
+            out_dir = (GIT_ROOT / out_dir).resolve()  # kotwica w repo
         paths = write_outputs(pack, out_dir)
 
         print("[GLX] autonomy pack ready:")
         for k, v in paths.items():
             print(f" - {k}: {v}")
         return 0
+
     except Exception as e:
         err = f"[GLX] ERROR ({e.__class__.__name__}): {e}\n{traceback.format_exc()}"
-        # Bezpieczny plik diagnostyczny w katalogu z .env/out
+        # Bezpieczny plik diagnostyczny (w repo, przy outach)
         try:
             LAST_DIR.mkdir(parents=True, exist_ok=True)
             (LAST_DIR / "gateway_error.log").write_text(err, encoding="utf-8")

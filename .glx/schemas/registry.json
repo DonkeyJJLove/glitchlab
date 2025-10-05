@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": 1,
+  "schemas": {
+    "glx://schema/gui.ui.filter.select@1": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "params": { "type": "object" } },
+      "required": ["name"]
+    },
+    "glx://schema/gui.ui.run.apply_filter@1": {
+      "type": "object",
+      "properties": { "step": { "type": "string" }, "params": { "type": "object" } },
+      "required": ["step"]
+    },
+    "glx://schema/core.run.start@1": {
+      "type": "object",
+      "properties": { "steps": { "type": "array" } },
+      "required": ["steps"]
+    },
+    "glx://schema/core.run.progress@1": {
+      "type": "object",
+      "properties": {
+        "value": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "text": { "type": "string" }
+      },
+      "required": ["value"]
+    },
+    "glx://schema/core.run.done@1": {
+      "type": "object",
+      "properties": { "ctx": {}, "output": {} },
+      "required": ["output"]
+    },
+    "glx://schema/core.run.error@1": {
+      "type": "object",
+      "properties": { "error": { "type": "string" }, "steps": { "type": "array" } },
+      "required": ["error"]
+    },
+    "glx://schema/analysis.ast.delta@1": {
+      "type": "object",
+      "properties": {
+        "file": { "type": "string" },
+        "deltas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "dS": { "type": "number" }, "dH": { "type": "number" }, "dZ": { "type": "number" } },
+            "required": ["dS", "dH", "dZ"]
+          }
+        }
+      },
+      "required": ["file", "deltas"]
+    },
+    "glx://schema/mosaic.delta@1": {
+      "type": "object",
+      "properties": { "centroid": { "type": "string" }, "links": { "type": "array" } },
+      "required": ["centroid"]
+    },
+    "glx://schema/mosaic.violations@1": {
+      "type": "object",
+      "properties": { "id": { "type": "string" }, "kind": { "type": "string" }, "unit": { "type": "string" }, "detail": {} },
+      "required": ["kind", "unit"]
+    }
+  }
+}

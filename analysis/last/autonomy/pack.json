@@ -1,24 +1,126 @@
 {
   "schema": "glx.selfdoc",
   "schema_ver": "v1.1",
-  "generated_at": "2025-10-04T12:39:11Z",
-  "project_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project",
+  "generated_at": "2025-10-04T23:38:28Z",
+  "project_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab",
   "package_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab",
   "glx_state": {},
   "git": {
-    "ok": false,
-    "reason": "no-git"
+    "ok": true,
+    "head": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
+    "head_abbrev": "f3c8a05",
+    "branch": "master",
+    "commits": [
+      {
+        "hash": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
+        "ts": 1759586577,
+        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "1d027e2badfe965267cad39498c2f5678f77d431",
+        "ts": 1759581545,
+        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "ca6a1a0a043ccc90c6f17c2b0a4a5e46222ec6bb",
+        "ts": 1759581205,
+        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "94cfcc22cd197eeaa2e886a29ac1c92d2be84554",
+        "ts": 1759567839,
+        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "cb0bcaaa3b13e6bb63cd13eebd2b86bf43c4cfb4",
+        "ts": 1759567784,
+        "subject": "8 file(s) staged: [Δ] Zakres - files: 8 (commit_analysis.json, commit_snippet.txt, ast_index.py, commit_20251004-083627.json, env.json, pack.json (+2)) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "ff97057659aee13ce7c04bd5a4a7a1dc855c2a84",
+        "ts": 1759566985,
+        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (hook_probe.py) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "a03655edf89827fcb93017f0ef348fa92339a798",
+        "ts": 1759565073,
+        "subject": "43 file(s) staged: [Δ] Zakres - files: 43 (.env.local, .gitattributes, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-0b7978a_S-20250928035234_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-2c1d2a8_S-20250928013758_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-30922d1_S-20250928040045_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-59bddb5_S-20250928035644_PUB.patch (+37)) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "59f7fd08fba664f3b265da312c05630781657f32",
+        "ts": 1759545530,
+        "subject": "…"
+      },
+      {
+        "hash": "7d9c4cc9957180204526cf5cd9e584e9b1c11c43",
+        "ts": 1759517435,
+        "subject": "13 file(s) staged: [Δ] Zakres - files: 13 (__init__.py, __init__.py, test_ab_runner.py, test_plot_results.py, __init__.py, test_fuzz_tasks.py (+7)) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "ca26778760240e16d9ada286bda8722805980f6d",
+        "ts": 1759515983,
+        "subject": "10 file(s) staged: [Δ] Zakres - files: 10 (commit_analysis.json, commit_snippet.txt, pack.json, pack.md, prompt.json, report.json (+4)) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "f37ad1be16c89761670f4bd8d8c85d0375456eb1",
+        "ts": 1759514828,
+        "subject": "10 file(s) staged: [Δ] Zakres - files: 10 (commit_analysis.json, commit_snippet.txt, pack.json, pack.md, prompt.json, report.json (+4)) - typ: auto (pre-diff)"
+      },
+      {
+        "hash": "7afb8e437b440c5d5a92781ad7f56c5493488f6f",
+        "ts": 1759513526,
+        "subject": "10 file(s) staged: [Δ] Zakres - files: 10 (commit_analysis.json, commit_snippet.txt, pack.json, pack.md, prompt.json, report.json (+4)) - typ: auto (pre-diff)"
+      }
+    ],
+    "delta_last": [
+      {
+        "status": "A",
+        "path": ".githooks/_common.py"
+      },
+      {
+        "status": "A",
+        "path": ".githooks/post-commit.py"
+      },
+      {
+        "status": "A",
+        "path": ".githooks/post-diff.py"
+      },
+      {
+        "status": "A",
+        "path": ".githooks/pre-commit.py"
+      },
+      {
+        "status": "A",
+        "path": ".githooks/pre-diff.py"
+      },
+      {
+        "status": "A",
+        "path": ".githooks/prepare-commit-msg"
+      },
+      {
+        "status": "M",
+        "path": "analysis/last/autonomy/pack.json"
+      },
+      {
+        "status": "M",
+        "path": "analysis/last/autonomy/pack.md"
+      },
+      {
+        "status": "M",
+        "path": "analysis/last/autonomy/prompt.json"
+      }
+    ]
   },
   "code": {
     "totals": {
-      "loc": 34536,
-      "modules": 174,
-      "defs": 1756,
-      "classes": 183
+      "loc": 34906,
+      "modules": 175,
+      "defs": 1769,
+      "classes": 184
     },
     "top_modules_by_loc": [
       {
-        "path": "glitchlab/mosaic/hybrid_ast_mosaic.py",
+        "path": "mosaic/hybrid_ast_mosaic.py",
         "loc": 1713,
         "defs": [
           {
@@ -354,7 +456,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/app.py",
+        "path": "gui/app.py",
         "loc": 921,
         "defs": [
           {
@@ -538,7 +640,7 @@
         ]
       },
       {
-        "path": "glitchlab/tests/mosaic/ast_mosaic_coupled.py",
+        "path": "tests/mosaic/ast_mosaic_coupled.py",
         "loc": 732,
         "defs": [
           {
@@ -718,115 +820,258 @@
         ]
       },
       {
-        "path": "glitchlab/analysis/autonomy/gateway.py",
-        "loc": 637,
+        "path": ".githooks/post-commit.py",
+        "loc": 663,
         "defs": [
           {
+            "name": "_log",
+            "lineno": 83
+          },
+          {
+            "name": "_fail",
+            "lineno": 88
+          },
+          {
             "name": "_strip_inline_comment",
-            "lineno": 46
+            "lineno": 95
+          },
+          {
+            "name": "_parse_glx_run",
+            "lineno": 113
+          },
+          {
+            "name": "_validate_mask",
+            "lineno": 152
           },
           {
             "name": "_clean_value",
-            "lineno": 61
+            "lineno": 159
           },
           {
-            "name": "_simple_parse_env",
-            "lineno": 68
+            "name": "_parse_env_file",
+            "lineno": 171
           },
           {
-            "name": "_dirs_chain_up",
-            "lineno": 82
+            "name": "_expand_vars_and_user",
+            "lineno": 192
           },
           {
-            "name": "_load_dotenv_chain_into_environ",
-            "lineno": 102
+            "name": "_resolve_path",
+            "lineno": 197
           },
           {
-            "name": "_norm_from",
-            "lineno": 134
+            "name": "_load_env_project_only",
+            "lineno": 206
           },
           {
-            "name": "_best_guess_package_root",
-            "lineno": 141
+            "name": "_req",
+            "lineno": 229
           },
           {
-            "name": "_int_env",
-            "lineno": 165
+            "name": "_as_int",
+            "lineno": 237
           },
           {
-            "name": "_utc_iso",
-            "lineno": 227
+            "name": "_as_float01",
+            "lineno": 245
           },
           {
-            "name": "_safe_read_json",
-            "lineno": 231
+            "name": "_is_subpath",
+            "lineno": 253
           },
           {
-            "name": "_read_text",
-            "lineno": 240
+            "name": "_norm_paths_in_env",
+            "lineno": 262
           },
           {
-            "name": "_rel_to_project",
-            "lineno": 247
+            "name": "_enforce_env_invariants",
+            "lineno": 297
           },
           {
-            "name": "_is_binary_like",
-            "lineno": 254
+            "name": "_py_env_with_path",
+            "lineno": 318
           },
           {
-            "name": "_redact_env_snapshot",
-            "lineno": 264
+            "name": "_run_py",
+            "lineno": 329
           },
           {
-            "name": "scan_repository",
-            "lineno": 280
+            "name": "_git",
+            "lineno": 337
           },
           {
-            "name": "_excluded",
-            "lineno": 295
+            "name": "_rev_ok",
+            "lineno": 343
           },
           {
-            "name": "_run_git",
-            "lineno": 382
+            "name": "_rev_parse",
+            "lineno": 350
           },
           {
-            "name": "git_snapshot",
+            "name": "_empty_tree_oid",
+            "lineno": 356
+          },
+          {
+            "name": "_detect_base",
+            "lineno": 363
+          },
+          {
+            "name": "_module_exists",
             "lineno": 393
           },
           {
-            "name": "make_prompt_pack",
-            "lineno": 437
+            "name": "_module_cmd_from_candidates",
+            "lineno": 401
           },
           {
-            "name": "build_selfdoc",
-            "lineno": 474
+            "name": "_redact_env",
+            "lineno": 419
           },
           {
-            "name": "write_outputs",
-            "lineno": 522
+            "name": "_run_post_diff",
+            "lineno": 431
           },
           {
-            "name": "_parse_argv",
-            "lineno": 562
+            "name": "_run_gateway",
+            "lineno": 447
+          },
+          {
+            "name": "_run_mosaic",
+            "lineno": 482
+          },
+          {
+            "name": "_should_zip",
+            "lineno": 530
+          },
+          {
+            "name": "_writestr_deterministic",
+            "lineno": 537
+          },
+          {
+            "name": "_make_zip",
+            "lineno": 549
+          },
+          {
+            "name": "_dispatch",
+            "lineno": 598
           },
           {
             "name": "main",
-            "lineno": 589
+            "lineno": 618
+          }
+        ],
+        "classes": []
+      },
+      {
+        "path": "analysis/autonomy/gateway.py",
+        "loc": 636,
+        "defs": [
+          {
+            "name": "_strip_inline_comment",
+            "lineno": 73
+          },
+          {
+            "name": "_clean_value",
+            "lineno": 91
+          },
+          {
+            "name": "_simple_parse_env",
+            "lineno": 99
+          },
+          {
+            "name": "_load_env_project_only",
+            "lineno": 116
+          },
+          {
+            "name": "_norm_from",
+            "lineno": 136
+          },
+          {
+            "name": "_best_guess_package_root",
+            "lineno": 144
+          },
+          {
+            "name": "_find_git_root",
+            "lineno": 156
+          },
+          {
+            "name": "_int_env",
+            "lineno": 196
+          },
+          {
+            "name": "_utc_iso",
+            "lineno": 248
+          },
+          {
+            "name": "_safe_read_json",
+            "lineno": 251
+          },
+          {
+            "name": "_read_text",
+            "lineno": 259
+          },
+          {
+            "name": "_rel_to_repo",
+            "lineno": 265
+          },
+          {
+            "name": "_is_binary_like",
+            "lineno": 271
+          },
+          {
+            "name": "_redact_env_snapshot",
+            "lineno": 279
+          },
+          {
+            "name": "scan_repository",
+            "lineno": 289
+          },
+          {
+            "name": "_excluded",
+            "lineno": 304
+          },
+          {
+            "name": "_run_git",
+            "lineno": 387
+          },
+          {
+            "name": "git_snapshot",
+            "lineno": 397
+          },
+          {
+            "name": "make_prompt_pack",
+            "lineno": 438
+          },
+          {
+            "name": "build_selfdoc",
+            "lineno": 472
+          },
+          {
+            "name": "write_outputs",
+            "lineno": 520
+          },
+          {
+            "name": "_parse_argv",
+            "lineno": 557
+          },
+          {
+            "name": "main",
+            "lineno": 581
           }
         ],
         "classes": [
           {
             "name": "Telemetry",
-            "lineno": 190
+            "lineno": 214
           },
           {
             "name": "SelfDocPack",
-            "lineno": 208
+            "lineno": 232
           }
         ]
       },
       {
-        "path": "glitchlab/tests/mosaic/metarelation_scaling_test.py",
+        "path": "tests/mosaic/metarelation_scaling_test.py",
         "loc": 591,
         "defs": [
           {
@@ -958,7 +1203,7 @@
         ]
       },
       {
-        "path": "glitchlab/.githooks/_common.py",
+        "path": ".githooks/_common.py",
         "loc": 588,
         "defs": [
           {
@@ -1097,7 +1342,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/core/pipeline.py",
+        "path": "core/pipeline.py",
         "loc": 545,
         "defs": [
           {
@@ -1153,7 +1398,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/tab_filter.py",
+        "path": "gui/views/tab_filter.py",
         "loc": 514,
         "defs": [
           {
@@ -1325,7 +1570,7 @@
         ]
       },
       {
-        "path": "glitchlab/analysis/reporting.py",
+        "path": "analysis/reporting.py",
         "loc": 506,
         "defs": [
           {
@@ -1448,7 +1693,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/impact.py",
+        "path": "analysis/impact.py",
         "loc": 506,
         "defs": [
           {
@@ -1584,7 +1829,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/preset_manager.py",
+        "path": "gui/widgets/preset_manager.py",
         "loc": 498,
         "defs": [
           {
@@ -1692,7 +1937,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/tab_preset.py",
+        "path": "gui/views/tab_preset.py",
         "loc": 491,
         "defs": [
           {
@@ -1828,7 +2073,7 @@
         ]
       },
       {
-        "path": "glitchlab/analysis/git_io.py",
+        "path": "analysis/git_io.py",
         "loc": 490,
         "defs": [
           {
@@ -1940,7 +2185,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/notebook.py",
+        "path": "gui/views/notebook.py",
         "loc": 464,
         "defs": [
           {
@@ -2144,7 +2389,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/layer_panel.py",
+        "path": "gui/views/layer_panel.py",
         "loc": 458,
         "defs": [
           {
@@ -2250,142 +2495,11 @@
             "lineno": 16
           }
         ]
-      },
-      {
-        "path": "glitchlab/.githooks/post-commit.py",
-        "loc": 455,
-        "defs": [
-          {
-            "name": "_log",
-            "lineno": 19
-          },
-          {
-            "name": "_fail",
-            "lineno": 22
-          },
-          {
-            "name": "_strip_inline_comment",
-            "lineno": 28
-          },
-          {
-            "name": "_parse_glx_run",
-            "lineno": 43
-          },
-          {
-            "name": "_validate_mask",
-            "lineno": 79
-          },
-          {
-            "name": "_clean_value",
-            "lineno": 85
-          },
-          {
-            "name": "_parse_env_file",
-            "lineno": 92
-          },
-          {
-            "name": "_dirs_chain_up",
-            "lineno": 105
-          },
-          {
-            "name": "_expand_vars_and_user",
-            "lineno": 122
-          },
-          {
-            "name": "_resolve_path",
-            "lineno": 126
-          },
-          {
-            "name": "_load_env",
-            "lineno": 134
-          },
-          {
-            "name": "_norm_paths_in_env",
-            "lineno": 147
-          },
-          {
-            "name": "_req",
-            "lineno": 164
-          },
-          {
-            "name": "_as_int",
-            "lineno": 171
-          },
-          {
-            "name": "_as_float01",
-            "lineno": 178
-          },
-          {
-            "name": "_git",
-            "lineno": 186
-          },
-          {
-            "name": "_git_top",
-            "lineno": 192
-          },
-          {
-            "name": "_rev_ok",
-            "lineno": 199
-          },
-          {
-            "name": "_rev_parse",
-            "lineno": 205
-          },
-          {
-            "name": "_empty_tree_oid",
-            "lineno": 210
-          },
-          {
-            "name": "_detect_base",
-            "lineno": 218
-          },
-          {
-            "name": "_module_exists",
-            "lineno": 242
-          },
-          {
-            "name": "_module_cmd_from_candidates",
-            "lineno": 249
-          },
-          {
-            "name": "_redact_env",
-            "lineno": 262
-          },
-          {
-            "name": "_run_post_diff",
-            "lineno": 268
-          },
-          {
-            "name": "_run_gateway",
-            "lineno": 279
-          },
-          {
-            "name": "_run_mosaic",
-            "lineno": 306
-          },
-          {
-            "name": "_should_zip",
-            "lineno": 354
-          },
-          {
-            "name": "_writestr_deterministic",
-            "lineno": 359
-          },
-          {
-            "name": "_make_zip",
-            "lineno": 365
-          },
-          {
-            "name": "main",
-            "lineno": 408
-          }
-        ],
-        "classes": []
       }
     ],
     "modules": [
       {
-        "path": "glitchlab/.githooks/_common.py",
+        "path": ".githooks/_common.py",
         "loc": 588,
         "defs": [
           {
@@ -2524,138 +2638,150 @@
         "classes": []
       },
       {
-        "path": "glitchlab/.githooks/post-commit.py",
-        "loc": 455,
+        "path": ".githooks/post-commit.py",
+        "loc": 663,
         "defs": [
           {
             "name": "_log",
-            "lineno": 19
+            "lineno": 83
           },
           {
             "name": "_fail",
-            "lineno": 22
+            "lineno": 88
           },
           {
             "name": "_strip_inline_comment",
-            "lineno": 28
+            "lineno": 95
           },
           {
             "name": "_parse_glx_run",
-            "lineno": 43
+            "lineno": 113
           },
           {
             "name": "_validate_mask",
-            "lineno": 79
+            "lineno": 152
           },
           {
             "name": "_clean_value",
-            "lineno": 85
+            "lineno": 159
           },
           {
             "name": "_parse_env_file",
-            "lineno": 92
-          },
-          {
-            "name": "_dirs_chain_up",
-            "lineno": 105
-          },
-          {
-            "name": "_expand_vars_and_user",
-            "lineno": 122
-          },
-          {
-            "name": "_resolve_path",
-            "lineno": 126
-          },
-          {
-            "name": "_load_env",
-            "lineno": 134
-          },
-          {
-            "name": "_norm_paths_in_env",
-            "lineno": 147
-          },
-          {
-            "name": "_req",
-            "lineno": 164
-          },
-          {
-            "name": "_as_int",
             "lineno": 171
           },
           {
-            "name": "_as_float01",
-            "lineno": 178
-          },
-          {
-            "name": "_git",
-            "lineno": 186
-          },
-          {
-            "name": "_git_top",
+            "name": "_expand_vars_and_user",
             "lineno": 192
           },
           {
-            "name": "_rev_ok",
-            "lineno": 199
+            "name": "_resolve_path",
+            "lineno": 197
           },
           {
-            "name": "_rev_parse",
-            "lineno": 205
+            "name": "_load_env_project_only",
+            "lineno": 206
           },
           {
-            "name": "_empty_tree_oid",
-            "lineno": 210
+            "name": "_req",
+            "lineno": 229
           },
           {
-            "name": "_detect_base",
-            "lineno": 218
+            "name": "_as_int",
+            "lineno": 237
           },
           {
-            "name": "_module_exists",
-            "lineno": 242
+            "name": "_as_float01",
+            "lineno": 245
           },
           {
-            "name": "_module_cmd_from_candidates",
-            "lineno": 249
+            "name": "_is_subpath",
+            "lineno": 253
           },
           {
-            "name": "_redact_env",
+            "name": "_norm_paths_in_env",
             "lineno": 262
           },
           {
+            "name": "_enforce_env_invariants",
+            "lineno": 297
+          },
+          {
+            "name": "_py_env_with_path",
+            "lineno": 318
+          },
+          {
+            "name": "_run_py",
+            "lineno": 329
+          },
+          {
+            "name": "_git",
+            "lineno": 337
+          },
+          {
+            "name": "_rev_ok",
+            "lineno": 343
+          },
+          {
+            "name": "_rev_parse",
+            "lineno": 350
+          },
+          {
+            "name": "_empty_tree_oid",
+            "lineno": 356
+          },
+          {
+            "name": "_detect_base",
+            "lineno": 363
+          },
+          {
+            "name": "_module_exists",
+            "lineno": 393
+          },
+          {
+            "name": "_module_cmd_from_candidates",
+            "lineno": 401
+          },
+          {
+            "name": "_redact_env",
+            "lineno": 419
+          },
+          {
             "name": "_run_post_diff",
-            "lineno": 268
+            "lineno": 431
           },
           {
             "name": "_run_gateway",
-            "lineno": 279
+            "lineno": 447
           },
           {
             "name": "_run_mosaic",
-            "lineno": 306
+            "lineno": 482
           },
           {
             "name": "_should_zip",
-            "lineno": 354
+            "lineno": 530
           },
           {
             "name": "_writestr_deterministic",
-            "lineno": 359
+            "lineno": 537
           },
           {
             "name": "_make_zip",
-            "lineno": 365
+            "lineno": 549
+          },
+          {
+            "name": "_dispatch",
+            "lineno": 598
           },
           {
             "name": "main",
-            "lineno": 408
+            "lineno": 618
           }
         ],
         "classes": []
       },
       {
-        "path": "glitchlab/.githooks/post-diff.py",
+        "path": ".githooks/post-diff.py",
         "loc": 123,
         "defs": [
           {
@@ -2674,7 +2800,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/.githooks/pre-commit.py",
+        "path": ".githooks/pre-commit.py",
         "loc": 134,
         "defs": [
           {
@@ -2693,7 +2819,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/.githooks/pre-diff.py",
+        "path": ".githooks/pre-diff.py",
         "loc": 209,
         "defs": [
           {
@@ -2728,19 +2854,19 @@
         "classes": []
       },
       {
-        "path": "glitchlab/__init__.py",
+        "path": "__init__.py",
         "loc": 2,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/__init__.py",
+        "path": "analysis/__init__.py",
         "loc": 2,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/ast_delta.py",
+        "path": "analysis/ast_delta.py",
         "loc": 335,
         "defs": [
           {
@@ -2808,7 +2934,7 @@
         ]
       },
       {
-        "path": "glitchlab/analysis/ast_index.py",
+        "path": "analysis/ast_index.py",
         "loc": 349,
         "defs": [
           {
@@ -2872,7 +2998,7 @@
         ]
       },
       {
-        "path": "glitchlab/analysis/ast_mosaic_analyzer.py",
+        "path": "analysis/ast_mosaic_analyzer.py",
         "loc": 134,
         "defs": [
           {
@@ -2907,121 +3033,121 @@
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/autonomy/__init__.py",
+        "path": "analysis/autonomy/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/autonomy/gateway.py",
-        "loc": 637,
+        "path": "analysis/autonomy/gateway.py",
+        "loc": 636,
         "defs": [
           {
             "name": "_strip_inline_comment",
-            "lineno": 46
+            "lineno": 73
           },
           {
             "name": "_clean_value",
-            "lineno": 61
+            "lineno": 91
           },
           {
             "name": "_simple_parse_env",
-            "lineno": 68
+            "lineno": 99
           },
           {
-            "name": "_dirs_chain_up",
-            "lineno": 82
-          },
-          {
-            "name": "_load_dotenv_chain_into_environ",
-            "lineno": 102
+            "name": "_load_env_project_only",
+            "lineno": 116
           },
           {
             "name": "_norm_from",
-            "lineno": 134
+            "lineno": 136
           },
           {
             "name": "_best_guess_package_root",
-            "lineno": 141
+            "lineno": 144
+          },
+          {
+            "name": "_find_git_root",
+            "lineno": 156
           },
           {
             "name": "_int_env",
-            "lineno": 165
+            "lineno": 196
           },
           {
             "name": "_utc_iso",
-            "lineno": 227
+            "lineno": 248
           },
           {
             "name": "_safe_read_json",
-            "lineno": 231
+            "lineno": 251
           },
           {
             "name": "_read_text",
-            "lineno": 240
+            "lineno": 259
           },
           {
-            "name": "_rel_to_project",
-            "lineno": 247
+            "name": "_rel_to_repo",
+            "lineno": 265
           },
           {
             "name": "_is_binary_like",
-            "lineno": 254
+            "lineno": 271
           },
           {
             "name": "_redact_env_snapshot",
-            "lineno": 264
+            "lineno": 279
           },
           {
             "name": "scan_repository",
-            "lineno": 280
+            "lineno": 289
           },
           {
             "name": "_excluded",
-            "lineno": 295
+            "lineno": 304
           },
           {
             "name": "_run_git",
-            "lineno": 382
+            "lineno": 387
           },
           {
             "name": "git_snapshot",
-            "lineno": 393
+            "lineno": 397
           },
           {
             "name": "make_prompt_pack",
-            "lineno": 437
+            "lineno": 438
           },
           {
             "name": "build_selfdoc",
-            "lineno": 474
+            "lineno": 472
           },
           {
             "name": "write_outputs",
-            "lineno": 522
+            "lineno": 520
           },
           {
             "name": "_parse_argv",
-            "lineno": 562
+            "lineno": 557
           },
           {
             "name": "main",
-            "lineno": 589
+            "lineno": 581
           }
         ],
         "classes": [
           {
             "name": "Telemetry",
-            "lineno": 190
+            "lineno": 214
           },
           {
             "name": "SelfDocPack",
-            "lineno": 208
+            "lineno": 232
           }
         ]
       },
       {
-        "path": "glitchlab/analysis/diff.py",
+        "path": "analysis/diff.py",
         "loc": 208,
         "defs": [
           {
@@ -3052,7 +3178,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/exporters.py",
+        "path": "analysis/exporters.py",
         "loc": 304,
         "defs": [
           {
@@ -3087,7 +3213,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/formats.py",
+        "path": "analysis/formats.py",
         "loc": 145,
         "defs": [
           {
@@ -3110,7 +3236,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/git_io.py",
+        "path": "analysis/git_io.py",
         "loc": 490,
         "defs": [
           {
@@ -3222,7 +3348,59 @@
         ]
       },
       {
-        "path": "glitchlab/analysis/impact.py",
+        "path": "analysis/grammar/egdb_store.py",
+        "loc": 163,
+        "defs": [
+          {
+            "name": "_parse_ts",
+            "lineno": 23
+          },
+          {
+            "name": "__post_init__",
+            "lineno": 38
+          },
+          {
+            "name": "_conn",
+            "lineno": 44
+          },
+          {
+            "name": "ensure_schema",
+            "lineno": 48
+          },
+          {
+            "name": "ensure_views",
+            "lineno": 96
+          },
+          {
+            "name": "upsert_topic",
+            "lineno": 104
+          },
+          {
+            "name": "insert_event",
+            "lineno": 116
+          },
+          {
+            "name": "insert_grammar_event",
+            "lineno": 131
+          },
+          {
+            "name": "insert_delta",
+            "lineno": 146
+          },
+          {
+            "name": "query",
+            "lineno": 157
+          }
+        ],
+        "classes": [
+          {
+            "name": "EGDB",
+            "lineno": 35
+          }
+        ]
+      },
+      {
+        "path": "analysis/impact.py",
         "loc": 506,
         "defs": [
           {
@@ -3358,7 +3536,7 @@
         ]
       },
       {
-        "path": "glitchlab/analysis/metrics.py",
+        "path": "analysis/metrics.py",
         "loc": 235,
         "defs": [
           {
@@ -3389,7 +3567,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/mosaic_adapter.py",
+        "path": "analysis/mosaic_adapter.py",
         "loc": 224,
         "defs": [
           {
@@ -3420,7 +3598,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/phi_psi_bridge.py",
+        "path": "analysis/phi_psi_bridge.py",
         "loc": 316,
         "defs": [
           {
@@ -3472,7 +3650,7 @@
         ]
       },
       {
-        "path": "glitchlab/analysis/reporting.py",
+        "path": "analysis/reporting.py",
         "loc": 506,
         "defs": [
           {
@@ -3595,7 +3773,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/analysis/spectral.py",
+        "path": "analysis/spectral.py",
         "loc": 178,
         "defs": [
           {
@@ -3626,13 +3804,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/bench/__init__.py",
+        "path": "bench/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/bench/ab_pilot.py",
+        "path": "bench/ab_pilot.py",
         "loc": 103,
         "defs": [
           {
@@ -3655,7 +3833,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/bench/ab_runner.py",
+        "path": "bench/ab_runner.py",
         "loc": 90,
         "defs": [
           {
@@ -3674,13 +3852,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/bench/agents/__init__.py",
+        "path": "bench/agents/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/bench/agents/agent_mozaika.py",
+        "path": "bench/agents/agent_mozaika.py",
         "loc": 81,
         "defs": [
           {
@@ -3695,7 +3873,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/bench/agents/agent_ms_like.py",
+        "path": "bench/agents/agent_ms_like.py",
         "loc": 121,
         "defs": [
           {
@@ -3718,7 +3896,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/bench/judge.py",
+        "path": "bench/judge.py",
         "loc": 90,
         "defs": [
           {
@@ -3742,7 +3920,7 @@
         ]
       },
       {
-        "path": "glitchlab/bench/metrics.py",
+        "path": "bench/metrics.py",
         "loc": 53,
         "defs": [
           {
@@ -3765,13 +3943,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/bench/schemas/__init__.py",
+        "path": "bench/schemas/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/bench/stats.py",
+        "path": "bench/stats.py",
         "loc": 76,
         "defs": [
           {
@@ -3794,7 +3972,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/bench/templates.py",
+        "path": "bench/templates.py",
         "loc": 51,
         "defs": [
           {
@@ -3805,13 +3983,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/bench/utils/__init__.py",
+        "path": "bench/utils/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/bench/utils/plot_results.py",
+        "path": "bench/utils/plot_results.py",
         "loc": 171,
         "defs": [
           {
@@ -3842,13 +4020,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/core/__init__.py",
+        "path": "core/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/core/astmap.py",
+        "path": "core/astmap.py",
         "loc": 357,
         "defs": [
           {
@@ -3932,7 +4110,7 @@
         ]
       },
       {
-        "path": "glitchlab/core/graph.py",
+        "path": "core/graph.py",
         "loc": 189,
         "defs": [
           {
@@ -3972,7 +4150,7 @@
         ]
       },
       {
-        "path": "glitchlab/core/metrics/basic.py",
+        "path": "core/metrics/basic.py",
         "loc": 171,
         "defs": [
           {
@@ -4003,7 +4181,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/core/metrics/compare.py",
+        "path": "core/metrics/compare.py",
         "loc": 165,
         "defs": [
           {
@@ -4030,7 +4208,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/core/mosaic.py",
+        "path": "core/mosaic.py",
         "loc": 378,
         "defs": [
           {
@@ -4093,7 +4271,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/core/pipeline.py",
+        "path": "core/pipeline.py",
         "loc": 545,
         "defs": [
           {
@@ -4149,7 +4327,7 @@
         ]
       },
       {
-        "path": "glitchlab/core/registry.py",
+        "path": "core/registry.py",
         "loc": 136,
         "defs": [
           {
@@ -4192,7 +4370,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/core/roi.py",
+        "path": "core/roi.py",
         "loc": 211,
         "defs": [
           {
@@ -4239,7 +4417,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/core/symbols.py",
+        "path": "core/symbols.py",
         "loc": 228,
         "defs": [
           {
@@ -4262,7 +4440,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/core/utils.py",
+        "path": "core/utils.py",
         "loc": 316,
         "defs": [
           {
@@ -4317,7 +4495,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/__init__.py",
+        "path": "filters/__init__.py",
         "loc": 121,
         "defs": [
           {
@@ -4336,7 +4514,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/anisotropic_contour_warp.py",
+        "path": "filters/anisotropic_contour_warp.py",
         "loc": 243,
         "defs": [
           {
@@ -4387,7 +4565,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/block_mosh.py",
+        "path": "filters/block_mosh.py",
         "loc": 178,
         "defs": [
           {
@@ -4426,7 +4604,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/block_mosh_grid.py",
+        "path": "filters/block_mosh_grid.py",
         "loc": 309,
         "defs": [
           {
@@ -4489,7 +4667,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/default_identity.py",
+        "path": "filters/default_identity.py",
         "loc": 161,
         "defs": [
           {
@@ -4528,7 +4706,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/depth_displace.py",
+        "path": "filters/depth_displace.py",
         "loc": 245,
         "defs": [
           {
@@ -4580,7 +4758,7 @@
         ]
       },
       {
-        "path": "glitchlab/filters/depth_parallax.py",
+        "path": "filters/depth_parallax.py",
         "loc": 203,
         "defs": [
           {
@@ -4615,7 +4793,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/gamma_gain.py",
+        "path": "filters/gamma_gain.py",
         "loc": 66,
         "defs": [
           {
@@ -4626,7 +4804,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/phase_glitch.py",
+        "path": "filters/phase_glitch.py",
         "loc": 130,
         "defs": [
           {
@@ -4649,7 +4827,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/pixel_sort_adaptive.py",
+        "path": "filters/pixel_sort_adaptive.py",
         "loc": 185,
         "defs": [
           {
@@ -4680,7 +4858,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/rgb_glow.py",
+        "path": "filters/rgb_glow.py",
         "loc": 99,
         "defs": [
           {
@@ -4699,7 +4877,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/rgb_offset.py",
+        "path": "filters/rgb_offset.py",
         "loc": 158,
         "defs": [
           {
@@ -4738,7 +4916,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/spectral_shaper.py",
+        "path": "filters/spectral_shaper.py",
         "loc": 213,
         "defs": [
           {
@@ -4789,7 +4967,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/filters/tile_tess_probe.py",
+        "path": "filters/tile_tess_probe.py",
         "loc": 239,
         "defs": [
           {
@@ -4856,13 +5034,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/gui/__init__.py",
+        "path": "gui/__init__.py",
         "loc": 1,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/gui/app.py",
+        "path": "gui/app.py",
         "loc": 921,
         "defs": [
           {
@@ -5046,7 +5224,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/controls.py",
+        "path": "gui/controls.py",
         "loc": 27,
         "defs": [
           {
@@ -5073,7 +5251,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/gui/docking.py",
+        "path": "gui/docking.py",
         "loc": 46,
         "defs": [
           {
@@ -5109,7 +5287,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/event_bus.py",
+        "path": "gui/event_bus.py",
         "loc": 98,
         "defs": [
           {
@@ -5149,7 +5327,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/exporters.py",
+        "path": "gui/exporters.py",
         "loc": 46,
         "defs": [
           {
@@ -5168,7 +5346,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/gui/generic_form_panel.py",
+        "path": "gui/generic_form_panel.py",
         "loc": 58,
         "defs": [
           {
@@ -5192,7 +5370,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/image_canvas.py",
+        "path": "gui/image_canvas.py",
         "loc": 144,
         "defs": [
           {
@@ -5264,7 +5442,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/log_window.py",
+        "path": "gui/log_window.py",
         "loc": 20,
         "defs": [
           {
@@ -5284,7 +5462,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panel_base.py",
+        "path": "gui/panel_base.py",
         "loc": 191,
         "defs": [
           {
@@ -5352,7 +5530,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panel_loader.py",
+        "path": "gui/panel_loader.py",
         "loc": 285,
         "defs": [
           {
@@ -5408,7 +5586,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/__init__.py",
+        "path": "gui/panels/__init__.py",
         "loc": 168,
         "defs": [
           {
@@ -5456,7 +5634,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/base.py",
+        "path": "gui/panels/base.py",
         "loc": 74,
         "defs": [
           {
@@ -5496,7 +5674,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_anisotropic_contour_warp.py",
+        "path": "gui/panels/panel_anisotropic_contour_warp.py",
         "loc": 196,
         "defs": [
           {
@@ -5548,7 +5726,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_block_mosh.py",
+        "path": "gui/panels/panel_block_mosh.py",
         "loc": 204,
         "defs": [
           {
@@ -5608,7 +5786,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_block_mosh_grid.py",
+        "path": "gui/panels/panel_block_mosh_grid.py",
         "loc": 249,
         "defs": [
           {
@@ -5660,7 +5838,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_default_identity.py",
+        "path": "gui/panels/panel_default_identity.py",
         "loc": 155,
         "defs": [
           {
@@ -5712,7 +5890,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_depth_displace.py",
+        "path": "gui/panels/panel_depth_displace.py",
         "loc": 223,
         "defs": [
           {
@@ -5772,7 +5950,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_gamma_gain.py",
+        "path": "gui/panels/panel_gamma_gain.py",
         "loc": 144,
         "defs": [
           {
@@ -5828,7 +6006,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_phase_glitch.py",
+        "path": "gui/panels/panel_phase_glitch.py",
         "loc": 150,
         "defs": [
           {
@@ -5884,7 +6062,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_pixel_sort_adaptive.py",
+        "path": "gui/panels/panel_pixel_sort_adaptive.py",
         "loc": 193,
         "defs": [
           {
@@ -5936,7 +6114,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_rgb_glow.py",
+        "path": "gui/panels/panel_rgb_glow.py",
         "loc": 120,
         "defs": [
           {
@@ -5968,7 +6146,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_rgb_offset.py",
+        "path": "gui/panels/panel_rgb_offset.py",
         "loc": 304,
         "defs": [
           {
@@ -6060,7 +6238,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_spectral_shaper.py",
+        "path": "gui/panels/panel_spectral_shaper.py",
         "loc": 281,
         "defs": [
           {
@@ -6116,7 +6294,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/panels/panel_tile_tess_probe.py",
+        "path": "gui/panels/panel_tile_tess_probe.py",
         "loc": 192,
         "defs": [
           {
@@ -6168,7 +6346,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/paths.py",
+        "path": "gui/paths.py",
         "loc": 16,
         "defs": [
           {
@@ -6183,7 +6361,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/gui/preset_dir_fallback.py",
+        "path": "gui/preset_dir_fallback.py",
         "loc": 62,
         "defs": [
           {
@@ -6202,7 +6380,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/gui/preset_manager.py",
+        "path": "gui/preset_manager.py",
         "loc": 167,
         "defs": [
           {
@@ -6254,7 +6432,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/preset_paths.py",
+        "path": "gui/preset_paths.py",
         "loc": 101,
         "defs": [
           {
@@ -6285,13 +6463,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/gui/services/__init__.py",
+        "path": "gui/services/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/gui/services/compositor.py",
+        "path": "gui/services/compositor.py",
         "loc": 176,
         "defs": [
           {
@@ -6322,7 +6500,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/gui/services/files.py",
+        "path": "gui/services/files.py",
         "loc": 247,
         "defs": [
           {
@@ -6390,7 +6568,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/services/image_history.py",
+        "path": "gui/services/image_history.py",
         "loc": 252,
         "defs": [
           {
@@ -6482,7 +6660,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/services/layer_manager.py",
+        "path": "gui/services/layer_manager.py",
         "loc": 379,
         "defs": [
           {
@@ -6578,7 +6756,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/services/layout.py",
+        "path": "gui/services/layout.py",
         "loc": 288,
         "defs": [
           {
@@ -6642,7 +6820,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/services/masks.py",
+        "path": "gui/services/masks.py",
         "loc": 148,
         "defs": [
           {
@@ -6702,7 +6880,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/services/pipeline_runner.py",
+        "path": "gui/services/pipeline_runner.py",
         "loc": 208,
         "defs": [
           {
@@ -6754,7 +6932,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/services/presets.py",
+        "path": "gui/services/presets.py",
         "loc": 284,
         "defs": [
           {
@@ -6814,7 +6992,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/state.py",
+        "path": "gui/state.py",
         "loc": 20,
         "defs": [],
         "classes": [
@@ -6825,13 +7003,13 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/__init__.py",
+        "path": "gui/views/__init__.py",
         "loc": 24,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/gui/views/bottom_area.py",
+        "path": "gui/views/bottom_area.py",
         "loc": 62,
         "defs": [
           {
@@ -6851,7 +7029,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/bottom_panel.py",
+        "path": "gui/views/bottom_panel.py",
         "loc": 211,
         "defs": [
           {
@@ -6923,7 +7101,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/helpers/dragging_helper.py",
+        "path": "gui/views/helpers/dragging_helper.py",
         "loc": 386,
         "defs": [
           {
@@ -7035,7 +7213,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/hud.py",
+        "path": "gui/views/hud.py",
         "loc": 399,
         "defs": [
           {
@@ -7127,7 +7305,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/layer_panel.py",
+        "path": "gui/views/layer_panel.py",
         "loc": 458,
         "defs": [
           {
@@ -7235,7 +7413,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/left_dummy.py",
+        "path": "gui/views/left_dummy.py",
         "loc": 67,
         "defs": [
           {
@@ -7267,7 +7445,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/left_toolbar.py",
+        "path": "gui/views/left_toolbar.py",
         "loc": 147,
         "defs": [
           {
@@ -7319,7 +7497,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/menu.py",
+        "path": "gui/views/menu.py",
         "loc": 240,
         "defs": [
           {
@@ -7387,7 +7565,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/notebook.py",
+        "path": "gui/views/notebook.py",
         "loc": 464,
         "defs": [
           {
@@ -7591,7 +7769,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/statusbar.py",
+        "path": "gui/views/statusbar.py",
         "loc": 212,
         "defs": [
           {
@@ -7647,7 +7825,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/tab_filter.py",
+        "path": "gui/views/tab_filter.py",
         "loc": 514,
         "defs": [
           {
@@ -7819,7 +7997,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/tab_general.py",
+        "path": "gui/views/tab_general.py",
         "loc": 407,
         "defs": [
           {
@@ -7947,7 +8125,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/tab_preset.py",
+        "path": "gui/views/tab_preset.py",
         "loc": 491,
         "defs": [
           {
@@ -8083,7 +8261,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/views/viewport.py",
+        "path": "gui/views/viewport.py",
         "loc": 226,
         "defs": [
           {
@@ -8179,13 +8357,13 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/__init__.py",
+        "path": "gui/widgets/__init__.py",
         "loc": 16,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/gui/widgets/canvas_container.py",
+        "path": "gui/widgets/canvas_container.py",
         "loc": 393,
         "defs": [
           {
@@ -8341,7 +8519,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/diag_console.py",
+        "path": "gui/widgets/diag_console.py",
         "loc": 235,
         "defs": [
           {
@@ -8425,7 +8603,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/graph_view.py",
+        "path": "gui/widgets/graph_view.py",
         "loc": 21,
         "defs": [
           {
@@ -8445,7 +8623,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/hud.py",
+        "path": "gui/widgets/hud.py",
         "loc": 61,
         "defs": [
           {
@@ -8469,7 +8647,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/image_canvas.py",
+        "path": "gui/widgets/image_canvas.py",
         "loc": 224,
         "defs": [
           {
@@ -8545,7 +8723,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/image_layers.py",
+        "path": "gui/widgets/image_layers.py",
         "loc": 186,
         "defs": [
           {
@@ -8625,7 +8803,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/layer_canvas.py",
+        "path": "gui/widgets/layer_canvas.py",
         "loc": 399,
         "defs": [
           {
@@ -8769,7 +8947,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/mask_browser.py",
+        "path": "gui/widgets/mask_browser.py",
         "loc": 103,
         "defs": [
           {
@@ -8805,7 +8983,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/mask_chooser.py",
+        "path": "gui/widgets/mask_chooser.py",
         "loc": 151,
         "defs": [
           {
@@ -8849,7 +9027,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/mask_picker.py",
+        "path": "gui/widgets/mask_picker.py",
         "loc": 64,
         "defs": [
           {
@@ -8877,7 +9055,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/mosaic_view.py",
+        "path": "gui/widgets/mosaic_view.py",
         "loc": 26,
         "defs": [
           {
@@ -8897,7 +9075,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/overlay_renderer.py",
+        "path": "gui/widgets/overlay_renderer.py",
         "loc": 257,
         "defs": [
           {
@@ -8945,7 +9123,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/param_form.py",
+        "path": "gui/widgets/param_form.py",
         "loc": 190,
         "defs": [
           {
@@ -8973,7 +9151,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/pipeline_preview.py",
+        "path": "gui/widgets/pipeline_preview.py",
         "loc": 69,
         "defs": [
           {
@@ -9005,7 +9183,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/preset_folder.py",
+        "path": "gui/widgets/preset_folder.py",
         "loc": 136,
         "defs": [
           {
@@ -9041,7 +9219,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/preset_manager.py",
+        "path": "gui/widgets/preset_manager.py",
         "loc": 498,
         "defs": [
           {
@@ -9149,7 +9327,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/ruler.py",
+        "path": "gui/widgets/ruler.py",
         "loc": 229,
         "defs": [
           {
@@ -9221,7 +9399,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/toolbox.py",
+        "path": "gui/widgets/toolbox.py",
         "loc": 131,
         "defs": [
           {
@@ -9277,7 +9455,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/__init__.py",
+        "path": "gui/widgets/tools/__init__.py",
         "loc": 119,
         "defs": [
           {
@@ -9361,7 +9539,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/base.py",
+        "path": "gui/widgets/tools/base.py",
         "loc": 138,
         "defs": [
           {
@@ -9469,7 +9647,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/tool_brush.py",
+        "path": "gui/widgets/tools/tool_brush.py",
         "loc": 222,
         "defs": [
           {
@@ -9529,7 +9707,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/tool_ellipse_select.py",
+        "path": "gui/widgets/tools/tool_ellipse_select.py",
         "loc": 209,
         "defs": [
           {
@@ -9633,7 +9811,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/tool_eraser.py",
+        "path": "gui/widgets/tools/tool_eraser.py",
         "loc": 204,
         "defs": [
           {
@@ -9693,7 +9871,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/tool_measure.py",
+        "path": "gui/widgets/tools/tool_measure.py",
         "loc": 141,
         "defs": [
           {
@@ -9737,7 +9915,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/tool_move_layer.py",
+        "path": "gui/widgets/tools/tool_move_layer.py",
         "loc": 184,
         "defs": [
           {
@@ -9785,7 +9963,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/tool_pipette.py",
+        "path": "gui/widgets/tools/tool_pipette.py",
         "loc": 170,
         "defs": [
           {
@@ -9845,7 +10023,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/tool_rect_select.py",
+        "path": "gui/widgets/tools/tool_rect_select.py",
         "loc": 196,
         "defs": [
           {
@@ -9941,7 +10119,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/tools/tool_view.py",
+        "path": "gui/widgets/tools/tool_view.py",
         "loc": 117,
         "defs": [
           {
@@ -9989,7 +10167,7 @@
         ]
       },
       {
-        "path": "glitchlab/gui/widgets/welcome_panel.py",
+        "path": "gui/widgets/welcome_panel.py",
         "loc": 26,
         "defs": [
           {
@@ -10005,7 +10183,7 @@
         ]
       },
       {
-        "path": "glitchlab/mosaic/__init__.py",
+        "path": "mosaic/__init__.py",
         "loc": 35,
         "defs": [
           {
@@ -10020,7 +10198,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/mosaic/git_delta.py",
+        "path": "mosaic/git_delta.py",
         "loc": 234,
         "defs": [
           {
@@ -10079,7 +10257,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/mosaic/hybrid_ast_mosaic.py",
+        "path": "mosaic/hybrid_ast_mosaic.py",
         "loc": 1713,
         "defs": [
           {
@@ -10415,7 +10593,7 @@
         ]
       },
       {
-        "path": "glitchlab/mosaic/hybrid_schema_builder.py",
+        "path": "mosaic/hybrid_schema_builder.py",
         "loc": 392,
         "defs": [
           {
@@ -10503,7 +10681,7 @@
         ]
       },
       {
-        "path": "glitchlab/mosaic/hybrid_stats.py",
+        "path": "mosaic/hybrid_stats.py",
         "loc": 213,
         "defs": [
           {
@@ -10546,7 +10724,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/mosaic/router.py",
+        "path": "mosaic/router.py",
         "loc": 349,
         "defs": [
           {
@@ -10602,7 +10780,7 @@
         ]
       },
       {
-        "path": "glitchlab/mosaic/spec.py",
+        "path": "mosaic/spec.py",
         "loc": 287,
         "defs": [
           {
@@ -10657,7 +10835,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/mosaic/vis_ast_kites_all.py",
+        "path": "mosaic/vis_ast_kites_all.py",
         "loc": 249,
         "defs": [
           {
@@ -10701,32 +10879,32 @@
         ]
       },
       {
-        "path": "glitchlab/samples/t_ok.py",
+        "path": "samples/t_ok.py",
         "loc": 3,
         "broken_ast": true,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/__init__.py",
+        "path": "tests/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/__init__.py",
+        "path": "tests/bench/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/e2e/__init__.py",
+        "path": "tests/bench/e2e/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/e2e/test_ab_runner.py",
+        "path": "tests/bench/e2e/test_ab_runner.py",
         "loc": 67,
         "defs": [
           {
@@ -10769,7 +10947,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/e2e/test_plot_results.py",
+        "path": "tests/bench/e2e/test_plot_results.py",
         "loc": 14,
         "defs": [
           {
@@ -10780,13 +10958,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/fuzz/__init__.py",
+        "path": "tests/bench/fuzz/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/fuzz/test_fuzz_tasks.py",
+        "path": "tests/bench/fuzz/test_fuzz_tasks.py",
         "loc": 13,
         "defs": [
           {
@@ -10797,13 +10975,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/perf/__init__.py",
+        "path": "tests/bench/perf/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/perf/test_perf_timings.py",
+        "path": "tests/bench/perf/test_perf_timings.py",
         "loc": 11,
         "defs": [
           {
@@ -10814,13 +10992,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/property/__init__.py",
+        "path": "tests/bench/property/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/property/test_tasks_property.py",
+        "path": "tests/bench/property/test_tasks_property.py",
         "loc": 9,
         "defs": [
           {
@@ -10831,13 +11009,13 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/unit/__init__.py",
+        "path": "tests/bench/unit/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/unit/test_stats.py",
+        "path": "tests/bench/unit/test_stats.py",
         "loc": 9,
         "defs": [
           {
@@ -10852,7 +11030,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/bench/unit/test_templates.py",
+        "path": "tests/bench/unit/test_templates.py",
         "loc": 6,
         "defs": [
           {
@@ -10863,7 +11041,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/conftest.py",
+        "path": "tests/conftest.py",
         "loc": 39,
         "defs": [
           {
@@ -10874,20 +11052,20 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/hook_probe.py",
+        "path": "tests/hook_probe.py",
         "loc": 2,
         "broken_ast": true,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/mosaic/__init__.py",
+        "path": "tests/mosaic/__init__.py",
         "loc": 0,
         "defs": [],
         "classes": []
       },
       {
-        "path": "glitchlab/tests/mosaic/ast_mosaic_coupled.py",
+        "path": "tests/mosaic/ast_mosaic_coupled.py",
         "loc": 732,
         "defs": [
           {
@@ -11067,7 +11245,7 @@
         ]
       },
       {
-        "path": "glitchlab/tests/mosaic/ast_mosaic_protocol_experiment.py",
+        "path": "tests/mosaic/ast_mosaic_protocol_experiment.py",
         "loc": 350,
         "defs": [
           {
@@ -11155,7 +11333,7 @@
         ]
       },
       {
-        "path": "glitchlab/tests/mosaic/ast_mosaic_to_lattice_experiment.py",
+        "path": "tests/mosaic/ast_mosaic_to_lattice_experiment.py",
         "loc": 354,
         "defs": [
           {
@@ -11251,7 +11429,7 @@
         ]
       },
       {
-        "path": "glitchlab/tests/mosaic/demo_hybrid_mosaic_eval.py",
+        "path": "tests/mosaic/demo_hybrid_mosaic_eval.py",
         "loc": 179,
         "defs": [
           {
@@ -11274,7 +11452,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/mosaic/hybrid_mosaic_test_report.py",
+        "path": "tests/mosaic/hybrid_mosaic_test_report.py",
         "loc": 262,
         "defs": [
           {
@@ -11313,7 +11491,7 @@
         "classes": []
       },
       {
-        "path": "glitchlab/tests/mosaic/metarelation_scaling_test.py",
+        "path": "tests/mosaic/metarelation_scaling_test.py",
         "loc": 591,
         "defs": [
           {
@@ -11458,16 +11636,79 @@
   "prompts": {
     "architect_review": {
       "system": "Jesteś asystentem inżynierskim GlitchLab. Twoja analiza ma być deterministyczna, konkretna, bez wprowadzania losowości. Oceniaj wpływ zmian na architekturę i HUD/Mosaic⇄AST.",
-      "user": "Cel: architect_review. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34536, modules=174, defs=1756, classes=183.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
+      "user": "Cel: architect_review. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34906, modules=175, defs=1769, classes=184.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
       "context": {
         "glx_state": {},
-        "git_head": null,
-        "git_branch": null,
-        "recent_commits": [],
-        "delta_last": [],
+        "git_head": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
+        "git_branch": "master",
+        "recent_commits": [
+          {
+            "hash": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
+            "ts": 1759586577,
+            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "1d027e2badfe965267cad39498c2f5678f77d431",
+            "ts": 1759581545,
+            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "ca6a1a0a043ccc90c6f17c2b0a4a5e46222ec6bb",
+            "ts": 1759581205,
+            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "94cfcc22cd197eeaa2e886a29ac1c92d2be84554",
+            "ts": 1759567839,
+            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "cb0bcaaa3b13e6bb63cd13eebd2b86bf43c4cfb4",
+            "ts": 1759567784,
+            "subject": "8 file(s) staged: [Δ] Zakres - files: 8 (commit_analysis.json, commit_snippet.txt, ast_index.py, commit_20251004-083627.json, env.json, pack.json (+2)) - typ: auto (pre-diff)"
+          }
+        ],
+        "delta_last": [
+          {
+            "status": "A",
+            "path": ".githooks/_common.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/post-commit.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/post-diff.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/pre-commit.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/pre-diff.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/prepare-commit-msg"
+          },
+          {
+            "status": "M",
+            "path": "analysis/last/autonomy/pack.json"
+          },
+          {
+            "status": "M",
+            "path": "analysis/last/autonomy/pack.md"
+          },
+          {
+            "status": "M",
+            "path": "analysis/last/autonomy/prompt.json"
+          }
+        ],
         "top_modules": [
           {
-            "path": "glitchlab/mosaic/hybrid_ast_mosaic.py",
+            "path": "mosaic/hybrid_ast_mosaic.py",
             "loc": 1713,
             "defs": [
               {
@@ -11803,7 +12044,7 @@
             ]
           },
           {
-            "path": "glitchlab/gui/app.py",
+            "path": "gui/app.py",
             "loc": 921,
             "defs": [
               {
@@ -11987,7 +12228,7 @@
             ]
           },
           {
-            "path": "glitchlab/tests/mosaic/ast_mosaic_coupled.py",
+            "path": "tests/mosaic/ast_mosaic_coupled.py",
             "loc": 732,
             "defs": [
               {
@@ -12167,115 +12408,258 @@
             ]
           },
           {
-            "path": "glitchlab/analysis/autonomy/gateway.py",
-            "loc": 637,
+            "path": ".githooks/post-commit.py",
+            "loc": 663,
             "defs": [
               {
+                "name": "_log",
+                "lineno": 83
+              },
+              {
+                "name": "_fail",
+                "lineno": 88
+              },
+              {
                 "name": "_strip_inline_comment",
-                "lineno": 46
+                "lineno": 95
+              },
+              {
+                "name": "_parse_glx_run",
+                "lineno": 113
+              },
+              {
+                "name": "_validate_mask",
+                "lineno": 152
               },
               {
                 "name": "_clean_value",
-                "lineno": 61
+                "lineno": 159
               },
               {
-                "name": "_simple_parse_env",
-                "lineno": 68
+                "name": "_parse_env_file",
+                "lineno": 171
               },
               {
-                "name": "_dirs_chain_up",
-                "lineno": 82
+                "name": "_expand_vars_and_user",
+                "lineno": 192
               },
               {
-                "name": "_load_dotenv_chain_into_environ",
-                "lineno": 102
+                "name": "_resolve_path",
+                "lineno": 197
               },
               {
-                "name": "_norm_from",
-                "lineno": 134
+                "name": "_load_env_project_only",
+                "lineno": 206
               },
               {
-                "name": "_best_guess_package_root",
-                "lineno": 141
+                "name": "_req",
+                "lineno": 229
               },
               {
-                "name": "_int_env",
-                "lineno": 165
+                "name": "_as_int",
+                "lineno": 237
               },
               {
-                "name": "_utc_iso",
-                "lineno": 227
+                "name": "_as_float01",
+                "lineno": 245
               },
               {
-                "name": "_safe_read_json",
-                "lineno": 231
+                "name": "_is_subpath",
+                "lineno": 253
               },
               {
-                "name": "_read_text",
-                "lineno": 240
+                "name": "_norm_paths_in_env",
+                "lineno": 262
               },
               {
-                "name": "_rel_to_project",
-                "lineno": 247
+                "name": "_enforce_env_invariants",
+                "lineno": 297
               },
               {
-                "name": "_is_binary_like",
-                "lineno": 254
+                "name": "_py_env_with_path",
+                "lineno": 318
               },
               {
-                "name": "_redact_env_snapshot",
-                "lineno": 264
+                "name": "_run_py",
+                "lineno": 329
               },
               {
-                "name": "scan_repository",
-                "lineno": 280
+                "name": "_git",
+                "lineno": 337
               },
               {
-                "name": "_excluded",
-                "lineno": 295
+                "name": "_rev_ok",
+                "lineno": 343
               },
               {
-                "name": "_run_git",
-                "lineno": 382
+                "name": "_rev_parse",
+                "lineno": 350
               },
               {
-                "name": "git_snapshot",
+                "name": "_empty_tree_oid",
+                "lineno": 356
+              },
+              {
+                "name": "_detect_base",
+                "lineno": 363
+              },
+              {
+                "name": "_module_exists",
                 "lineno": 393
               },
               {
-                "name": "make_prompt_pack",
-                "lineno": 437
+                "name": "_module_cmd_from_candidates",
+                "lineno": 401
               },
               {
-                "name": "build_selfdoc",
-                "lineno": 474
+                "name": "_redact_env",
+                "lineno": 419
               },
               {
-                "name": "write_outputs",
-                "lineno": 522
+                "name": "_run_post_diff",
+                "lineno": 431
               },
               {
-                "name": "_parse_argv",
-                "lineno": 562
+                "name": "_run_gateway",
+                "lineno": 447
+              },
+              {
+                "name": "_run_mosaic",
+                "lineno": 482
+              },
+              {
+                "name": "_should_zip",
+                "lineno": 530
+              },
+              {
+                "name": "_writestr_deterministic",
+                "lineno": 537
+              },
+              {
+                "name": "_make_zip",
+                "lineno": 549
+              },
+              {
+                "name": "_dispatch",
+                "lineno": 598
               },
               {
                 "name": "main",
-                "lineno": 589
+                "lineno": 618
+              }
+            ],
+            "classes": []
+          },
+          {
+            "path": "analysis/autonomy/gateway.py",
+            "loc": 636,
+            "defs": [
+              {
+                "name": "_strip_inline_comment",
+                "lineno": 73
+              },
+              {
+                "name": "_clean_value",
+                "lineno": 91
+              },
+              {
+                "name": "_simple_parse_env",
+                "lineno": 99
+              },
+              {
+                "name": "_load_env_project_only",
+                "lineno": 116
+              },
+              {
+                "name": "_norm_from",
+                "lineno": 136
+              },
+              {
+                "name": "_best_guess_package_root",
+                "lineno": 144
+              },
+              {
+                "name": "_find_git_root",
+                "lineno": 156
+              },
+              {
+                "name": "_int_env",
+                "lineno": 196
+              },
+              {
+                "name": "_utc_iso",
+                "lineno": 248
+              },
+              {
+                "name": "_safe_read_json",
+                "lineno": 251
+              },
+              {
+                "name": "_read_text",
+                "lineno": 259
+              },
+              {
+                "name": "_rel_to_repo",
+                "lineno": 265
+              },
+              {
+                "name": "_is_binary_like",
+                "lineno": 271
+              },
+              {
+                "name": "_redact_env_snapshot",
+                "lineno": 279
+              },
+              {
+                "name": "scan_repository",
+                "lineno": 289
+              },
+              {
+                "name": "_excluded",
+                "lineno": 304
+              },
+              {
+                "name": "_run_git",
+                "lineno": 387
+              },
+              {
+                "name": "git_snapshot",
+                "lineno": 397
+              },
+              {
+                "name": "make_prompt_pack",
+                "lineno": 438
+              },
+              {
+                "name": "build_selfdoc",
+                "lineno": 472
+              },
+              {
+                "name": "write_outputs",
+                "lineno": 520
+              },
+              {
+                "name": "_parse_argv",
+                "lineno": 557
+              },
+              {
+                "name": "main",
+                "lineno": 581
               }
             ],
             "classes": [
               {
                 "name": "Telemetry",
-                "lineno": 190
+                "lineno": 214
               },
               {
                 "name": "SelfDocPack",
-                "lineno": 208
+                "lineno": 232
               }
             ]
           },
           {
-            "path": "glitchlab/tests/mosaic/metarelation_scaling_test.py",
+            "path": "tests/mosaic/metarelation_scaling_test.py",
             "loc": 591,
             "defs": [
               {
@@ -12407,7 +12791,7 @@
             ]
           },
           {
-            "path": "glitchlab/.githooks/_common.py",
+            "path": ".githooks/_common.py",
             "loc": 588,
             "defs": [
               {
@@ -12546,7 +12930,7 @@
             "classes": []
           },
           {
-            "path": "glitchlab/core/pipeline.py",
+            "path": "core/pipeline.py",
             "loc": 545,
             "defs": [
               {
@@ -12600,198 +12984,25 @@
                 "lineno": 111
               }
             ]
-          },
-          {
-            "path": "glitchlab/gui/views/tab_filter.py",
-            "loc": 514,
-            "defs": [
-              {
-                "name": "registry_available",
-                "lineno": 18
-              },
-              {
-                "name": "registry_get",
-                "lineno": 19
-              },
-              {
-                "name": "canonical",
-                "lineno": 20
-              },
-              {
-                "name": "meta",
-                "lineno": 21
-              },
-              {
-                "name": "__init__",
-                "lineno": 34
-              },
-              {
-                "name": "__init__",
-                "lineno": 44
-              },
-              {
-                "name": "__init__",
-                "lineno": 60
-              },
-              {
-                "name": "_build_ui",
-                "lineno": 92
-              },
-              {
-                "name": "_on_load_filters",
-                "lineno": 124
-              },
-              {
-                "name": "_on_rescan",
-                "lineno": 129
-              },
-              {
-                "name": "set_ctx",
-                "lineno": 134
-              },
-              {
-                "name": "set_filter",
-                "lineno": 137
-              },
-              {
-                "name": "get_current_step",
-                "lineno": 143
-              },
-              {
-                "name": "_apply_clicked",
-                "lineno": 157
-              },
-              {
-                "name": "_on_filter_params_changed",
-                "lineno": 161
-              },
-              {
-                "name": "_clear_host",
-                "lineno": 168
-              },
-              {
-                "name": "_refresh_filter_list",
-                "lineno": 176
-              },
-              {
-                "name": "_mount_panel",
-                "lineno": 195
-              },
-              {
-                "name": "_collect_disable_nodes",
-                "lineno": 244
-              },
-              {
-                "name": "_iter_widgets",
-                "lineno": 255
-              },
-              {
-                "name": "_set_enabled",
-                "lineno": 264
-              },
-              {
-                "name": "_wire_bus",
-                "lineno": 277
-              },
-              {
-                "name": "on_run_start",
-                "lineno": 281
-              },
-              {
-                "name": "on_run_finish",
-                "lineno": 282
-              },
-              {
-                "name": "_probe_current",
-                "lineno": 292
-              },
-              {
-                "name": "_reload_current",
-                "lineno": 299
-              },
-              {
-                "name": "_diag_probe",
-                "lineno": 323
-              },
-              {
-                "name": "_discover_panel_classes",
-                "lineno": 347
-              },
-              {
-                "name": "_canon",
-                "lineno": 358
-              },
-              {
-                "name": "_module_candidates",
-                "lineno": 364
-              },
-              {
-                "name": "_import_first_available",
-                "lineno": 371
-              },
-              {
-                "name": "_pick_panel_class",
-                "lineno": 380
-              },
-              {
-                "name": "_try_load_panel",
-                "lineno": 390
-              },
-              {
-                "name": "_fallback_panel",
-                "lineno": 437
-              },
-              {
-                "name": "_ensure_filters_imported",
-                "lineno": 456
-              },
-              {
-                "name": "_scan_panels_dir",
-                "lineno": 469
-              },
-              {
-                "name": "_publish",
-                "lineno": 498
-              },
-              {
-                "name": "_log",
-                "lineno": 505
-              }
-            ],
-            "classes": [
-              {
-                "name": "PanelContext",
-                "lineno": 33
-              },
-              {
-                "name": "FilterTabConfig",
-                "lineno": 43
-              },
-              {
-                "name": "TabFilter",
-                "lineno": 48
-              }
-            ]
           }
         ],
         "notes": [
-          "GLX: brak .glx/state.json — używam pustych wartości.",
-          "GIT: niedostępny — historie Δ ograniczone."
+          "GLX: brak .glx/state.json — używam pustych wartości."
         ]
       },
       "attachments": {
         "schema": "glx.selfdoc",
-        "when": "2025-10-04T12:39:11Z",
+        "when": "2025-10-04T23:38:28Z",
         "telemetry": {
           "ok": true,
           "error": "",
-          "scan_ms": 1129.2891,
-          "ast_ms": 908.2489999999996,
-          "files_scanned": 176,
-          "mods": 174,
-          "defs": 1756,
-          "classes": 183,
-          "git_ok": false,
+          "scan_ms": 1172.6335000000001,
+          "ast_ms": 934.0651999999995,
+          "files_scanned": 177,
+          "mods": 175,
+          "defs": 1769,
+          "classes": 184,
+          "git_ok": true,
           "skipped_too_big": 0,
           "skipped_binary_hint": 0,
           "parse_errors": 2,
@@ -12803,16 +13014,79 @@
     },
     "risk_brief": {
       "system": "Jesteś asystentem inżynierskim GlitchLab. Twoja analiza ma być deterministyczna, konkretna, bez wprowadzania losowości. Oceniaj wpływ zmian na architekturę i HUD/Mosaic⇄AST.",
-      "user": "Cel: risk_brief. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34536, modules=174, defs=1756, classes=183.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
+      "user": "Cel: risk_brief. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34906, modules=175, defs=1769, classes=184.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
       "context": {
         "glx_state": {},
-        "git_head": null,
-        "git_branch": null,
-        "recent_commits": [],
-        "delta_last": [],
+        "git_head": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
+        "git_branch": "master",
+        "recent_commits": [
+          {
+            "hash": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
+            "ts": 1759586577,
+            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "1d027e2badfe965267cad39498c2f5678f77d431",
+            "ts": 1759581545,
+            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "ca6a1a0a043ccc90c6f17c2b0a4a5e46222ec6bb",
+            "ts": 1759581205,
+            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "94cfcc22cd197eeaa2e886a29ac1c92d2be84554",
+            "ts": 1759567839,
+            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+          },
+          {
+            "hash": "cb0bcaaa3b13e6bb63cd13eebd2b86bf43c4cfb4",
+            "ts": 1759567784,
+            "subject": "8 file(s) staged: [Δ] Zakres - files: 8 (commit_analysis.json, commit_snippet.txt, ast_index.py, commit_20251004-083627.json, env.json, pack.json (+2)) - typ: auto (pre-diff)"
+          }
+        ],
+        "delta_last": [
+          {
+            "status": "A",
+            "path": ".githooks/_common.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/post-commit.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/post-diff.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/pre-commit.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/pre-diff.py"
+          },
+          {
+            "status": "A",
+            "path": ".githooks/prepare-commit-msg"
+          },
+          {
+            "status": "M",
+            "path": "analysis/last/autonomy/pack.json"
+          },
+          {
+            "status": "M",
+            "path": "analysis/last/autonomy/pack.md"
+          },
+          {
+            "status": "M",
+            "path": "analysis/last/autonomy/prompt.json"
+          }
+        ],
         "top_modules": [
           {
-            "path": "glitchlab/mosaic/hybrid_ast_mosaic.py",
+            "path": "mosaic/hybrid_ast_mosaic.py",
             "loc": 1713,
             "defs": [
               {
@@ -13148,7 +13422,7 @@
             ]
           },
           {
-            "path": "glitchlab/gui/app.py",
+            "path": "gui/app.py",
             "loc": 921,
             "defs": [
               {
@@ -13332,7 +13606,7 @@
             ]
           },
           {
-            "path": "glitchlab/tests/mosaic/ast_mosaic_coupled.py",
+            "path": "tests/mosaic/ast_mosaic_coupled.py",
             "loc": 732,
             "defs": [
               {
@@ -13512,115 +13786,258 @@
             ]
           },
           {
-            "path": "glitchlab/analysis/autonomy/gateway.py",
-            "loc": 637,
+            "path": ".githooks/post-commit.py",
+            "loc": 663,
             "defs": [
               {
+                "name": "_log",
+                "lineno": 83
+              },
+              {
+                "name": "_fail",
+                "lineno": 88
+              },
+              {
                 "name": "_strip_inline_comment",
-                "lineno": 46
+                "lineno": 95
+              },
+              {
+                "name": "_parse_glx_run",
+                "lineno": 113
+              },
+              {
+                "name": "_validate_mask",
+                "lineno": 152
               },
               {
                 "name": "_clean_value",
-                "lineno": 61
+                "lineno": 159
               },
               {
-                "name": "_simple_parse_env",
-                "lineno": 68
+                "name": "_parse_env_file",
+                "lineno": 171
               },
               {
-                "name": "_dirs_chain_up",
-                "lineno": 82
+                "name": "_expand_vars_and_user",
+                "lineno": 192
               },
               {
-                "name": "_load_dotenv_chain_into_environ",
-                "lineno": 102
+                "name": "_resolve_path",
+                "lineno": 197
               },
               {
-                "name": "_norm_from",
-                "lineno": 134
+                "name": "_load_env_project_only",
+                "lineno": 206
               },
               {
-                "name": "_best_guess_package_root",
-                "lineno": 141
+                "name": "_req",
+                "lineno": 229
               },
               {
-                "name": "_int_env",
-                "lineno": 165
+                "name": "_as_int",
+                "lineno": 237
               },
               {
-                "name": "_utc_iso",
-                "lineno": 227
+                "name": "_as_float01",
+                "lineno": 245
               },
               {
-                "name": "_safe_read_json",
-                "lineno": 231
+                "name": "_is_subpath",
+                "lineno": 253
               },
               {
-                "name": "_read_text",
-                "lineno": 240
+                "name": "_norm_paths_in_env",
+                "lineno": 262
               },
               {
-                "name": "_rel_to_project",
-                "lineno": 247
+                "name": "_enforce_env_invariants",
+                "lineno": 297
               },
               {
-                "name": "_is_binary_like",
-                "lineno": 254
+                "name": "_py_env_with_path",
+                "lineno": 318
               },
               {
-                "name": "_redact_env_snapshot",
-                "lineno": 264
+                "name": "_run_py",
+                "lineno": 329
               },
               {
-                "name": "scan_repository",
-                "lineno": 280
+                "name": "_git",
+                "lineno": 337
               },
               {
-                "name": "_excluded",
-                "lineno": 295
+                "name": "_rev_ok",
+                "lineno": 343
               },
               {
-                "name": "_run_git",
-                "lineno": 382
+                "name": "_rev_parse",
+                "lineno": 350
               },
               {
-                "name": "git_snapshot",
+                "name": "_empty_tree_oid",
+                "lineno": 356
+              },
+              {
+                "name": "_detect_base",
+                "lineno": 363
+              },
+              {
+                "name": "_module_exists",
                 "lineno": 393
               },
               {
-                "name": "make_prompt_pack",
-                "lineno": 437
+                "name": "_module_cmd_from_candidates",
+                "lineno": 401
               },
               {
-                "name": "build_selfdoc",
-                "lineno": 474
+                "name": "_redact_env",
+                "lineno": 419
               },
               {
-                "name": "write_outputs",
-                "lineno": 522
+                "name": "_run_post_diff",
+                "lineno": 431
               },
               {
-                "name": "_parse_argv",
-                "lineno": 562
+                "name": "_run_gateway",
+                "lineno": 447
+              },
+              {
+                "name": "_run_mosaic",
+                "lineno": 482
+              },
+              {
+                "name": "_should_zip",
+                "lineno": 530
+              },
+              {
+                "name": "_writestr_deterministic",
+                "lineno": 537
+              },
+              {
+                "name": "_make_zip",
+                "lineno": 549
+              },
+              {
+                "name": "_dispatch",
+                "lineno": 598
               },
               {
                 "name": "main",
-                "lineno": 589
+                "lineno": 618
+              }
+            ],
+            "classes": []
+          },
+          {
+            "path": "analysis/autonomy/gateway.py",
+            "loc": 636,
+            "defs": [
+              {
+                "name": "_strip_inline_comment",
+                "lineno": 73
+              },
+              {
+                "name": "_clean_value",
+                "lineno": 91
+              },
+              {
+                "name": "_simple_parse_env",
+                "lineno": 99
+              },
+              {
+                "name": "_load_env_project_only",
+                "lineno": 116
+              },
+              {
+                "name": "_norm_from",
+                "lineno": 136
+              },
+              {
+                "name": "_best_guess_package_root",
+                "lineno": 144
+              },
+              {
+                "name": "_find_git_root",
+                "lineno": 156
+              },
+              {
+                "name": "_int_env",
+                "lineno": 196
+              },
+              {
+                "name": "_utc_iso",
+                "lineno": 248
+              },
+              {
+                "name": "_safe_read_json",
+                "lineno": 251
+              },
+              {
+                "name": "_read_text",
+                "lineno": 259
+              },
+              {
+                "name": "_rel_to_repo",
+                "lineno": 265
+              },
+              {
+                "name": "_is_binary_like",
+                "lineno": 271
+              },
+              {
+                "name": "_redact_env_snapshot",
+                "lineno": 279
+              },
+              {
+                "name": "scan_repository",
+                "lineno": 289
+              },
+              {
+                "name": "_excluded",
+                "lineno": 304
+              },
+              {
+                "name": "_run_git",
+                "lineno": 387
+              },
+              {
+                "name": "git_snapshot",
+                "lineno": 397
+              },
+              {
+                "name": "make_prompt_pack",
+                "lineno": 438
+              },
+              {
+                "name": "build_selfdoc",
+                "lineno": 472
+              },
+              {
+                "name": "write_outputs",
+                "lineno": 520
+              },
+              {
+                "name": "_parse_argv",
+                "lineno": 557
+              },
+              {
+                "name": "main",
+                "lineno": 581
               }
             ],
             "classes": [
               {
                 "name": "Telemetry",
-                "lineno": 190
+                "lineno": 214
               },
               {
                 "name": "SelfDocPack",
-                "lineno": 208
+                "lineno": 232
               }
             ]
           },
           {
-            "path": "glitchlab/tests/mosaic/metarelation_scaling_test.py",
+            "path": "tests/mosaic/metarelation_scaling_test.py",
             "loc": 591,
             "defs": [
               {
@@ -13752,7 +14169,7 @@
             ]
           },
           {
-            "path": "glitchlab/.githooks/_common.py",
+            "path": ".githooks/_common.py",
             "loc": 588,
             "defs": [
               {
@@ -13891,7 +14308,7 @@
             "classes": []
           },
           {
-            "path": "glitchlab/core/pipeline.py",
+            "path": "core/pipeline.py",
             "loc": 545,
             "defs": [
               {
@@ -13945,198 +14362,25 @@
                 "lineno": 111
               }
             ]
-          },
-          {
-            "path": "glitchlab/gui/views/tab_filter.py",
-            "loc": 514,
-            "defs": [
-              {
-                "name": "registry_available",
-                "lineno": 18
-              },
-              {
-                "name": "registry_get",
-                "lineno": 19
-              },
-              {
-                "name": "canonical",
-                "lineno": 20
-              },
-              {
-                "name": "meta",
-                "lineno": 21
-              },
-              {
-                "name": "__init__",
-                "lineno": 34
-              },
-              {
-                "name": "__init__",
-                "lineno": 44
-              },
-              {
-                "name": "__init__",
-                "lineno": 60
-              },
-              {
-                "name": "_build_ui",
-                "lineno": 92
-              },
-              {
-                "name": "_on_load_filters",
-                "lineno": 124
-              },
-              {
-                "name": "_on_rescan",
-                "lineno": 129
-              },
-              {
-                "name": "set_ctx",
-                "lineno": 134
-              },
-              {
-                "name": "set_filter",
-                "lineno": 137
-              },
-              {
-                "name": "get_current_step",
-                "lineno": 143
-              },
-              {
-                "name": "_apply_clicked",
-                "lineno": 157
-              },
-              {
-                "name": "_on_filter_params_changed",
-                "lineno": 161
-              },
-              {
-                "name": "_clear_host",
-                "lineno": 168
-              },
-              {
-                "name": "_refresh_filter_list",
-                "lineno": 176
-              },
-              {
-                "name": "_mount_panel",
-                "lineno": 195
-              },
-              {
-                "name": "_collect_disable_nodes",
-                "lineno": 244
-              },
-              {
-                "name": "_iter_widgets",
-                "lineno": 255
-              },
-              {
-                "name": "_set_enabled",
-                "lineno": 264
-              },
-              {
-                "name": "_wire_bus",
-                "lineno": 277
-              },
-              {
-                "name": "on_run_start",
-                "lineno": 281
-              },
-              {
-                "name": "on_run_finish",
-                "lineno": 282
-              },
-              {
-                "name": "_probe_current",
-                "lineno": 292
-              },
-              {
-                "name": "_reload_current",
-                "lineno": 299
-              },
-              {
-                "name": "_diag_probe",
-                "lineno": 323
-              },
-              {
-                "name": "_discover_panel_classes",
-                "lineno": 347
-              },
-              {
-                "name": "_canon",
-                "lineno": 358
-              },
-              {
-                "name": "_module_candidates",
-                "lineno": 364
-              },
-              {
-                "name": "_import_first_available",
-                "lineno": 371
-              },
-              {
-                "name": "_pick_panel_class",
-                "lineno": 380
-              },
-              {
-                "name": "_try_load_panel",
-                "lineno": 390
-              },
-              {
-                "name": "_fallback_panel",
-                "lineno": 437
-              },
-              {
-                "name": "_ensure_filters_imported",
-                "lineno": 456
-              },
-              {
-                "name": "_scan_panels_dir",
-                "lineno": 469
-              },
-              {
-                "name": "_publish",
-                "lineno": 498
-              },
-              {
-                "name": "_log",
-                "lineno": 505
-              }
-            ],
-            "classes": [
-              {
-                "name": "PanelContext",
-                "lineno": 33
-              },
-              {
-                "name": "FilterTabConfig",
-                "lineno": 43
-              },
-              {
-                "name": "TabFilter",
-                "lineno": 48
-              }
-            ]
           }
         ],
         "notes": [
-          "GLX: brak .glx/state.json — używam pustych wartości.",
-          "GIT: niedostępny — historie Δ ograniczone."
+          "GLX: brak .glx/state.json — używam pustych wartości."
         ]
       },
       "attachments": {
         "schema": "glx.selfdoc",
-        "when": "2025-10-04T12:39:11Z",
+        "when": "2025-10-04T23:38:28Z",
         "telemetry": {
           "ok": true,
           "error": "",
-          "scan_ms": 1129.2891,
-          "ast_ms": 908.2489999999996,
-          "files_scanned": 176,
-          "mods": 174,
-          "defs": 1756,
-          "classes": 183,
-          "git_ok": false,
+          "scan_ms": 1172.6335000000001,
+          "ast_ms": 934.0651999999995,
+          "files_scanned": 177,
+          "mods": 175,
+          "defs": 1769,
+          "classes": 184,
+          "git_ok": true,
           "skipped_too_big": 0,
           "skipped_binary_hint": 0,
           "parse_errors": 2,
@@ -14150,13 +14394,13 @@
   "telemetry": {
     "ok": true,
     "error": "",
-    "scan_ms": 1129.2891,
-    "ast_ms": 908.2489999999996,
-    "files_scanned": 176,
-    "mods": 174,
-    "defs": 1756,
-    "classes": 183,
-    "git_ok": false,
+    "scan_ms": 1172.6335000000001,
+    "ast_ms": 934.0651999999995,
+    "files_scanned": 177,
+    "mods": 175,
+    "defs": 1769,
+    "classes": 184,
+    "git_ok": true,
     "skipped_too_big": 0,
     "skipped_binary_hint": 0,
     "parse_errors": 2,
@@ -14164,15 +14408,14 @@
     "python_ver": "3.9.2rc1"
   },
   "notes": [
-    "GLX: brak .glx/state.json — używam pustych wartości.",
-    "GIT: niedostępny — historie Δ ograniczone."
+    "GLX: brak .glx/state.json — używam pustych wartości."
   ],
   "env_hint": {
     "GLX_RUN": "MEAZ",
     "GLX_ROOT": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project",
     "GLX_PKG": "glitchlab",
-    "GLX_OUT": "glitchlab/analysis/last",
-    "GLX_AUTONOMY_OUT": "glitchlab/analysis/last/autonomy",
+    "GLX_OUT": "analysis/last",
+    "GLX_AUTONOMY_OUT": "analysis/last/autonomy",
     "GLX_PROJECT": "glitchlab",
     "GLX_BRANCH": "master",
     "GLX_VER": "v4.5",
