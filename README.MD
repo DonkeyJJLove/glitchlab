@@ -204,8 +204,8 @@ Więcej: [katalog](glx_catalog_v5/docs/index.md), [repozytorium](repo.md), [gui]
 
 ## Czytaj dalej
 
-* **[Architektura](glx_catalog_v5/GlitchLab_Arch_v5.md)**
-* **[Katalog systemu](glx_catalog_v5/GLX_ARCHITEKTURA_KATALOG.md)**
+* **[Architektura](glx_catalog_v5/docs/GlitchLab_Arch_v5.md)**
+* **[Katalog systemu](glx_catalog_v5/docs/GLX_ARCHITEKTURA_KATALOG.md)**
 * **[BUS](glx_catalog_v5/docs/bus.md)**
 * **[EGDB + EGQL](glx_catalog_v5/docs/egdb.md)**
 * **[Walidacja](glx_catalog_v5/docs/validation.md)**
