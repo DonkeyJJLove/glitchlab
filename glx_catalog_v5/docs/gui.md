@@ -1,10 +1,4 @@
-Masz rację — te dwa skrawki nie „niosą” całej architektury. Poniżej dostajesz **kompletny, spójny zestaw diagramów Mermaid**, dopasowany do Twojego realnego drzewa (`gui/…`). Wszystko jest **kompatybilne z GitHubem** (etykiety subgrafów w `"..."`, brak krawędzi do subgrafów, tylko do węzłów, `<br/>` zamiast `\n`).
-
-Skopiuj poniższe **cztery** bloki do README/ARCH:
-
----
-
-### A) Architektura – widok makro (C4-ish)
+### A) Architektura GUI – widok makro (C4-ish)
 
 ```mermaid
 flowchart LR
