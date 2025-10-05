@@ -609,13 +609,13 @@ WHERE a.type = 'split_module' AND (m.delta->>'complexity')::numeric > -0.05;
 
 ```mermaid
 flowchart LR
-  subgraph Repo[Repo GLX]
+  subgraph Repo [Repo GLX]
     HookPre[pre-commit.py] --> PreDiff[pre-diff.py]
     PreDiff --> GLXglx[.glx/commit_analysis.json]
     HookPost[post-commit.py] --> AuditZIP[AUDIT_*.zip]
   end
 
-  subgraph Bus[GLX BUS]
+  subgraph Bus [GLX BUS]
     GA[git-analytics tile]:::tile
     AST[code-ast service]:::tile
     REF[refactor-planner]:::tile
