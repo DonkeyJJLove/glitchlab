@@ -53,32 +53,36 @@ Zamiast monolitu mamy **sieć agentów** mówiących przez **BUS**; każdy agent
 
 Masz tu działającą wersję (GitHub/Mermaid):
 
+Masz błąd, bo GitHubowa wersja Mermaid nie lubi znaków specjalnych w etykiecie **subgraph** bez cudzysłowów. Daj label w `"` i nie kieruj krawędzi do całego subgrafu.
+
+Poniżej gotowy blok, który powinien się wyrenderować:
+
 ```mermaid
 flowchart LR
-  subgraph Agents[Agenci]
+  subgraph Agents["Agenci"]
     A1[Perception Agent]:::a
     A2[Refactor Agent]:::a
     A3[Guard Agent]:::a
   end
 
-  subgraph BUS[BUS (publish/subscribe)]
+  subgraph BUS["BUS (publish/subscribe)"]
     B[[Router + Topics]]:::b
   end
 
-  subgraph EGDB[EGDB (Event Grammar DB)]
+  subgraph EGDB["EGDB (Event Grammar DB)"]
     D1[(files,tags)]:::db
     D2[(runtime,grammar<br/>events)]:::db
     D3[(deltas S/H/Z)]:::db
   end
 
-  subgraph CODE[AST/Mozaika]
+  subgraph CODE["AST / Mozaika"]
     SRC[codebase]:::m
-    M[Δ-algebra S/H/Z]:::m
+    M[Delta algebra S/H/Z]:::m
     T[Tag Parser #glx:*]:::m
   end
 
-  subgraph GUI[HUD/SCADA]
-    H[Δ-heatmapy,<br/>polityki, dowody]:::g
+  subgraph GUI["HUD / SCADA"]
+    H[Delta heatmaps,<br/>polityki, dowody]:::g
   end
 
   A1 -- publish --> B
@@ -86,11 +90,11 @@ flowchart LR
   A3 -- subscribe --> B
   B -- mirror --> D2
   T -- static tags --> D1
-  M -- Δ --> D3
+  M -- delta --> D3
   D1 -- query --> A2
   D2 -- query --> A3
   D3 -- query --> H
-  H -- control Φ/Ψ --> A2
+  H -- control Phi/Psi --> A2
   A2 -- requests AST/Mosaic --> M
   SRC -- parse code --> T
 
