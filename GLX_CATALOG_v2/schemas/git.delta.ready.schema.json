@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "git.delta.ready",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "git.delta.ready"
+    },
+    "commit": {
+      "type": "string"
+    },
+    "delta": {
+      "type": "object"
+    },
+    "summary": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "type",
+    "commit"
+  ]
+}
