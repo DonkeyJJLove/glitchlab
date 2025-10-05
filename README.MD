@@ -110,7 +110,7 @@ flowchart LR
 * **AST/Mozaika** — wspólna rachunkowość zmian **Δ(S/H/Z)** dla kodu i meta-grafu.
 * **GUI/HUD** — SCADA gramatyczna: heatmapy Δ, alarmy, sterowanie progami/politykami.
 
-> Rozszerzenie: [Architektura](`glx_catalog_v5/doc/GLX_ARCHITEKTURA_KATALOG.md`), [BUS](`glx_catalog_v5/docs/bus.md`), [EGDB](`glx_catalog_v5/docs/egdb.md`).
+> Rozszerzenie: [Architektura](glx_catalog_v5/doc/GLX_ARCHITEKTURA_KATALOG.md), [BUS](glx_catalog_v5/docs/bus.md), [EGDB](glx_catalog_v5/docs/egdb.md).
 
 ---
 
