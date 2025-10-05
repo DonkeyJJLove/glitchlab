@@ -182,9 +182,7 @@ Aby migracja była łagodna, obowiązuje **konwencja GLX\_*** i **GLX\_RUN** (za
 ---
 #### *Część 2: BUS, kontrakty `tile.yaml`, schematy payloadów, akcje Ψ, walidatory I1–I4 i plan migracji*
 
-
-> Zakres tej części: *przegląd kierunków zmian*, **poszerzenie zakresu (BUS+EGDB+Mozaika) oraz doprecyzowaniem kontraktów i dowodów.  
-> Zakładamy model **AST⇄Mozaika** z funktorami **Φ/Ψ**, **faktoryzację relacji** (mozaika **nie** jest metryką), oraz **fail‑closed** walidatory inwariantów I1–I4 w BUS.
+> Zakres tej części: *przegląd kierunków zmian*, **poszerzenie zakresu (BUS+EGDB+Mozaika) oraz doprecyzowaniem kontraktów i dowodów. Zakładamy model **AST⇄Mozaika** z funktorami **Φ/Ψ**, **faktoryzację relacji** (mozaika **nie** jest metryką), oraz **fail‑closed** walidatory inwariantów I1–I4 w BUS.
 
 ## 0. Cel tej części
 
@@ -585,7 +583,7 @@ WHERE a.type = 'split_module' AND (m.delta->>'complexity')::numeric > -0.05;
 | stabilize_api          | fluktuacje API                                     | wersjonowanie/aliasy, stabilność (I1/I2) | api_compat report                          |
 
 ---
-#### *Część 3: Plan wykonawczy, roadmap, KPI, backlog)
+#### *Część 3: Plan wykonawczy, roadmap, KPI, backlog*
 
 > Ten dokument zamyka tryptyk raportu. Zawiera **plan wdrożeniowy**, **mapy komponentów**, **KPI/SLI/SLO**, **backlog epików** i **procedury operacyjne** dla migracji do architektury v5 (Mozaika AST⇄Δ + EGDB + walidatory BUS). Całość pozostaje zgodna z naszymi inwariantami (I1–I4) i reżimem *delta-only*.
 
@@ -872,5 +870,438 @@ policies:
 
 ---
 
-### Epilog
+### Wniosek
 v5 łączy **mechanikę mozaiki** (Φ/Ψ, Δ) z **gramatyką zdarzeń** (EGDB, EGQL) i **egzekucją inwariantów** (I1–I4) na BUS. Każdy commit to nowy kafelek w spójnej układance — mierzalny, odwracalny, i udokumentowany.
+
+---
+#### *Część 4A: Event Grammar DataBase (EGDB)*
+
+> Jedno źródło prawdy o zdarzeniach (runtime i deklaratywnych) z projekcją do **AST** i **Mozaiki**, egzekwujące reguły **Δ(S/H/Z)**, polityki inwariantów (I1–I4) i zapytania **EGQL**.
+
+
+## 0. Skrót dla decydenta
+
+- **Po co:** Zmierzyć, zweryfikować i udowodnić poprawność przepływów oraz zmian w GLX na podstawie *faktów* (logów runtime + #glx-tagi statyczne).  
+- **Co daje:** Zapytania sekwencyjne EGQL (czas) + strukturalne (AST) + mozaikowe (S/H/Z), walidację inwariantów, planowanie refaktoryzacji, audyt zmian i wyskalowane metryki.  
+- **Jak działa:** Tag-parser → Grammar-Indexer → Projekcja na `grammar_events` + `deltas` → zapytania EGQL → alarmy i fallback na szynie.  
+- **Gdzie leży:** `.glx/grammar/egdb.sqlite` + `rules.yaml` + `views.sql` (wersjonowane wraz z repo).
+
+---
+
+## 1. Zakres i źródła danych
+
+**Wejścia** do EGDB:
+1) **#glx:** tagi w komentarzach kodu (`# glx:key=value`) — *statyczna gramatyka*;  
+2) **Koperty runtime** z busa (GLXEvent) — *zdarzenia wykonawcze*;  
+3) **Manifesty** kafelków `tile.yaml` — *kontrakty usług i portów*.  
+
+**Wyjścia** z EGDB:
+- **EGQL** (Event Grammar Query Language) — DSL do kwerend;  
+- **Strumienie Δ(S/H/Z)** — projekcje do AST/Mozaiki;  
+- **Alarmy inwariantów** (I1–I4) i automatyczne **fallback** (bus).
+
+**Lokalizacja repo:**
+
+```
+.glx/
+  grammar/
+    egdb.sqlite              # główny magazyn (SQLite)
+    rules.yaml               # reguły Δ i wagi (wersjonowane)
+    views.sql                # widoki pomocnicze (β, α, klastrowanie)
+```
+
+---
+
+## 2. Model danych (SQLite + JSONB-like TEXT)
+
+> SQLite jako „czarna skrzynka” z faktami: minimalne sprzężenie, maksymalna przenośność. JSON trzymamy w `TEXT`; dostęp przez funkcje narzędziowe warstwy Python.
+
+### 2.1 Tabela `files` (źródła + #tagi)
+
+```sql
+CREATE TABLE IF NOT EXISTS files (
+  id INTEGER PRIMARY KEY,
+  module TEXT,                 -- 'core', 'gui', 'analysis', 'mosaic', ...
+  path TEXT UNIQUE,            -- np. 'gui/services/pipeline_runner.py'
+  sha TEXT,                    -- git blob
+  tile TEXT,                   -- z tile.yaml, np. 'core'
+  extracted_at INTEGER         -- epoch ms
+);
+CREATE TABLE IF NOT EXISTS tags (
+  id INTEGER PRIMARY KEY,
+  file_id INTEGER REFERENCES files(id) ON DELETE CASCADE,
+  line INTEGER,
+  key TEXT,                    -- 'glx:topic.publish'
+  value TEXT,                  -- CSV / JSON
+  raw TEXT                     -- pełny wiersz komentarza
+);
+CREATE INDEX IF NOT EXISTS idx_tags_file ON tags(file_id);
+```
+
+### 2.2 Tabela `runtime_events` (koperty z busa)
+
+```sql
+CREATE TABLE IF NOT EXISTS runtime_events (
+  id TEXT PRIMARY KEY,         -- GLXEvent.id
+  ts REAL, topic TEXT, plane TEXT, source TEXT,
+  schema TEXT, correlation_id TEXT, causation_id TEXT,
+  payload_json TEXT,           -- treść zdarzenia
+  tags_json TEXT,              -- list[str]
+  violations_json TEXT         -- list[str]
+);
+CREATE INDEX IF NOT EXISTS idx_re_topic_ts ON runtime_events(topic, ts DESC);
+```
+
+### 2.3 Tabela `grammar_events` (uogólnione zdarzenia gramatyki)
+
+```sql
+CREATE TABLE IF NOT EXISTS grammar_events (
+  id INTEGER PRIMARY KEY,
+  origin TEXT,                 -- 'static' | 'runtime'
+  topic TEXT,                  -- 'run.start' | 'glx:event:define' | ...
+  kind TEXT,                   -- 'enter_scope' | 'define' | 'use' | 'link' | ...
+  subject TEXT, object TEXT,   -- np. subject='PipelineRunner.run', object='bus.publish'
+  module TEXT, file_path TEXT, line INTEGER,
+  ts REAL,
+  meta_json TEXT               -- port, bucket, weights, ...
+);
+CREATE INDEX IF NOT EXISTS idx_ge_kind_ts ON grammar_events(kind, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_ge_topic_ts ON grammar_events(topic, ts DESC);
+```
+
+### 2.4 Tabela `deltas` (projekcja do Δ S/H/Z)
+
+```sql
+CREATE TABLE IF NOT EXISTS deltas (
+  id INTEGER PRIMARY KEY,
+  ref_ge INTEGER REFERENCES grammar_events(id) ON DELETE CASCADE,
+  layer TEXT,                  -- 'AST' | 'MOZAIKA'
+  dS REAL, dH REAL, dZ REAL,
+  weights_json TEXT            -- wagi i uzasadnienie
+);
+CREATE INDEX IF NOT EXISTS idx_deltas_layer ON deltas(layer);
+CREATE INDEX IF NOT EXISTS idx_deltas_ref_ge ON deltas(ref_ge);
+```
+
+**Widoki (`views.sql`):** agregaty α=S/(S+H), β=H/(S+H), δ (głębokość), klastrowanie per `tile/module/path`, wykrywanie naruszeń I1–I4, korelacja czasowa *temporal coupling*.
+
+---
+
+## 3. Reguły Δ i wagi (`rules.yaml`)
+
+> Wersjonowane wraz z repo. Umożliwiają parametryzację mapowania **kind → Δ** i wag semantycznych.
+
+```yaml
+version: 1
+weights:
+  import_call: 1.5
+  schema_contract: 2.0
+  telemetry: 0.5
+  rpc: 2.0
+defaults:
+  enter_scope:   { AST: [1,1,1], MOZ: [1,0,0] }
+  exit_scope:    { AST: [0,0,-1], MOZ: [0,0,0] }
+  define:        { AST: [0,1,0],  MOZ: [0,1,0] }
+  use:           { AST: [0,1,0],  MOZ: [0,1,0] }
+  link:          { AST: [0,1,0],  MOZ: [0,1,0] }
+  bucket_jump:   { AST: [0,0,ΔZ], MOZ: [0,0,ΔZ] }
+  reassign:      { AST: [1,h,0],  MOZ: [1,h,0] }
+  contract:      { AST: [-k,0,0], MOZ: [-k,0,0] }
+  expand:        { AST: [k,0,0],  MOZ: [k,0,0] }
+overrides:
+  topic.publish:    { MOZ: [0, w(schema_contract), 0] }
+  topic.subscribe:  { MOZ: [0, w(import_call), 0] }
+  request_reply:    { MOZ: [0, w(rpc), 0] }
+  telemetry:        { MOZ: [0, w(telemetry), 0] }
+```
+
+---
+
+## 4. Mechanika dokumentacji **stanu obecnego**
+
+1. **Tag-Parser (statyczny):**
+   - skanuje repo, emituje `files` + `tags`;  
+   - tłumaczy tagi na `grammar_events` (`origin='static'`) i `deltas` według `rules.yaml`.
+2. **Grammar-Indexer (runtime):**
+   - subskrybuje bus (`*`); dla każdego GLXEvent zapisuje `runtime_events`;  
+   - projektuje zdarzenie na `grammar_events` (`origin='runtime'`) i wyznacza Δ.
+3. **Widoki + metryki:**
+   - `views.sql` liczy α, β, δ, ε per path/tile/module;  
+   - gotowe kwerendy pod heatmapy i alerty (naruszenia I1–I4).
+
+**Dowód:** Każda pozycja w raporcie ma źródło (`file.path:line`, `event.id@ts`, `sha`), Δ i wynik metryczny. Braki → `STATUS: unavailable`.
+
+---
+
+## 5. Najbliższe implementacje (MVP+) i plan releasów
+
+**MVP (T0–T1):**  
+- `analysis/ast_index.py` (parser #glx), `core/services/grammar/indexer.py` (runtime), `grammar/store.py` (EGDB).  
+- `rules.yaml`, `views.sql` (α/β/δ + I1–I4).  
+- CLI `tools/grammarctl.py` (`index`, `tail`, `query`, `delta`).
+
+**T2–T3:**  
+- GUI: konsola EGQL + tabele wyników + „drill” do dowodów.  
+- Eksport CSV/Parquet, snapshot per commit (`.glx/snapshots`).  
+- Integracje z Mozaiką (mosty β).
+
+**T4+:**  
+- Uczenie wag (MLE) z feedbacku testów;  
+- Modele przewidujące naruszeń (temporal coupling).
+
+---
+
+## 6. Cel ostateczny
+
+- EGDB jako „czarna skrzynka” audytowa: *każda decyzja* (refactor/fallback/plan) ma ślad w faktach.  
+- Jednolity **model Δ(S/H/Z)** spaja AST, Mozaikę i BUS.  
+- EGQL jako *lingua franca* — skomplikowane inspekcje bez kodowania ad hoc.  
+- Autonomiczne walidatory inwariantów publikujące dowody i poprawki na szynę.
+
+---
+
+## 7. EGQL — język zapytań
+
+**EBNF (skrót):**
+```
+query    := select? ( find_clause | path_clause ) where? order? limit?
+find_clause := 'FIND' ( 'events' | 'topics' | 'files' | 'tiles' )
+path_clause := 'PATH' step ( '>>' step )*
+step     := topic_pat | kind_pat | tag_pat | port_pat
+topic_pat:= 'TOPIC' ':' glob
+kind_pat := 'KIND'  ':' ('enter_scope'|'define'|'use'|'link'|...)
+tag_pat  := 'TAG'   ':' key '=' value
+port_pat := 'PORT'  ':' ('exposed'|'led') '=' name
+where    := 'WHERE' cond ( 'AND' cond )*
+cond     := field op value | 'ΔS' op num | 'ΔH' op num | 'ΔZ' op num
+op       := '=' | '!=' | '<' | '>' | '<=' | '>=' | '~'  (regex/glob)
+order    := 'ORDER BY' field ('ASC'|'DESC')?
+limit    := 'LIMIT' num
+```
+
+**Przykłady:**
+- Producenci `run.*`:
+  ```
+  FIND topics WHERE TOPIC ~ "run.*" AND KIND = "define"
+  ```
+- Sekwencja „start→done w <2s” bez błędu:
+  ```
+  PATH TOPIC:run.start >> TOPIC:run.done
+  WHERE ts_delta <= 2000 AND NOT EXISTS TOPIC:run.error
+  ```
+- Moduły z β>0.6 przez subskrypcje RPC:
+  ```
+  FIND tiles WHERE ΔH > ΔS AND TAG:topic.request_reply~"*"
+  ```
+
+**Silnik `grammar/query.py`** kompiluje EGQL → SQL nad `grammar_events`/`deltas`/`runtime_events` (+ okna czasowe).
+
+---
+
+## 8. Interfejs programistyczny
+
+```python
+# core/services/grammar/store.py
+class EGDB:
+    def __init__(self, path=".glx/grammar/egdb.sqlite"): ...
+    def insert_file_tags(self, module, path, sha, tags:list[Tag]): ...
+    def insert_runtime(self, evt: GLXEvent): ...
+    def insert_grammar_event(self, ge:dict, deltas:list[dict]): ...
+    def query(self, egql:str) -> list[dict]: ...
+```
+
+CLI `tools/grammarctl.py`:
+```
+glx grammar index --from-tags
+glx grammar tail --topic run.*
+glx grammar query 'PATH TOPIC:run.start >> TOPIC:run.done WHERE ts_delta<=2000'
+glx grammar delta --tile core --since HEAD~1
+```
+
+---
+
+## 9. Walidacja inwariantów (I1–I4) i fallback
+
+- **I1 typy/nośniki:** spójność interfejsów i domen.  
+- **I2 sekwencje:** `run.start → (run.done|run.error)` w oknie T.  
+- **I3 lokalność:** brak „wycieków” poza scope.  
+- **I4 monotoniczność:** nie pogarszaj metryk celu (α,β,δ).
+
+**Polisy EGQL:** cyklicznie wykonywane lub wyzwalane eventami. Naruszenie → **publish** `core.fallback.plan` z dowodem (trace + Δ).
+
+---
+
+## 10. Integracja z Mozaiką i AST
+
+- `grammar_events` → **mosty** (ΔH), **wejścia/wyjścia** (ΔZ), **struktura** (ΔS).  
+- Mozaika używa centroidów i bucketów; EGDB dostarcza metryki α,β,δ.  
+- AST konsoliduje Δ z parsera i urealnia linki (def/use).
+
+---
+
+## 11. Akceptacja (Definition of Done)
+
+- `egdb.sqlite` powstaje i przyjmuje wpisy z tagów i runtime (≥1k rekordów w testach).  
+- 5 zapytań EGQL (w tym PATH) zwraca poprawne wyniki z dowodami.  
+- 3 polisy inwariantów (I1–I3) działają fail-closed i publikują powód.  
+- Widoki raportują α/β/δ dla ≥3 kafelków oraz heatmapę Δ.
+
+---
+
+## 12. Ryzyka i mitigacje
+
+- **Drift schematu:** wersjonowanie `rules.yaml`/`views.sql`; migratory SQLite.  
+- **Wydajność:** indeksy `(topic, ts)`, materializowane snapshoty per commit.  
+- **Jakość tagów:** lint tagów w pre-commit, CI do statycznych błędów.  
+
+---
+
+## 13. Roadmapa skrócona
+
+- T0: struktura DB + parser + indexer + CLI.  
+- T1: widoki + GUI EGQL + alerty I1–I3.  
+- T2: mosty Mozaiki (β-heatmapy) + fallbacki BUS.  
+- T3: tunning wag (MLE) + predykcje naruszeń.
+
+#### *Część 4B: Gramatyka Zdarzeń(Event Grammar)*
+
+> Wspólny formalizm dla **AST** i **Mozaiki**, który pozwala faktoryzować relacje, bezwstrząsowo „przemieszczać odcinki” i projektować struktury na symbole ontologiczne — fundament **sieci BUS** i walidacji **I1–I4**.
+
+## 0. Intuicja i zasada faktoryzacji relacji
+
+- Nie budujemy metryki absolutnej, lecz **relacyjny porządek**: „obiekt włożony *między* `1, a, 2` zajmuje miejsce `2` i *2-ka staje się obiektem trzecim*”.  
+- Dzięki temu **projekcja relacji** (Φ) i **podnoszenie** (Ψ) mogą **modyfikować układ** bez zrywania połączeń: segment relacji zostaje przecięty przez nowy obiekt, który staje się częścią sieci BUS (most).  
+- W praktyce: operacje `contract/expand/reassign/bucket_jump/link` działają na **Δ(S/H/Z)**, gwarantując zachowanie spójności.
+
+---
+
+## 1. Alfabet zdarzeń i ich semantyka Δ(S/H/Z)
+
+| Zdarzenie                  | AST Δ             | Mozaika Δ         | Znaczenie                                                                 |
+|---------------------------|-------------------|-------------------|---------------------------------------------------------------------------|
+| `enter_scope(name)`       | (+1, +1, +1)      | (+1, 0, 0)        | Tworzy węzeł i definiuje symbol; rośnie głębokość.                        |
+| `exit_scope()`            | ( 0,  0, −1)      | ( 0, 0, 0)        | Domknięcie bloku; spadek Z (AST).                                         |
+| `define(symbol)`          | ( 0, +1,  0)      | ( 0, +1, 0)       | Rejestr definicji/kontraktu.                                              |
+| `use(symbol)`             | ( 0, +1,  0)      | ( 0, +1, 0)       | Referencja/wykorzystanie.                                                 |
+| `link(A,B)`               | ( 0, +1,  0)      | ( 0, +1, 0)       | Most semantyczny między grupami/symbolami.                                |
+| `bucket_jump(b→b')`       | ( 0,  0, b'−b)    | ( 0, 0, b'−b)     | Skok poziomu abstrakcji.                                                  |
+| `reassign(node,K→K')`     | (+1, +h,  0)      | (+1, +h, 0)       | Migracja do innego centroidu; nowe mosty `h`.                             |
+| `contract(K,k)`           | (−(k−1), 0, 0)    | (−(k−1), 0, 0)    | Scalenie k elementów (λ↑).                                                |
+| `expand(K,k)`             | (+(k−1), 0, 0)    | (+(k−1), 0, 0)    | Rozwinięcie (λ↓).                                                         |
+| `topic.publish/subscribe` | —                 | ( 0, +w,  0)      | Most BUS (wagi z reguł).                                                  |
+
+- **Φ (projekcja):** mapuje *hunks/diffy* i zdarzenia BUS na węzły AST i centroidy Mozaiki.  
+- **Ψ (podnoszenie):** z metryk (hotspoty, coupling, β) generuje kandydaty operacji refaktoryzacji.
+
+---
+
+## 2. Inwarianty spójności (I1–I4)
+
+1. **I1 typy/nośniki:** zgodność interfejsów i kanałów (np. typ payloadu `run.*`).  
+2. **I2 sekwencje:** każde `run.start` powinno mieć `run.done|run.error` w oknie T.  
+3. **I3 lokalność:** zmiana (Δ) nie może tworzyć globalnych wycieków poza scope.  
+4. **I4 monotoniczność:** akcje systemowe nie pogarszają celu (np. β nie dominuje kosztem α bez alibi).
+
+**Walidatory BUS (fail-closed):** filtry przed wysłaniem/po odebraniu wiadomości. Działają na EGDB (+ cache) i polityki EGQL.
+
+---
+
+## 3. Walidatory: projekt, mechanika i dowód
+
+### 3.1 Miejsce wpięcia
+- **Pre-publish hook** w `BusService` (nadawca).  
+- **Pre-dispatch hook** w routerze (po stronie brokera/odbiorcy).
+
+### 3.2 Interfejs
+
+```python
+class BusValidator:
+    def __init__(self, egdb: EGDB, policies: list[EGQLPolicy]): ...
+    def on_publish(self, evt: GLXEvent) -> None:  # raise ValidationError
+    def on_dispatch(self, evt: GLXEvent) -> None: # raise ValidationError
+```
+
+### 3.3 Przykładowe polisy (EGQL)
+
+- **I2 (sekwencja):**  
+  ```
+  PATH TOPIC:run.start >> (TOPIC:run.done || TOPIC:run.error)
+  WHERE window<=5000
+  ```
+- **I1 (typy):**  
+  ```
+  FIND events WHERE TOPIC="image.result" AND NOT TAG:schema="image/v1"
+  ```
+- **I3 (lokalność):**  
+  ```
+  FIND events WHERE KIND="reassign" AND ΔH>H_threshold AND NOT PORT:led~"allowed.*"
+  ```
+
+### 3.4 Fail-closed i dowody
+- Naruszenie → wyjątek z `proof` (ścieżka, Δ, fragmenty payloadu, źródła).  
+- Równoległy **fallback** na BUS z planem („co system robi dalej”, np. degradacja jakości, izolacja komponentu).
+
+---
+
+## 4. Relacyjna mechanika „przesuwania odcinków”
+
+- Wstawienie nowego węzła między `1, a, 2` *nie wymaga* przebudowy metryki: zmieniają się *tylko relacje*.  
+- **Kontrakcja/ekspansja** zmienia `S` lokalnie i może wpłynąć na `Z`, zostawiając `H` nietknięte (lub korygowane minimalnie).  
+- **Reassign** wprowadza „skok” H (nowe mosty), ale inwariant **I3** ogranicza zakres (musi istnieć domknięcie w ramach centroidu).
+
+---
+
+## 5. Integracja z EGDB i Mozaiką
+
+- Każde zdarzenie gramatyczne trafia do EGDB jako `grammar_event` + `deltas`.  
+- Mozaika używa tych delt do renderingu (bucket, λ) i wyznacza **β-mosty** do priorytetyzacji integracji.  
+- AST dostarcza „twarde” ΔS/ΔZ, które kalibrują wynik mozaiki (shadow vs konkret).
+
+---
+
+## 6. EGQL jako warstwa kontroli
+
+- Jednym językiem opisujemy: **czas** (PATH), **strukturę** (FIND + KIND), **mozaikę** (ΔS/ΔH/ΔZ) i **tagi**.  
+- Polisy są czytelne, testowalne i automatyzowalne w CI (egzekwowane przez walidatory BUS).
+
+---
+
+## 7. Roadmapa wdrożenia Gramatyki Zdarzeń
+
+1. Definicja pełnego słownika `kind` (AST/Mozaika/Bus).  
+2. Zestaw polityk EGQL dla I1–I4 (MVP) + wzorce domenowe.  
+3. Walidatory pre-publish/pre-dispatch w `BusService`.  
+4. GUI do podglądu naruszeń (dowody + decyzje fallback).  
+5. Tuning wag i progi (α*, β*, Z*).
+
+---
+
+## 8. DoD (Definition of Done)
+
+- Walidatory zatrzymują niepoprawne wiadomości i emitują „proof events”.  
+- Zdefiniowane i działające polityki I1–I4.  
+- Integracja z EGDB (dowody zapisywane) i Mozaiką (mosty β odświeżane).
+
+---
+
+## 9. Aneks: przykładowy *proof envelope*
+
+```json
+{
+  "validator": "I2.sequence",
+  "event_id": "evt_01H...",
+  "topic": "run.start",
+  "ts": 1730721000.125,
+  "window_ms": 5000,
+  "evidence": {
+    "path": ["run.start@t0", "⟂ (brak run.done|run.error ≤ 5s)"],
+    "deltas": {"ΔS":0, "ΔH":1, "ΔZ":0},
+    "sources": [
+      {"type":"runtime", "id":"evt_01H...", "topic":"run.start"},
+      {"type":"egql", "query":"PATH TOPIC:run.start >> TOPIC:run.done WHERE window<=5000"}
+    ]
+  },
+  "action": "fallback.publish(core.fallback.plan)"
+}
+```
+
