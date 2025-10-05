@@ -1,4 +1,4 @@
-# GLX :: Katalog architektury — **HIPERTEKST v2 (Template)**
+# GLX :: Katalog architektury — **HIPERTEKST v5**
 
 > Zestaw plików **szablonowych** (bez analizy kodu). Każda sekcja ma znaczniki `@auto:` oraz symbol **Δ** do automatycznego wypełnienia przez narzędzia GLX.
 
@@ -15,7 +15,8 @@
 7. **[07_contracts.md](contracts.md)** — Kontrakty danych (JSON Schema)  
 8. **[08_validation.md](validation.md)** — Reguły walidacji I1–I4  
 9. **[09_observability.md](observability.md)** — Obserwowalność/HUD metryki  
-10. **[10_attachments.md](attachments.md)** — Załączniki, tagi automaty  
+10. **[10_attachments.md](attachments.md)** — Załączniki, tagi automaty 
+11. **[GLX_Mosaika_Matematyka_v1.md](GLX_Mosaika_Matematyka_v1.md)** - Matematyka i Formalizm Mozaiki
 11. **[NAV](#nawigacja-szybka)** — szybkie przejścia
 
 ---

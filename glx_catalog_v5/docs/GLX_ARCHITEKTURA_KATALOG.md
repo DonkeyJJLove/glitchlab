@@ -1,4 +1,4 @@
-# GLX :: Katalog architektury (hipertekst, wielopoziomowy) — **SZABLON NADPISYWALNY**
+# GLX :: Katalog architektury
 
 > Ten dokument to **hipertekstowy katalog architektury GlitchLab** przygotowany jako **szablon**.  
 > **Nie wykonuje** analizy kodu ani załączonych ZIP-ów. Wszystkie sekcje mają **miejsca na automatyczne wypełnienie** (Δ) przez Twoje skrypty GLX.
