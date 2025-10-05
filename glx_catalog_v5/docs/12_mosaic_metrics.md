@@ -159,7 +159,7 @@ Nie narzucając konkretnej implementacji, przyjmujemy wspólny słownik:
 
 ```mermaid
 erDiagram
-  glx_mosaic_metrics {{
+  glx_mosaic_metrics {
     bigint id PK
     varchar commit
     json scope
@@ -178,8 +178,9 @@ erDiagram
     float throughput_eps
     float error_budget
     timestamp ts
-  }}
+  }
 ```
+
 %% Mermaid Styles
 classDef tile fill:#0b7285,stroke:#083344,color:#fff;
 classDef db fill:#4c6ef5,stroke:#233,color:#fff;
