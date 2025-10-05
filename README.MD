@@ -300,11 +300,15 @@ To wystarcza agentom do: klastrów domen, wykrywania **hotspotów integracyjnych
 - **Ψ (podnoszenie):** generuje kandydaty zmian w AST z planu Mozaiki (kontrakty, linki, bucket-shift).
 
 **Własności (robocze):**
-
-- **Monotoniczność:** $\Delta Z$ w AST i w Mozaice ma zgodny bilans na ścieżce (I1).
-- **Bliskie domknięcie:** $\Phi \circ \Psi \approx \operatorname{id}$ na przestrzeni planów, w granicach tolerancji polityk (progi dla $\alpha, \beta, Z$).
-- **Komutacja z $\Delta$:** $\Phi(\Delta_{\mathrm{AST}}) \approx \Delta_{\mathrm{MOZ}}$ dla podstawowych zdarzeń (Import/Call/Define/Use).
-
+```mermaid
+$$
+\begin{aligned}
+\textbf{Monotoniczność:}\ & \Delta Z \text{ w AST i w Mozaice ma zgodny bilans na ścieżce (I1).} \\
+\textbf{Bliskie domknięcie:}\ & \Phi \circ \Psi \approx \mathrm{id}\ \text{(progi dla }\alpha,\beta,Z\text{).} \\
+\textbf{Komutacja z }\Delta\text{:}\ & \Phi(\Delta_{\mathrm{AST}}) \approx \Delta_{\mathrm{MOZ}} \ \text{(Import/Call/Define/Use).}
+\end{aligned}
+$$
+```
 
 > W praktyce **Ψ** jest heurystyczne (do czasu pełnej adjunkcji); dowody i tolerancje zapisujemy w EGDB.
 
