@@ -623,7 +623,7 @@ flowchart LR
     HUD[HUD/Reports]:::tile
   end
 
-  subgraph EGDB[(EGDB: Event Grammar DB)]
+  subgraph EGDB [(EGDB: Event Grammar DB)]
     EVT[glx_events]:::db
     CFG[glx_config]:::db
     TOP[glx_topics]:::db
