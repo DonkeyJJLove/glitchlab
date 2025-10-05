@@ -1,5 +1,10 @@
 # GlitchLab — **Agent Platform (Human–AI Teaming) (EXPERIMENTAL)**
 
+GlitchLab to **platforma agentowa** dla zespołów Human–AI, która łączy trzy światy w jeden przewidywalny strumień pracy: **AST (struktura kodu)**, **Mozaikę (geometrię zmian Δ)** i **EGDB (Event Grammar DB)**. Zamiast gubić się w logach i domysłach, dostajesz **dowody na żywo**: każdy commit, każde zdarzenie na BUS-ie i każdy plan refaktoryzacji ma ścieżkę przyczynowo-skutkową i metryki. Walidatory działają *fail-closed*, GUI pokazuje Δ-heatmapy i alarmy inwariantów, a trzy węzły szyny (Core/Analysis/GUI) pozwalają skalować się w górę, w bok i — co najważniejsze — w dół, aż do sterowania na poziomie procesu. To nie jest „kolejny framework”, to **język decyzji** dla ludzi i agentów, który sprawia, że zmiany są szybkie, odwracalne i udowadnialne.
+
+Dla liderów technicznych i badaczy AI GlitchLab oznacza koniec kompromisu między eksperymentem a stabilnością. Możesz uruchamiać filtry obrazu, planować refaktoryzacje i trenować agentów na tych samych deltach i inwariantach, które później egzekwuje produkcja. **Jedno źródło prawdy (EGDB)**, **jedna rachunkowość zmian (ΔS/ΔH/ΔZ)**, **jedna szyna** do orkiestracji — a do tego nowoczesny HUD, gotowe hooki Git i katalog dokumentacji, który prowadzi od obrazka architektury do konkretnych poleceń. Jeśli szukasz realnego „Human–AI teaming” zamiast slajdów, **to jest miejsce, w którym prototyp staje się praktyką**.
+
+
 ![Wizualizacja](resources/img/model.png) <sub>Rys. 1 — Rdzeń GlitchLab: **Agenci** ⇄ **BUS** ⇄ **EGDB** ⇄ **AST/Mozaika** ⇄ **GUI/HUD**. Wspólny rachunek delt **Δ(S/H/Z)** i inwarianty I1–I4 (fail-closed).</sub>
 
 ---
