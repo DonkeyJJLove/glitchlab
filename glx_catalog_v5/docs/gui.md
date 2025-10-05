@@ -4,41 +4,41 @@
 flowchart LR
   %% NODES
   subgraph CORE["Core / Root"]
-    APP[app.py<br/>AppShell]:::core
-    EB[event_bus.py<br/>EventBus]:::bus
-    LOADER[panel_loader.py]:::core
-    STATE[state.py]:::core
+    APP["app.py<br/>AppShell"]:::core
+    EB["event_bus.py<br/>EventBus"]:::bus
+    LOADER["panel_loader.py"]:::core
+    STATE["state.py"]:::core
   end
 
   subgraph GUI["GUI (Views + Widgets + Panels)"]
-    MENU[views/menu.py]:::ui
-    NB[views/notebook.py]:::ui
-    VIEWPORT[views/viewport.py]:::ui
-    LAYERP[views/layer_panel.py]:::ui
-    HUDV[views/hud.py]:::ui
+    MENU["views/menu.py"]:::ui
+    NB["views/notebook.py"]:::ui
+    VIEWPORT["views/viewport.py"]:::ui
+    LAYERP["views/layer_panel.py"]:::ui
+    HUDV["views/hud.py"]:::ui
 
-    CC[widgets/canvas_container.py]:::uiw
-    IC[widgets/image_canvas.py]:::uiw
-    MV[widgets/mosaic_view.py]:::uiw
-    PF[widgets/param_form.py]:::uiw
-    PPV[widgets/pipeline_preview.py]:::uiw
+    CC["widgets/canvas_container.py"]:::uiw
+    IC["widgets/image_canvas.py"]:::uiw
+    MV["widgets/mosaic_view.py"]:::uiw
+    PF["widgets/param_form.py"]:::uiw
+    PPV["widgets/pipeline_preview.py"]:::uiw
 
-    PANELS[panels/* (pluginy)]:::panel
+    PANELS["panels — plugins"]:::panel
   end
 
   subgraph SRV["Services"]
-    PR[services/pipeline_runner.py]:::svc
-    CMP[services/compositor.py]:::svc
-    LM[services/layer_manager.py]:::svc
-    FILES[services/files.py]:::svc
-    PRESET[services/presets.py]:::svc
-    MASKS[services/masks.py]:::svc
-    IH[services/image_history.py]:::svc
-    LAYOUT[services/layout.py]:::svc
+    PR["services/pipeline_runner.py"]:::svc
+    CMP["services/compositor.py"]:::svc
+    LM["services/layer_manager.py"]:::svc
+    FILES["services/files.py"]:::svc
+    PRESET["services/presets.py"]:::svc
+    MASKS["services/masks.py"]:::svc
+    IH["services/image_history.py"]:::svc
+    LAYOUT["services/layout.py"]:::svc
   end
 
   subgraph STORES["Stores / DB"]
-    HUDS[widgets/hud.py<br/>HUDStore]:::store
+    HUDS["widgets/hud.py<br/>HUDStore"]:::store
     EGDB[(EGDB<br/>runtime_events<br/>grammar_events)]:::db
   end
 
