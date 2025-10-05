@@ -623,24 +623,25 @@ flowchart LR
     HUD[HUD/Reports]:::tile
   end
 
-  subgraph EGDB [(EGDB: Event Grammar DB)]
-    EVT[glx_events]:::db
-    CFG[glx_config]:::db
-    TOP[glx_topics]:::db
-    GΔ[glx_deltas]:::db
-    GRM[glx_grammar_events]:::db
+  subgraph EGDB[EGDB: Event Grammar DB]
+    EVT[(glx_events)]:::db
+    CFG[(glx_config)]:::db
+    TOP[(glx_topics)]:::db
+    GDelta[(glx_deltas)]:::db
+    GRM[(glx_grammar_events)]:::db
   end
 
   Repo -->|HEAD, Δ| GA
-  GA -->|git.delta.ready| Bus
-  AST -->|code.ast.built| Bus
-  REF -->|refactor.plan.ready| Bus
-  Bus -->|publish| EGDB
-  VAL -->|fail-closed| Bus
+  GA -->|git.delta.ready| HUD
+  AST -->|code.ast.built| HUD
+  REF -->|refactor.plan.ready| HUD
+  VAL -->|fail-closed| HUD
+  HUD -->|publish| EVT
 
   classDef tile fill:#0b7285,stroke:#083344,color:#fff;
-  classDef db fill:#4c6ef5,stroke:#233, color:#fff;
+  classDef db fill:#4c6ef5,stroke:#233,color:#fff;
   classDef guard fill:#e03131,stroke:#300,color:#fff;
+
 ```
 
 **Kontrakt integracyjny (skrót):**  
