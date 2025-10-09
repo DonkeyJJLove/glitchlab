@@ -27,19 +27,20 @@ except Exception:
 
 DOC = "Pseudo-3D parallax using a depth field; supports mask, amplitude, stereo and shading."
 DEFAULTS: Dict[str, Any] = {
-    "depth_map":  "noise_fractal",  # noise_fractal|perlin|sine
-    "scale":      56.0,             # px – siła przesunięcia (poziomo)
-    "freq":       110.0,            # częstotliwość dla generatora głębi
-    "octaves":    5,                # oktawy (dla perlin)
-    "vertical":   0.15,             # udział pionowego przesunięcia (0..1)
-    "stereo":     True,             # anaglyph R/B offset
-    "stereo_px":  2,                # px różnicy kanałów R/B
-    "shading":    True,             # cieniowanie na gradiencie głębi
-    "shade_gain": 0.25,             # 0..1
-    "mask_key":   None,             # ROI
-    "use_amp":    1.0,              # float|bool – wpływ ctx.amplitude
-    "clamp":      True,             # końcowe przycięcie do u8
+    "depth_map": "noise_fractal",  # noise_fractal|perlin|sine
+    "scale": 56.0,  # px – siła przesunięcia (poziomo)
+    "freq": 110.0,  # częstotliwość dla generatora głębi
+    "octaves": 5,  # oktawy (dla perlin)
+    "vertical": 0.15,  # udział pionowego przesunięcia (0..1)
+    "stereo": True,  # anaglyph R/B offset
+    "stereo_px": 2,  # px różnicy kanałów R/B
+    "shading": True,  # cieniowanie na gradiencie głębi
+    "shade_gain": 0.25,  # 0..1
+    "mask_key": None,  # ROI
+    "use_amp": 1.0,  # float|bool – wpływ ctx.amplitude
+    "clamp": True,  # końcowe przycięcie do u8
 }
+
 
 # ----------------------- helpers (samowystarczalne) -----------------------
 
@@ -47,14 +48,17 @@ def _to_u8(f32: np.ndarray) -> np.ndarray:
     x = np.clip(f32, 0.0, 1.0)
     return (x * 255.0 + 0.5).astype(np.uint8)
 
+
 def _fit_hw(m: np.ndarray, H: int, W: int) -> np.ndarray:
     mh, mw = m.shape[:2]
     out = np.zeros((H, W), dtype=np.float32)
-    h = min(H, mh); w = min(W, mw)
+    h = min(H, mh);
+    w = min(W, mw)
     out[:h, :w] = m[:h, :w].astype(np.float32)
-    if h < H: out[h:, :w] = out[h-1:h, :w]
-    if w < W: out[:H, w:] = out[:H, w-1:w]
+    if h < H: out[h:, :w] = out[h - 1:h, :w]
+    if w < W: out[:H, w:] = out[:H, w - 1:w]
     return out
+
 
 def _resolve_mask(ctx, mask_key: Optional[str], H: int, W: int) -> Optional[np.ndarray]:
     if not mask_key or not getattr(ctx, "masks", None):
@@ -66,6 +70,7 @@ def _resolve_mask(ctx, mask_key: Optional[str], H: int, W: int) -> Optional[np.n
     if m.shape != (H, W):
         m = _fit_hw(m, H, W)
     return np.clip(m, 0.0, 1.0)
+
 
 def _amplitude_map(ctx, H: int, W: int, use_amp) -> np.ndarray:
     if not hasattr(ctx, "amplitude") or ctx.amplitude is None:
@@ -79,6 +84,7 @@ def _amplitude_map(ctx, H: int, W: int, use_amp) -> np.ndarray:
     if isinstance(use_amp, bool):
         return base if use_amp else np.ones((H, W), dtype=np.float32)
     return base * float(max(0.0, use_amp))
+
 
 def _depth_field(h: int, w: int, kind: str, freq: float, octaves: int, seed: int) -> np.ndarray:
     kind = (kind or "noise_fractal").lower()
@@ -109,6 +115,7 @@ def _depth_field(h: int, w: int, kind: str, freq: float, octaves: int, seed: int
     z /= (z.max() + 1e-12)
     return z.astype(np.float32)
 
+
 def _emit_diag(ctx, depth: np.ndarray, dx: np.ndarray, dy: np.ndarray, shade: Optional[np.ndarray]) -> None:
     try:
         ctx.cache["diag/depth_displace/depth"] = _to_u8(np.stack([depth, depth, depth], axis=-1))
@@ -125,6 +132,7 @@ def _emit_diag(ctx, depth: np.ndarray, dx: np.ndarray, dy: np.ndarray, shade: Op
     except Exception:
         pass
 
+
 # -------------------------------- main --------------------------------
 
 @register("depth_displace", defaults=DEFAULTS, doc=DOC)
@@ -137,18 +145,18 @@ def depth_displace(img: np.ndarray, ctx, **p) -> np.ndarray:
         raise ValueError("depth_displace: expected RGB-like image (H,W,C>=3)")
     H, W, _ = a.shape
 
-    depth_map  = str(p.get("depth_map",  DEFAULTS["depth_map"]))
-    scale      = float(p.get("scale",     DEFAULTS["scale"]))
-    freq       = float(p.get("freq",      DEFAULTS["freq"]))
-    octaves    = int(  p.get("octaves",   DEFAULTS["octaves"]))
-    vertical   = float(p.get("vertical",  DEFAULTS["vertical"]))
-    stereo     = bool( p.get("stereo",    DEFAULTS["stereo"]))
-    stereo_px  = int(  p.get("stereo_px", DEFAULTS["stereo_px"]))
-    shading    = bool( p.get("shading",   DEFAULTS["shading"]))
-    shade_gain = float(p.get("shade_gain",DEFAULTS["shade_gain"]))
-    mask_key   = p.get("mask_key",        DEFAULTS["mask_key"])
-    use_amp    = p.get("use_amp",         DEFAULTS["use_amp"])
-    clamp      = bool( p.get("clamp",     DEFAULTS["clamp"]))
+    depth_map = str(p.get("depth_map", DEFAULTS["depth_map"]))
+    scale = float(p.get("scale", DEFAULTS["scale"]))
+    freq = float(p.get("freq", DEFAULTS["freq"]))
+    octaves = int(p.get("octaves", DEFAULTS["octaves"]))
+    vertical = float(p.get("vertical", DEFAULTS["vertical"]))
+    stereo = bool(p.get("stereo", DEFAULTS["stereo"]))
+    stereo_px = int(p.get("stereo_px", DEFAULTS["stereo_px"]))
+    shading = bool(p.get("shading", DEFAULTS["shading"]))
+    shade_gain = float(p.get("shade_gain", DEFAULTS["shade_gain"]))
+    mask_key = p.get("mask_key", DEFAULTS["mask_key"])
+    use_amp = p.get("use_amp", DEFAULTS["use_amp"])
+    clamp = bool(p.get("clamp", DEFAULTS["clamp"]))
 
     seed = int(getattr(ctx, "seed", 7))
     depth = _depth_field(H, W, depth_map, freq=freq, octaves=octaves, seed=seed)
@@ -175,8 +183,8 @@ def depth_displace(img: np.ndarray, ctx, **p) -> np.ndarray:
     if stereo:
         xs_r = np.clip(xs + int(abs(stereo_px)), 0, W - 1)
         xs_b = np.clip(xs - int(abs(stereo_px)), 0, W - 1)
-        out[..., 0] = a[ys, xs_r, 0]   # R
-        out[..., 2] = a[ys, xs_b, 2]   # B
+        out[..., 0] = a[ys, xs_r, 0]  # R
+        out[..., 2] = a[ys, xs_b, 2]  # B
     else:
         out[..., 0] = a[ys, xs, 0]
         out[..., 2] = a[ys, xs, 2]
