@@ -130,5 +130,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    print("go-")
     sys.exit(main())

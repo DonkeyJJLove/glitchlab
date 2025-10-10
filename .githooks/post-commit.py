@@ -546,7 +546,7 @@ def _writestr_deterministic(zf: zipfile.ZipFile, arcname: str, data: bytes) -> N
 # glx:contracts.publish=run.done
 # glx:data.in=GLX_OUT,GLX_AUTONOMY_OUT
 # glx:data.out=backup/AUDIT_*.zip
-def _make_zip(env: Dict[str, str], git_root: Path, glx_root: Path) -> None:
+def _make_zip(env: Dict[str, str], git_root: Path) -> None: #, glx_root: Path) -> None:
     out_dir = Path(_req(env, "GLX_OUT"))
     auto_dir = Path(_req(env, "GLX_AUTONOMY_OUT"))
 

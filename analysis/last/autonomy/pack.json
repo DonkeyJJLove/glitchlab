@@ -1,119 +1,95 @@
 {
   "schema": "glx.selfdoc",
   "schema_ver": "v1.1",
-  "generated_at": "2025-10-04T23:38:28Z",
+  "generated_at": "2025-10-09T13:20:40Z",
   "project_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab",
   "package_root": "C:\\Users\\donke\\PycharmProjects\\glitchlab_project\\glitchlab",
   "glx_state": {},
   "git": {
     "ok": true,
-    "head": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
-    "head_abbrev": "f3c8a05",
+    "head": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
+    "head_abbrev": "a90c284",
     "branch": "master",
     "commits": [
       {
-        "hash": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
-        "ts": 1759586577,
-        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
-      },
-      {
-        "hash": "1d027e2badfe965267cad39498c2f5678f77d431",
-        "ts": 1759581545,
-        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
-      },
-      {
-        "hash": "ca6a1a0a043ccc90c6f17c2b0a4a5e46222ec6bb",
-        "ts": 1759581205,
-        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
-      },
-      {
-        "hash": "94cfcc22cd197eeaa2e886a29ac1c92d2be84554",
-        "ts": 1759567839,
-        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
-      },
-      {
-        "hash": "cb0bcaaa3b13e6bb63cd13eebd2b86bf43c4cfb4",
-        "ts": 1759567784,
-        "subject": "8 file(s) staged: [Δ] Zakres - files: 8 (commit_analysis.json, commit_snippet.txt, ast_index.py, commit_20251004-083627.json, env.json, pack.json (+2)) - typ: auto (pre-diff)"
-      },
-      {
-        "hash": "ff97057659aee13ce7c04bd5a4a7a1dc855c2a84",
-        "ts": 1759566985,
-        "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (hook_probe.py) - typ: auto (pre-diff)"
-      },
-      {
-        "hash": "a03655edf89827fcb93017f0ef348fa92339a798",
-        "ts": 1759565073,
-        "subject": "43 file(s) staged: [Δ] Zakres - files: 43 (.env.local, .gitattributes, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-0b7978a_S-20250928035234_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-2c1d2a8_S-20250928013758_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-30922d1_S-20250928040045_PUB.patch, GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-59bddb5_S-20250928035644_PUB.patch (+37)) - typ: auto (pre-diff)"
-      },
-      {
-        "hash": "59f7fd08fba664f3b265da312c05630781657f32",
-        "ts": 1759545530,
+        "hash": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
+        "ts": 1760013725,
         "subject": "…"
       },
       {
-        "hash": "7d9c4cc9957180204526cf5cd9e584e9b1c11c43",
-        "ts": 1759517435,
-        "subject": "13 file(s) staged: [Δ] Zakres - files: 13 (__init__.py, __init__.py, test_ab_runner.py, test_plot_results.py, __init__.py, test_fuzz_tasks.py (+7)) - typ: auto (pre-diff)"
+        "hash": "14d6414aecb1e18cc08fef012f88f7b2701516d6",
+        "ts": 1760013617,
+        "subject": "…"
       },
       {
-        "hash": "ca26778760240e16d9ada286bda8722805980f6d",
-        "ts": 1759515983,
-        "subject": "10 file(s) staged: [Δ] Zakres - files: 10 (commit_analysis.json, commit_snippet.txt, pack.json, pack.md, prompt.json, report.json (+4)) - typ: auto (pre-diff)"
+        "hash": "85094993c1f8ca64d4c7418d48b23902cee18d9a",
+        "ts": 1759688112,
+        "subject": "…"
       },
       {
-        "hash": "f37ad1be16c89761670f4bd8d8c85d0375456eb1",
-        "ts": 1759514828,
-        "subject": "10 file(s) staged: [Δ] Zakres - files: 10 (commit_analysis.json, commit_snippet.txt, pack.json, pack.md, prompt.json, report.json (+4)) - typ: auto (pre-diff)"
+        "hash": "8f8342e4fa3f4cba2f9530e2861be843d61d08b2",
+        "ts": 1759687561,
+        "subject": "…"
       },
       {
-        "hash": "7afb8e437b440c5d5a92781ad7f56c5493488f6f",
-        "ts": 1759513526,
-        "subject": "10 file(s) staged: [Δ] Zakres - files: 10 (commit_analysis.json, commit_snippet.txt, pack.json, pack.md, prompt.json, report.json (+4)) - typ: auto (pre-diff)"
+        "hash": "aee0945d0512766bd12e59fb50211edfb4405c1d",
+        "ts": 1759687459,
+        "subject": "…"
+      },
+      {
+        "hash": "ec15b07e919036ae3bfda1f9f9a4f7fb03b73b40",
+        "ts": 1759687224,
+        "subject": "…"
+      },
+      {
+        "hash": "16cd8058365f1061b6f6eecaf0f6d9a6c7d03722",
+        "ts": 1759687159,
+        "subject": "…"
+      },
+      {
+        "hash": "4c1d3ba23bffb5aecdcb3b78e98fe75f1176c718",
+        "ts": 1759683452,
+        "subject": "…"
+      },
+      {
+        "hash": "1e8b2e863d8f8f220a0052c8d50bdd261ffd3a12",
+        "ts": 1759683262,
+        "subject": "…"
+      },
+      {
+        "hash": "3dd98abfb44f9ae7d9cd7ebb7c248da85eb50cab",
+        "ts": 1759683067,
+        "subject": "…"
+      },
+      {
+        "hash": "80f00298d54004bf7d5e33101c00c698b16291c6",
+        "ts": 1759682973,
+        "subject": "…"
+      },
+      {
+        "hash": "2c8c1d45bbe30ecd861f7b4add187ee199583387",
+        "ts": 1759682934,
+        "subject": "…"
       }
     ],
     "delta_last": [
       {
-        "status": "A",
-        "path": ".githooks/_common.py"
-      },
-      {
-        "status": "A",
-        "path": ".githooks/post-commit.py"
-      },
-      {
-        "status": "A",
-        "path": ".githooks/post-diff.py"
-      },
-      {
-        "status": "A",
-        "path": ".githooks/pre-commit.py"
-      },
-      {
-        "status": "A",
-        "path": ".githooks/pre-diff.py"
-      },
-      {
-        "status": "A",
-        "path": ".githooks/prepare-commit-msg"
+        "status": "M",
+        "path": ".githooks/old/pre-commit"
       },
       {
         "status": "M",
-        "path": "analysis/last/autonomy/pack.json"
+        "path": ".githooks/old/pre-commit.py"
       },
       {
         "status": "M",
-        "path": "analysis/last/autonomy/pack.md"
-      },
-      {
-        "status": "M",
-        "path": "analysis/last/autonomy/prompt.json"
+        "path": "filters/block_mosh.py"
       }
     ]
   },
   "code": {
     "totals": {
-      "loc": 34906,
+      "loc": 34925,
       "modules": 175,
       "defs": 1769,
       "classes": 184
@@ -4566,39 +4542,39 @@
       },
       {
         "path": "filters/block_mosh.py",
-        "loc": 178,
+        "loc": 192,
         "defs": [
           {
             "name": "_to_f32",
-            "lineno": 30
+            "lineno": 31
           },
           {
             "name": "_to_u8",
-            "lineno": 33
+            "lineno": 35
           },
           {
             "name": "_fit_hw",
-            "lineno": 37
+            "lineno": 40
           },
           {
             "name": "_resolve_mask",
-            "lineno": 46
+            "lineno": 51
           },
           {
             "name": "_amplitude_map",
-            "lineno": 56
+            "lineno": 62
           },
           {
             "name": "_shift_patch_u8",
-            "lineno": 67
+            "lineno": 75
           },
           {
             "name": "block_mosh",
-            "lineno": 84
+            "lineno": 97
           },
           {
             "name": "_u",
-            "lineno": 168
+            "lineno": 181
           }
         ],
         "classes": []
@@ -4759,46 +4735,46 @@
       },
       {
         "path": "filters/depth_parallax.py",
-        "loc": 203,
+        "loc": 211,
         "defs": [
           {
             "name": "_to_u8",
-            "lineno": 46
+            "lineno": 47
           },
           {
             "name": "_fit_hw",
-            "lineno": 50
+            "lineno": 52
           },
           {
             "name": "_resolve_mask",
-            "lineno": 59
+            "lineno": 63
           },
           {
             "name": "_amplitude_map",
-            "lineno": 70
+            "lineno": 75
           },
           {
             "name": "_depth_field",
-            "lineno": 83
+            "lineno": 89
           },
           {
             "name": "_emit_diag",
-            "lineno": 112
+            "lineno": 119
           },
           {
             "name": "depth_displace",
-            "lineno": 131
+            "lineno": 139
           }
         ],
         "classes": []
       },
       {
         "path": "filters/gamma_gain.py",
-        "loc": 66,
+        "loc": 63,
         "defs": [
           {
             "name": "gamma_gain",
-            "lineno": 22
+            "lineno": 19
           }
         ],
         "classes": []
@@ -11636,74 +11612,50 @@
   "prompts": {
     "architect_review": {
       "system": "Jesteś asystentem inżynierskim GlitchLab. Twoja analiza ma być deterministyczna, konkretna, bez wprowadzania losowości. Oceniaj wpływ zmian na architekturę i HUD/Mosaic⇄AST.",
-      "user": "Cel: architect_review. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34906, modules=175, defs=1769, classes=184.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
+      "user": "Cel: architect_review. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34925, modules=175, defs=1769, classes=184.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
       "context": {
         "glx_state": {},
-        "git_head": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
+        "git_head": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
         "git_branch": "master",
         "recent_commits": [
           {
-            "hash": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
-            "ts": 1759586577,
-            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+            "hash": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
+            "ts": 1760013725,
+            "subject": "…"
           },
           {
-            "hash": "1d027e2badfe965267cad39498c2f5678f77d431",
-            "ts": 1759581545,
-            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+            "hash": "14d6414aecb1e18cc08fef012f88f7b2701516d6",
+            "ts": 1760013617,
+            "subject": "…"
           },
           {
-            "hash": "ca6a1a0a043ccc90c6f17c2b0a4a5e46222ec6bb",
-            "ts": 1759581205,
-            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+            "hash": "85094993c1f8ca64d4c7418d48b23902cee18d9a",
+            "ts": 1759688112,
+            "subject": "…"
           },
           {
-            "hash": "94cfcc22cd197eeaa2e886a29ac1c92d2be84554",
-            "ts": 1759567839,
-            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+            "hash": "8f8342e4fa3f4cba2f9530e2861be843d61d08b2",
+            "ts": 1759687561,
+            "subject": "…"
           },
           {
-            "hash": "cb0bcaaa3b13e6bb63cd13eebd2b86bf43c4cfb4",
-            "ts": 1759567784,
-            "subject": "8 file(s) staged: [Δ] Zakres - files: 8 (commit_analysis.json, commit_snippet.txt, ast_index.py, commit_20251004-083627.json, env.json, pack.json (+2)) - typ: auto (pre-diff)"
+            "hash": "aee0945d0512766bd12e59fb50211edfb4405c1d",
+            "ts": 1759687459,
+            "subject": "…"
           }
         ],
         "delta_last": [
           {
-            "status": "A",
-            "path": ".githooks/_common.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/post-commit.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/post-diff.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/pre-commit.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/pre-diff.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/prepare-commit-msg"
+            "status": "M",
+            "path": ".githooks/old/pre-commit"
           },
           {
             "status": "M",
-            "path": "analysis/last/autonomy/pack.json"
+            "path": ".githooks/old/pre-commit.py"
           },
           {
             "status": "M",
-            "path": "analysis/last/autonomy/pack.md"
-          },
-          {
-            "status": "M",
-            "path": "analysis/last/autonomy/prompt.json"
+            "path": "filters/block_mosh.py"
           }
         ],
         "top_modules": [
@@ -12992,12 +12944,12 @@
       },
       "attachments": {
         "schema": "glx.selfdoc",
-        "when": "2025-10-04T23:38:28Z",
+        "when": "2025-10-09T13:20:40Z",
         "telemetry": {
           "ok": true,
           "error": "",
-          "scan_ms": 1172.6335000000001,
-          "ast_ms": 934.0651999999995,
+          "scan_ms": 3612.7089,
+          "ast_ms": 3294.983000000005,
           "files_scanned": 177,
           "mods": 175,
           "defs": 1769,
@@ -13014,74 +12966,50 @@
     },
     "risk_brief": {
       "system": "Jesteś asystentem inżynierskim GlitchLab. Twoja analiza ma być deterministyczna, konkretna, bez wprowadzania losowości. Oceniaj wpływ zmian na architekturę i HUD/Mosaic⇄AST.",
-      "user": "Cel: risk_brief. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34906, modules=175, defs=1769, classes=184.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
+      "user": "Cel: risk_brief. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34925, modules=175, defs=1769, classes=184.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
       "context": {
         "glx_state": {},
-        "git_head": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
+        "git_head": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
         "git_branch": "master",
         "recent_commits": [
           {
-            "hash": "f3c8a0506881078c9fdc028f5cb90be3fc3b4b1c",
-            "ts": 1759586577,
-            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+            "hash": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
+            "ts": 1760013725,
+            "subject": "…"
           },
           {
-            "hash": "1d027e2badfe965267cad39498c2f5678f77d431",
-            "ts": 1759581545,
-            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+            "hash": "14d6414aecb1e18cc08fef012f88f7b2701516d6",
+            "ts": 1760013617,
+            "subject": "…"
           },
           {
-            "hash": "ca6a1a0a043ccc90c6f17c2b0a4a5e46222ec6bb",
-            "ts": 1759581205,
-            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+            "hash": "85094993c1f8ca64d4c7418d48b23902cee18d9a",
+            "ts": 1759688112,
+            "subject": "…"
           },
           {
-            "hash": "94cfcc22cd197eeaa2e886a29ac1c92d2be84554",
-            "ts": 1759567839,
-            "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+            "hash": "8f8342e4fa3f4cba2f9530e2861be843d61d08b2",
+            "ts": 1759687561,
+            "subject": "…"
           },
           {
-            "hash": "cb0bcaaa3b13e6bb63cd13eebd2b86bf43c4cfb4",
-            "ts": 1759567784,
-            "subject": "8 file(s) staged: [Δ] Zakres - files: 8 (commit_analysis.json, commit_snippet.txt, ast_index.py, commit_20251004-083627.json, env.json, pack.json (+2)) - typ: auto (pre-diff)"
+            "hash": "aee0945d0512766bd12e59fb50211edfb4405c1d",
+            "ts": 1759687459,
+            "subject": "…"
           }
         ],
         "delta_last": [
           {
-            "status": "A",
-            "path": ".githooks/_common.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/post-commit.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/post-diff.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/pre-commit.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/pre-diff.py"
-          },
-          {
-            "status": "A",
-            "path": ".githooks/prepare-commit-msg"
+            "status": "M",
+            "path": ".githooks/old/pre-commit"
           },
           {
             "status": "M",
-            "path": "analysis/last/autonomy/pack.json"
+            "path": ".githooks/old/pre-commit.py"
           },
           {
             "status": "M",
-            "path": "analysis/last/autonomy/pack.md"
-          },
-          {
-            "status": "M",
-            "path": "analysis/last/autonomy/prompt.json"
+            "path": "filters/block_mosh.py"
           }
         ],
         "top_modules": [
@@ -14370,12 +14298,12 @@
       },
       "attachments": {
         "schema": "glx.selfdoc",
-        "when": "2025-10-04T23:38:28Z",
+        "when": "2025-10-09T13:20:40Z",
         "telemetry": {
           "ok": true,
           "error": "",
-          "scan_ms": 1172.6335000000001,
-          "ast_ms": 934.0651999999995,
+          "scan_ms": 3612.7089,
+          "ast_ms": 3294.983000000005,
           "files_scanned": 177,
           "mods": 175,
           "defs": 1769,
@@ -14394,8 +14322,8 @@
   "telemetry": {
     "ok": true,
     "error": "",
-    "scan_ms": 1172.6335000000001,
-    "ast_ms": 934.0651999999995,
+    "scan_ms": 3612.7089,
+    "ast_ms": 3294.983000000005,
     "files_scanned": 177,
     "mods": 175,
     "defs": 1769,
