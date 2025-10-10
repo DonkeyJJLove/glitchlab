@@ -4,9 +4,14 @@
     "user": "Cel: architect_review. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34925, modules=175, defs=1769, classes=184.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
     "context": {
       "glx_state": {},
-      "git_head": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
+      "git_head": "b3f63b9a64170b86c2dda5fbab5ced3a02aeab14",
       "git_branch": "master",
       "recent_commits": [
+        {
+          "hash": "b3f63b9a64170b86c2dda5fbab5ced3a02aeab14",
+          "ts": 1760098574,
+          "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+        },
         {
           "hash": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
           "ts": 1760013725,
@@ -26,25 +31,88 @@
           "hash": "8f8342e4fa3f4cba2f9530e2861be843d61d08b2",
           "ts": 1759687561,
           "subject": "…"
-        },
-        {
-          "hash": "aee0945d0512766bd12e59fb50211edfb4405c1d",
-          "ts": 1759687459,
-          "subject": "…"
         }
       ],
       "delta_last": [
         {
-          "status": "M",
+          "status": "A",
+          "path": ".env.local"
+        },
+        {
+          "status": "R100",
+          "path": ".githooks/old/_common.py"
+        },
+        {
+          "status": "R100",
+          "path": ".githooks/old/post-commit"
+        },
+        {
+          "status": "R099",
+          "path": ".githooks/old/post-commit.py"
+        },
+        {
+          "status": "R100",
+          "path": ".githooks/old/post-diff.py"
+        },
+        {
+          "status": "R100",
           "path": ".githooks/old/pre-commit"
         },
         {
-          "status": "M",
+          "status": "R099",
           "path": ".githooks/old/pre-commit.py"
         },
         {
-          "status": "M",
-          "path": "filters/block_mosh.py"
+          "status": "R100",
+          "path": ".githooks/old/pre-diff.py"
+        },
+        {
+          "status": "R100",
+          "path": ".githooks/old/prepare-commit-msg"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-0b7978a_S-20250928035234_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-2c1d2a8_S-20250928013758_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-30922d1_S-20250928040045_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-59bddb5_S-20250928035644_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-6364e73_S-20250928033928_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-6b94a17_S-20250928035832_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-7593a73_S-20250928014203_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-8286b47_S-20250928033347_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-90a0f22_S-20250928033358_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-90edd88_S-20250928034754_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-94f69e1_S-20250928013700_PUB.patch"
         }
       ],
       "top_modules": [
@@ -1333,12 +1401,12 @@
     },
     "attachments": {
       "schema": "glx.selfdoc",
-      "when": "2025-10-09T13:20:40Z",
+      "when": "2025-10-10T12:16:19Z",
       "telemetry": {
         "ok": true,
         "error": "",
-        "scan_ms": 3612.7089,
-        "ast_ms": 3294.983000000005,
+        "scan_ms": 1309.5497,
+        "ast_ms": 926.427700000002,
         "files_scanned": 177,
         "mods": 175,
         "defs": 1769,
@@ -1358,9 +1426,14 @@
     "user": "Cel: risk_brief. Przygotuj plan refaktoryzacji i mapę ryzyk.\nRepo: . | LOC=34925, modules=175, defs=1769, classes=184.\nZidentyfikuj moduły krytyczne i zaproponuj kroki poprawy spójności.",
     "context": {
       "glx_state": {},
-      "git_head": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
+      "git_head": "b3f63b9a64170b86c2dda5fbab5ced3a02aeab14",
       "git_branch": "master",
       "recent_commits": [
+        {
+          "hash": "b3f63b9a64170b86c2dda5fbab5ced3a02aeab14",
+          "ts": 1760098574,
+          "subject": "1 file(s) staged: [Δ] Zakres - files: 1 (commit_20251004-084945.json) - typ: auto (pre-diff)"
+        },
         {
           "hash": "a90c2848dcf32ad077fac004b200ce5c8f0886f7",
           "ts": 1760013725,
@@ -1380,25 +1453,88 @@
           "hash": "8f8342e4fa3f4cba2f9530e2861be843d61d08b2",
           "ts": 1759687561,
           "subject": "…"
-        },
-        {
-          "hash": "aee0945d0512766bd12e59fb50211edfb4405c1d",
-          "ts": 1759687459,
-          "subject": "…"
         }
       ],
       "delta_last": [
         {
-          "status": "M",
+          "status": "A",
+          "path": ".env.local"
+        },
+        {
+          "status": "R100",
+          "path": ".githooks/old/_common.py"
+        },
+        {
+          "status": "R100",
+          "path": ".githooks/old/post-commit"
+        },
+        {
+          "status": "R099",
+          "path": ".githooks/old/post-commit.py"
+        },
+        {
+          "status": "R100",
+          "path": ".githooks/old/post-diff.py"
+        },
+        {
+          "status": "R100",
           "path": ".githooks/old/pre-commit"
         },
         {
-          "status": "M",
+          "status": "R099",
           "path": ".githooks/old/pre-commit.py"
         },
         {
-          "status": "M",
-          "path": "filters/block_mosh.py"
+          "status": "R100",
+          "path": ".githooks/old/pre-diff.py"
+        },
+        {
+          "status": "R100",
+          "path": ".githooks/old/prepare-commit-msg"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-0b7978a_S-20250928035234_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-2c1d2a8_S-20250928013758_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-30922d1_S-20250928040045_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-59bddb5_S-20250928035644_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-6364e73_S-20250928033928_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-6b94a17_S-20250928035832_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-7593a73_S-20250928014203_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-8286b47_S-20250928033347_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-90a0f22_S-20250928033358_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-90edd88_S-20250928034754_PUB.patch"
+        },
+        {
+          "status": "D",
+          "path": ".glx/GLX_GH_DonkeyJJLove-glitchlab_at_main_B-74beff3_H-94f69e1_S-20250928013700_PUB.patch"
         }
       ],
       "top_modules": [
@@ -2687,12 +2823,12 @@
     },
     "attachments": {
       "schema": "glx.selfdoc",
-      "when": "2025-10-09T13:20:40Z",
+      "when": "2025-10-10T12:16:19Z",
       "telemetry": {
         "ok": true,
         "error": "",
-        "scan_ms": 3612.7089,
-        "ast_ms": 3294.983000000005,
+        "scan_ms": 1309.5497,
+        "ast_ms": 926.427700000002,
         "files_scanned": 177,
         "mods": 175,
         "defs": 1769,

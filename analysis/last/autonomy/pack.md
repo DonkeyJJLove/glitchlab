@@ -1,8 +1,8 @@
-# GLX SelfDoc Pack (glx.selfdoc v1.1) — 2025-10-09T13:20:40Z
+# GLX SelfDoc Pack (glx.selfdoc v1.1) — 2025-10-10T12:16:19Z
 
 - Root: `.`
 - LOC: **34925**, modules: **175**, defs: **1769**, classes: **184**
-- Git: branch=`master`, head=`a90c284`
+- Git: branch=`master`, head=`b3f63b9`
 
 **Notes:**
 - GLX: brak .glx/state.json — używam pustych wartości.
