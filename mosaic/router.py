@@ -4,7 +4,7 @@ version: 2
 kind: module
 id: "mosaic-router"
 created_at: "2025-09-13"
-name: "glitchlab.gui.mosaic.router"
+name: "glitchlab.app.mosaic.router"
 author: "GlitchLab v2"
 role: "HUD/Mosaic Routing Resolver"
 description: >
@@ -43,9 +43,9 @@ interfaces:
   depends_on: ["re","fnmatch","typing","itertools","collections"]
   used_by:
     - "glitchlab.mosaic.spec"
-    - "glitchlab.gui.widgets.hud"
-    - "glitchlab.gui.widgets.image_canvas"
-    - "glitchlab.gui.app"
+    - "glitchlab.app.widgets.hud"
+    - "glitchlab.app.widgets.image_canvas"
+    - "glitchlab.app.app"
 
 policy:
   deterministic: true

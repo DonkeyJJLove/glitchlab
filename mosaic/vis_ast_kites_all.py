@@ -22,12 +22,12 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # Import z dwóch możliwych ścieżek (repo może mieć różne drzewo pakietów)
 try:
-    from glitchlab.gui.mosaic.hybrid_ast_mosaic import (
+    from glitchlab.app.mosaic.hybrid_ast_mosaic import (
         ast_deltas, build_mosaic_hex, region_ids, centroid,
         phi_region_for_balanced, EXAMPLE_SRC, EDGE_THR_DEFAULT
     )
 except Exception:
-    from glitchlab.gui.mosaic.hybrid_ast_mosaic import (
+    from glitchlab.app.mosaic.hybrid_ast_mosaic import (
         ast_deltas, build_mosaic_hex, region_ids, centroid,
         phi_region_for_balanced, EXAMPLE_SRC, EDGE_THR_DEFAULT
     )

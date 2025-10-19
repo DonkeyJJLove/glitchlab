@@ -1,315 +1,469 @@
-# glitchlab/analysis/policy_phi_psi.py
-# Polityki/latawce Φ/Ψ nad RepoMosaic ↔ AST:
-# - konwersja RepoMosaic → Mosaic (grid)
-# - selektory Φ (balanced/entropy)
-# - Ψ-feedback + sprzężenie (α,β)
-# - zestaw polityk (edge-preserve, roi-stability, diff-budget)
-# - generator raportu commit-note (mosaic/AST)
-#
-# Python 3.9+ (deps: numpy; stdlib only poza importami z naszego projektu)
+# glitchlab/analysis/phi_psi_bridge.py
+# -*- coding: utf-8 -*-
+# Python 3.9+
+"""
+Most: metasoczewka / graf projektu → mozaika (Φ/Ψ).
+
+Funkcje:
+- scope_to_mosaic(ScopeResult, ...)        → AnalysisMosaic
+- graph_to_mosaic(ProjectGraph, ...)       → AnalysisMosaic
+- project_delta_to_mosaic(delta_report)    → AnalysisMosaic  (kompatybilność wsteczna)
+
+Założenia:
+- Layout kafli = równy grid (deterministyczny). Układ stabilny po (kind, label, id).
+- 'edge' można podać jako mapa node_id→value; w przeciwnym razie liczony z (ważonego) stopnia.
+- 'roi' można podać jako zbiór node_id; w przeciwnym razie – domyślna (środek 30–62%) w adapterze.
+
+Zależności:
+- analysis.mosaic_adapter.core_to_analysis_mosaic
+- analysis.project_graph.ProjectGraph
+- glitchlab.gui.mosaic.hybrid_ast_mosaic (pośrednio przez adapter)
+"""
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+import math
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union, Set
 
 import numpy as np
 
-# ── lokalne moduły (1.1 i 1.2) ────────────────────────────────────────────────
-from glitchlab.gui.mosaic.hybrid_ast_mosaic import (
-    Mosaic,
-    build_mosaic,                # nieużywane bezpośrednio; zostawione dla spójności API
-    region_ids,
-    phi_region_for_balanced,
-    phi_region_for_entropy,
-    phi_cost,
-    psi_feedback,
-    couple_alpha_beta,
-    distance_ast_mosaic,
-    ast_deltas,
-    compress_ast,
-    EXAMPLE_SRC,
-    EDGE_THR_DEFAULT,
-    W_DEFAULT,
-)
+# ── Adapter Φ/Ψ ───────────────────────────────────────────────────────────────
+from .mosaic_adapter import core_to_analysis_mosaic
 
-from glitchlab.analysis.git_io import (
-    RepoMosaic,
-    RepoInfo,
-)
+# ── Modele grafu projektu ────────────────────────────────────────────────────
+try:
+    from .project_graph import ProjectGraph, Node, Edge  # type: ignore
+except Exception:  # pragma: no cover
+    ProjectGraph = Any  # type: ignore
+    Node = Any          # type: ignore
+    Edge = Any          # type: ignore
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 0) Pomocnicze: RepoMosaic → Mosaic (grid)
+# API publiczne
 # ──────────────────────────────────────────────────────────────────────────────
 
-def repo_mosaic_to_mosaic(R: RepoMosaic) -> Mosaic:
-    """
-    Rzutuje RepoMosaic (kafel = plik) na Mosaic grid używany przez algorytm Φ/Ψ.
-    - edge: z RepoMosaic.edge
-    - roi:  z RepoMosaic.roi
-    - ssim: placeholder (1.0)
-    """
-    rows = max(1, int(R.layout_rows))
-    cols = max(1, int(R.layout_cols))
-    N = rows * cols
-    # jeżeli liczba plików < rows*cols, dopełniamy zerami (stabilne)
-    edge = np.zeros(N, dtype=float)
-    roi = np.zeros(N, dtype=float)
-    ssim = np.ones(N, dtype=float)
-    for i, e in enumerate(R.edge.tolist()):
-        if i >= N:
-            break
-        edge[i] = float(e)
-        roi[i] = float(R.roi[i]) if i < len(R.roi) else 0.0
-    return Mosaic(rows=rows, cols=cols, edge=edge, ssim=ssim, roi=roi, kind="grid")
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# 1) Definicje polityk (latawce)
-# ──────────────────────────────────────────────────────────────────────────────
-
-@dataclass
-class PolicyResult:
-    name: str
-    score: float
-    hints: List[str] = field(default_factory=list)
-    actions: List[str] = field(default_factory=list)   # deklaratywne sugestie
-
-
-@dataclass
-class Policy:
-    name: str
-    fn: Callable[..., PolicyResult]
-
-
-def policy_edge_preserve(M: Mosaic, thr: float = EDGE_THR_DEFAULT) -> PolicyResult:
-    """Edge-preserve: IO/Call/Expr → edges, filtry destruktywne ograniczaj do ~edges."""
-    n_edges = len(region_ids(M, "edges", thr))
-    n_all = M.rows * M.cols
-    p = n_edges / max(1, n_all)
-    # im więcej 'edges', tym ważniejsze rozdzielenie efektów ubocznych (IO) od ROI
-    score = float(min(1.0, 0.5 + 0.5 * p))
-    hints = [
-        f"edges tiles: {n_edges}/{n_all} (p≈{p:.2f})",
-        "Preferuj Call/Expr w warstwie edges; unikaj side-effects w ROI."
-    ]
-    actions = [
-        "Oznacz wywołania IO jako region='edges'.",
-        "Jeśli filtr modyfikuje szeroko, ogranicz region do ~edges lub zastosuj feathering na granicach."
-    ]
-    return PolicyResult("edge_preserve", score, hints, actions)
-
-
-def policy_roi_stability(M: Mosaic, thr: float = EDGE_THR_DEFAULT) -> PolicyResult:
-    """ROI-stability: Assign/Def → roi oraz ~edges; pilnuj stabilizacji stanu."""
-    roi_ids = region_ids(M, "roi", thr)
-    n_roi = len(roi_ids)
-    n_all = M.rows * M.cols
-    p = n_roi / max(1, n_all)
-    # jeżeli ROI jest niewielkie – podbij stabilizację tam i w ~edges
-    score = float(min(1.0, 0.6 + 0.4 * (1.0 - p)))
-    hints = [
-        f"roi tiles: {n_roi}/{n_all} (p≈{p:.2f})",
-        "Stabilizuj stan (Assign/Def) w ROI i ~edges, ogranicz efekt w edges."
-    ]
-    actions = [
-        "Wstaw inicjalizacje stanu (Assign) przed gałęziami decyzyjnymi.",
-        "Reguła: w ROI nie emituj side-effects – preferuj 'return' nad 'print'."
-    ]
-    return PolicyResult("roi_stability", score, hints, actions)
-
-
-def policy_diff_budget(M: Mosaic, thr: float = EDGE_THR_DEFAULT) -> PolicyResult:
-    """
-    Diff-budget: kontrola globalnej zmiany poza ROI.
-    Tu heurystycznie: im większy udział ~edges, tym ciaśniejszy budżet.
-    """
-    n_ne = len(region_ids(M, "~edges", thr))
-    n_all = M.rows * M.cols
-    p = n_ne / max(1, n_all)
-    # im większa strefa spokojna, tym większy nacisk na ograniczenie zmian
-    score = float(min(1.0, 0.4 + 0.6 * p))
-    B = max(0.02, 0.15 - 0.10 * p)  # proponowany budżet MSE poza ROI
-    hints = [
-        f"~edges tiles: {n_ne}/{n_all} (p≈{p:.2f})",
-        f"Proponowany budżet MSE poza ROI: ≤ {B:.3f}",
-    ]
-    actions = [
-        f"Wymuś 'diff-budget' poza ROI ≤ {B:.3f}.",
-        "Jeśli przekroczony → wstaw węzeł kompensujący (Repair) albo rollback."
-    ]
-    return PolicyResult("diff_budget", score, hints, actions)
-
-
-POLICIES: List[Policy] = [
-    Policy("edge_preserve", policy_edge_preserve),
-    Policy("roi_stability", policy_roi_stability),
-    Policy("diff_budget", policy_diff_budget),
+__all__ = [
+    "scope_to_mosaic",
+    "graph_to_mosaic",
+    "project_delta_to_mosaic",
 ]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 2) Analiza Φ/Ψ nad repo: metryki + sugestie
+# Konfiguracja layoutu
 # ──────────────────────────────────────────────────────────────────────────────
 
 @dataclass
-class AnalysisConfig:
-    edge_thr: float = EDGE_THR_DEFAULT
-    lmbd: float = 0.60         # λ-kompresja AST
-    delta: float = 0.25        # siła Ψ-feedback
-    kappa_ab: float = 0.35     # sprzężenie (α,β)
-    use_entropy_selector: bool = False  # Φ: entropy vs balanced
-
-
-@dataclass
-class AnalysisResult:
-    align: float
-    j_phi: float
-    alpha: float
-    beta: float
-    S: int
-    H: int
-    Z: int
-    policies: List[PolicyResult]
-    commit_note: str
-    details: Dict[str, float]
-
-
-Selector = Callable[[str, Mosaic, float], str]
-
-
-def analyze_repo_ast(
-    repo: RepoMosaic,
-    src_text: Optional[str] = None,
-    cfg: Optional[AnalysisConfig] = None,
-) -> AnalysisResult:
+class LayoutConfig:
     """
-    Główna pętla: RepoMosaic → Mosaic → Φ/Ψ → metryki + commit-note.
-    - src_text: jeżeli None, używa EXAMPLE_SRC (placeholder do czasu wpięcia rzeczywistego AST).
+    Konfiguracja generowania siatki kafli pod mozaikę:
+    - canvas_size: (W,H) — rozmiar płótna dla równomiernych centrów
+    - prefer_hex:  czy wymusić 'hex' (adapter i tak poradzi sobie z kind="grid"/"hex")
+    - rows_cols:   wymuszone (rows, cols); gdy None — auto z liczby węzłów i proporcji W/H
     """
-    cfg = cfg or AnalysisConfig()
-    selector: Selector = (phi_region_for_entropy if cfg.use_entropy_selector else phi_region_for_balanced)
-    M = repo_mosaic_to_mosaic(repo)
+    canvas_size: Tuple[int, int] = (1200, 800)
+    prefer_hex: bool = False
+    rows_cols: Optional[Tuple[int, int]] = None
 
-    # AST: źródło (na dziś: placeholder lub w przyszłości scalone moduły)
-    src = src_text if src_text is not None else EXAMPLE_SRC
-    ast0 = ast_deltas(src)
-    ast_l = compress_ast(ast0, cfg.lmbd)
 
-    # Koszt Φ (przy wybranym selektorze)
-    J_phi, _ = phi_cost(ast_l, M, cfg.edge_thr, selector=selector)
+# ──────────────────────────────────────────────────────────────────────────────
+# Most: ScopeResult → Mosaic
+# ──────────────────────────────────────────────────────────────────────────────
 
-    # Ψ + sprzężenie (α,β)
-    ast_after = psi_feedback(ast_l, M, cfg.delta, cfg.edge_thr)
-    ast_cpl = couple_alpha_beta(ast_after, M, cfg.edge_thr, delta=cfg.delta, kappa_ab=cfg.kappa_ab)
+def scope_to_mosaic(
+    scope_result: "Any",
+    *,
+    edge_scores: Optional[Mapping[str, float]] = None,
+    roi_nodes: Optional[Iterable[str]] = None,
+    layout: Optional[LayoutConfig] = None,
+    kind: Optional[str] = None,
+) -> "object":
+    """
+    Rzutuje wynik metasoczewki (ScopeResult) na AnalysisMosaic.
 
-    align = 1.0 - min(1.0, distance_ast_mosaic(ast_cpl, M, cfg.edge_thr, w=W_DEFAULT))
-
-    # Polityki
-    pol_res: List[PolicyResult] = [p.fn(M, cfg.edge_thr) for p in POLICIES]
-    pol_res.sort(key=lambda pr: pr.score, reverse=True)
-
-    # Commit-note (syntetyczny, pod nasze standardy)
-    note = _render_commit_note(repo, align, J_phi, ast_cpl, pol_res)
-
-    details = dict(
-        Align=align,
-        J_phi=J_phi,
-        alpha=ast_cpl.alpha,
-        beta=ast_cpl.beta,
-        S=float(ast_cpl.S),
-        H=float(ast_cpl.H),
-        Z=float(ast_cpl.Z),
-    )
-
-    return AnalysisResult(
-        align=align,
-        j_phi=J_phi,
-        alpha=ast_cpl.alpha,
-        beta=ast_cpl.beta,
-        S=ast_cpl.S,
-        H=ast_cpl.H,
-        Z=ast_cpl.Z,
-        policies=pol_res,
-        commit_note=note,
-        details=details,
+    Parametry:
+      - edge_scores:     mapowanie node_id→edge∈[0,1]; gdy None → (ważony) stopień w podgrafie.
+      - roi_nodes:       iterowalne node_id; gdy None → adapter użyje domyślnej ROI (środek).
+      - layout:          konfiguracja siatki (canvas, rows/cols).
+      - kind:            'grid'/'hex' lub None (heurystyka z layoutu).
+    """
+    sub = getattr(scope_result, "graph_sub", None) or getattr(scope_result, "graph", None)
+    if sub is None:
+        raise ValueError("ScopeResult nie zawiera subgrafu ('graph_sub' lub 'graph').")
+    return graph_to_mosaic(
+        sub,
+        nodes=None,  # cały subgraf widoku
+        edge_scores=edge_scores,
+        roi_nodes=roi_nodes or set(getattr(scope_result, "anchors", []) or []),
+        layout=layout,
+        kind=kind,
     )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3) Render commit-note (zgodnie z naszym wzorcem)
+# Most: ProjectGraph (+ maski/metyki) → Mosaic
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _render_commit_note(repo: RepoMosaic, align: float, j_phi: float,
-                        ast_cpl, pols: List[PolicyResult]) -> str:
-    files_n = len([f for f in repo.files if f])
-    top_pols = pols[:3]
-    pol_lines = []
-    for pr in top_pols:
-        pol_lines.append(f"- {pr.name}: score={pr.score:.2f}")
-        if pr.hints:
-            pol_lines += [f"  • {h}" for h in pr.hints[:2]]
-        if pr.actions:
-            pol_lines += [f"  → {a}" for a in pr.actions[:2]]
+def graph_to_mosaic(
+    g: ProjectGraph,
+    *,
+    nodes: Optional[Iterable[str]] = None,
+    edge_scores: Optional[Mapping[str, float]] = None,
+    roi_nodes: Optional[Iterable[str]] = None,
+    layout: Optional[LayoutConfig] = None,
+    kind: Optional[str] = None,
+) -> "object":
+    """
+    Rzutuje (pod)graf projektu na AnalysisMosaic.
 
-    return (
-        f"[Δ] Zakres\n"
-        f"- files: {files_n}\n"
-        f"- typ: analiza Φ/Ψ + polityki (repo-mosaic)\n\n"
-        f"[Φ/Ψ] Mozaika/AST\n"
-        f"- Align(mean): {align:.3f}\n"
-        f"- J_phi(balanced): {j_phi:.4f}\n"
-        f"- α/β: {ast_cpl.alpha:.2f}/{ast_cpl.beta:.2f}\n"
-        f"- AST(S/H/Z): {ast_cpl.S}/{ast_cpl.H}/{ast_cpl.Z}\n\n"
-        f"[Polityki] (top)\n" + "\n".join(pol_lines) + "\n\n"
-        f"[Dokumentacja]\n"
-        f"- decyzja: auto-note (no-op dla docs; tylko raport analityczny)\n\n"
-        f"[Testy / Ryzyko]\n"
-        f"- smoke: analiza off-line (repo snapshot)\n"
-        f"- ryzyko: niskie (bez zmian kodu)\n\n"
-        f"Meta\n"
-        f"- Generated-by: policy_phi_psi (Φ/Ψ + latawce)"
+    - nodes:       jeśli podane, ogranicza do danego zbioru node_id; w przeciwnym razie bierze wszystkie.
+    - edge_scores: mapowanie node_id→edge∈[0,1]; brak → użyj (ważonego) stopnia (degree).
+    - roi_nodes:   zbiór node_id w ROI; brak → adapter użyje domyślnej ROI.
+    - layout:      konfiguracja siatki (W,H oraz opcjonalnie rows/cols).
+    - kind:        'grid'/'hex' lub None (z layoutu).
+    """
+    layout = layout or LayoutConfig()
+    node_ids = _materialize_node_ids(g, nodes)
+    if not node_ids:
+        # pusta mozaika
+        core = _grid_from_nodes([], layout)
+        return core_to_analysis_mosaic(core, edges_per_cell=np.zeros(0), roi_mask=np.zeros(0), kind=kind)
+
+    ordered_nodes = _deterministic_node_order(g, node_ids)
+    core = _grid_from_nodes(ordered_nodes, layout)
+
+    # edge vector
+    edge_vec = _edge_vector_for_nodes(g, ordered_nodes, edge_scores=edge_scores)
+
+    # roi vector (opcjonalnie)
+    roi_vec = _roi_vector_for_nodes(ordered_nodes, roi_nodes) if roi_nodes is not None else None
+
+    return core_to_analysis_mosaic(
+        core,
+        edges_per_cell=edge_vec,
+        block_stats=None,
+        metric_name="edges",
+        roi_mask=roi_vec,
+        kind=(kind or ("hex" if layout.prefer_hex else "grid")),
     )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 4) Proste CLI do lokalnego uruchomienia (np. w hookach)
+# Implementacja layoutu i wektorów
 # ──────────────────────────────────────────────────────────────────────────────
 
-def cli_main(argv: Optional[List[str]] = None) -> None:
-    import argparse
-    from glitchlab.analysis.git_io import build_repo_mosaic
+_KIND_ORDER = {
+    "project": -1,  # umowny korzeń
+    "module": 0,
+    "file": 1,
+    "func": 2,
+    "topic": 3,
+}  # pozostałe → 99
 
-    p = argparse.ArgumentParser(prog="policy_phi_psi", description="Repo Φ/Ψ + polityki (commit-note)")
-    p.add_argument("--edge-thr", type=float, default=EDGE_THR_DEFAULT)
-    p.add_argument("--lmbd", type=float, default=0.60)
-    p.add_argument("--delta", type=float, default=0.25)
-    p.add_argument("--kappa-ab", type=float, default=0.35)
-    p.add_argument("--entropy", action="store_true", help="użyj selektora Φ(entropy) zamiast balanced")
-    p.add_argument("--export", action="store_true", help="wypisz JSON wyniku")
-    args = p.parse_args(argv)
+def _materialize_node_ids(g: ProjectGraph, nodes: Optional[Iterable[str]]) -> List[str]:
+    if nodes is None:
+        return list(g.nodes.keys())
+    out = []
+    for nid in nodes:
+        if nid in g.nodes:
+            out.append(nid)
+    return out
 
-    info, repo_m, churn = build_repo_mosaic()
-    cfg = AnalysisConfig(
-        edge_thr=args.edge_thr,
-        lmbd=args.lmbd,
-        delta=args.delta,
-        kappa_ab=args.kappa_ab,
-        use_entropy_selector=args.entropy,
+def _deterministic_node_order(g: ProjectGraph, node_ids: List[str]) -> List[Node]:
+    def key(n: Node) -> Tuple[int, str, str]:
+        ko = _KIND_ORDER.get(str(n.kind).lower(), 99)
+        label = str(getattr(n, "label", "") or "")
+        return (ko, label.lower(), str(n.id))
+    nodes = [g.nodes[nid] for nid in node_ids]
+    nodes.sort(key=key)
+    return nodes
+
+def _auto_rows_cols(n: int, canvas: Tuple[int, int]) -> Tuple[int, int]:
+    if n <= 0:
+        return (0, 0)
+    W, H = max(1, int(canvas[0])), max(1, int(canvas[1]))
+    ratio = float(W) / float(H)
+    cols = max(1, int(math.ceil(math.sqrt(n * ratio))))
+    rows = max(1, int(math.ceil(n / cols)))
+    return (rows, cols)
+
+def _grid_from_nodes(nodes: List[Node], layout: LayoutConfig) -> Dict[str, Any]:
+    W, H = layout.canvas_size
+    rows, cols = layout.rows_cols or _auto_rows_cols(len(nodes), layout.canvas_size)
+    cells: List[Dict[str, Any]] = []
+    if rows > 0 and cols > 0:
+        sx = W / max(1, cols)
+        sy = H / max(1, rows)
+        for r in range(rows):
+            for c in range(cols):
+                idx = r * cols + c
+                if idx >= len(nodes):
+                    break
+                cx = int(round((c + 0.5) * sx))
+                cy = int(round((r + 0.5) * sy))
+                cells.append({"id": idx, "center": (cx, cy), "meta": {"node_id": nodes[idx].id}})
+    return {"mode": ("hex" if layout.prefer_hex else "square"), "size": (W, H), "cells": cells, "raster": None}
+
+def _weighted_degree(g: ProjectGraph, nid: str) -> float:
+    deg = 0.0
+    for e in g.edges:
+        if e.src == nid or e.dst == nid:
+            w = getattr(e, "weight", None)
+            try:
+                deg += float(w) if w is not None else 1.0
+            except Exception:
+                deg += 1.0
+    return deg
+
+def _edge_vector_for_nodes(
+    g: ProjectGraph,
+    nodes: List[Node],
+    *,
+    edge_scores: Optional[Mapping[str, float]] = None,
+) -> np.ndarray:
+    N = len(nodes)
+    vec = np.zeros(N, dtype=float)
+    if edge_scores:
+        for i, n in enumerate(nodes):
+            try:
+                vec[i] = float(edge_scores.get(n.id, 0.0))
+            except Exception:
+                vec[i] = 0.0
+    else:
+        # fallback: (ważony) stopień w subgrafie
+        # UWAGA: traktujemy 'g' jako już zawężony podgraf — jeśli przekazano pełny graf,
+        #        a chcemy liczyć w subgrafie, należy go wcześniej uciąć do 'nodes'.
+        for i, n in enumerate(nodes):
+            vec[i] = _weighted_degree(g, n.id)
+    # normalizacja do [0,1]
+    mx = float(np.max(vec)) if vec.size else 0.0
+    if mx > 0.0:
+        vec = vec / mx
+    vec = np.nan_to_num(vec, nan=0.0, posinf=1.0, neginf=0.0)
+    vec = np.clip(vec, 0.0, 1.0)
+    return vec
+
+def _roi_vector_for_nodes(nodes: List[Node], roi_nodes: Optional[Iterable[str]]) -> np.ndarray:
+    N = len(nodes)
+    out = np.zeros(N, dtype=float)
+    if roi_nodes is None:
+        return out
+    roi_set = {str(x) for x in roi_nodes}
+    for i, n in enumerate(nodes):
+        if n.id in roi_set:
+            out[i] = 1.0
+    return out
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Część Δ (kompatybilność): delta_report → Mosaic
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Zachowujemy wcześniejsze API, ale kod porządkujemy jako osobną sekcję.
+
+Core = Dict[str, Any]
+BlockStats = Mapping[Tuple[int, int], Mapping[str, float]]
+
+def _try_get(d: Mapping[str, Any], *path: str, default=None):
+    cur: Any = d
+    for k in path:
+        if not isinstance(cur, Mapping) or k not in cur:
+            return default
+        cur = cur[k]
+    return cur
+
+def _coerce_block_key(k: Any) -> Optional[Tuple[int, int]]:
+    if isinstance(k, (tuple, list)) and len(k) == 2:
+        try:
+            return (int(k[0]), int(k[1]))
+        except Exception:
+            return None
+    if isinstance(k, str):
+        for sep in (",", ";", "|", " "):
+            if sep in k:
+                a, b = k.split(sep, 1)
+                try:
+                    return (int(a.strip()), int(b.strip()))
+                except Exception:
+                    return None
+    return None
+
+def _parse_block_stats(obj: Any) -> BlockStats:
+    out: Dict[Tuple[int, int], Dict[str, float]] = {}
+    if obj is None:
+        return out
+    if isinstance(obj, Mapping):
+        for k, v in obj.items():
+            ij = _coerce_block_key(k)
+            if ij is None or not isinstance(v, Mapping):
+                continue
+            rec = {str(kk): float(vv) for kk, vv in v.items() if isinstance(vv, (int, float))}
+            out[ij] = rec
+        return out
+    if isinstance(obj, (list, tuple)):
+        for item in obj:
+            if isinstance(item, (list, tuple)) and len(item) == 3 and isinstance(item[2], Mapping):
+                try:
+                    i, j = int(item[0]), int(item[1])
+                except Exception:
+                    continue
+                rec = {str(kk): float(vv) for kk, vv in item[2].items() if isinstance(vv, (int, float))}
+                out[(i, j)] = rec
+        return out
+    return out
+
+def _grid_from_rc(rows: int, cols: int, size: Tuple[int, int]) -> Core:
+    W, H = int(size[0]), int(size[1])
+    rows = max(0, int(rows))
+    cols = max(0, int(cols))
+    cells: List[Dict[str, Any]] = []
+    if rows > 0 and cols > 0:
+        sx = W / max(1, cols)
+        sy = H / max(1, rows)
+        for r in range(rows):
+            for c in range(cols):
+                idx = r * cols + c
+                cx = int(round((c + 0.5) * sx))
+                cy = int(round((r + 0.5) * sy))
+                cells.append({"id": idx, "center": (cx, cy)})
+    return dict(mode="square", size=(W, H), cells=cells, raster=None)
+
+def _coerce_core(delta: Mapping[str, Any]) -> Core:
+    for key in ("core", "mosaic", "repo_mosaic", "mosaic_core"):
+        core = _try_get(delta, key)
+        if isinstance(core, Mapping) and "cells" in core and "size" in core:
+            mode = str(core.get("mode", "square")).lower()
+            size = tuple(core.get("size", (1024, 768)))  # type: ignore
+            cells = list(core.get("cells", []))          # type: ignore
+            return dict(mode=mode, size=size, cells=cells, raster=None)
+    rows = int(_try_get(delta, "grid", "rows", default=_try_get(delta, "layout", "rows", default=0)) or 0)
+    cols = int(_try_get(delta, "grid", "cols", default=_try_get(delta, "layout", "cols", default=0)) or 0)
+    n = int(_try_get(delta, "cells", "count", default=_try_get(delta, "files", "count", default=rows * cols)) or 0)
+    if rows == 0 and cols == 0 and n > 0:
+        W = int(_try_get(delta, "size", 0, default=1024) or 1024)
+        H = int(_try_get(delta, "size", 1, default=768) or 768)
+        ratio = max(1.0, float(W) / max(1, H))
+        cols = max(1, int(round(math.sqrt(n * ratio))))
+        rows = max(1, int(math.ceil(n / cols)))
+    size = tuple(_try_get(delta, "size", default=(1024, 768)))  # type: ignore
+    return _grid_from_rc(rows, cols, size)
+
+def _coerce_edges_per_cell(delta: Mapping[str, Any], N: int) -> Optional[np.ndarray]:
+    for key in ("edges_per_cell", "edge", "edges"):
+        arr = _try_get(delta, key)
+        if isinstance(arr, (list, tuple)) and len(arr) > 0:
+            v = np.asarray(arr, dtype=float).reshape(-1)
+            if v.size >= N:
+                v = v[:N]
+            if v.size == N:
+                v = np.nan_to_num(v, nan=0.0, posinf=1.0, neginf=0.0)
+                v = np.clip(v, 0.0, 1.0)
+                return v
+    cells = _try_get(delta, "cells")
+    if isinstance(cells, (list, tuple)) and cells:
+        v = np.zeros(N, dtype=float)
+        any_set = False
+        for i, c in enumerate(cells[:N]):
+            if isinstance(c, Mapping) and "edge" in c:
+                try:
+                    v[i] = float(c["edge"])
+                    any_set = True
+                except Exception:
+                    pass
+        if any_set:
+            v = np.nan_to_num(v, nan=0.0, posinf=1.0, neginf=0.0)
+            v = np.clip(v, 0.0, 1.0)
+            return v
+    files = _try_get(delta, "files") or _try_get(delta, "changed_files")
+    if isinstance(files, (list, tuple)) and files:
+        v = np.zeros(N, dtype=float)
+        mx = 1e-9
+        for i, item in enumerate(files[:N]):
+            if not isinstance(item, Mapping):
+                continue
+            if "edge" in item:
+                try:
+                    val = float(item["edge"])
+                except Exception:
+                    val = 0.0
+            elif "impact" in item:
+                try:
+                    val = float(item["impact"])
+                except Exception:
+                    val = 0.0
+            else:
+                dS = float(item.get("dS", 0.0) or 0.0)
+                dH = float(item.get("dH", 0.0) or 0.0)
+                dZ = float(item.get("dZ", 0.0) or 0.0)
+                val = abs(dS) + abs(dH) + 0.25 * abs(dZ)
+            v[i] = max(0.0, val)
+            mx = max(mx, v[i])
+        if mx > 0:
+            v /= mx
+        v = np.clip(v, 0.0, 1.0)
+        return v
+    return None
+
+def _coerce_roi(delta: Mapping[str, Any], N: int) -> Optional[np.ndarray]:
+    roi = _try_get(delta, "roi") or _try_get(delta, "roi_mask")
+    if roi is None:
+        idxs = _try_get(delta, "roi_indices") or _try_get(delta, "hot", "indices")
+        if isinstance(idxs, (list, tuple)) and idxs:
+            out = np.zeros(N, dtype=float)
+            for x in idxs:
+                try:
+                    i = int(x)
+                    if 0 <= i < N:
+                        out[i] = 1.0
+                except Exception:
+                    pass
+            return out
+        return None
+    arr = np.asarray(list(roi))
+    if arr.ndim == 1 and arr.size == N and arr.dtype.kind in "fcui":
+        out = np.clip(arr.astype(float, copy=False), 0.0, 1.0)
+        return out
+    out = np.zeros(N, dtype=float)
+    for x in arr.reshape(-1):
+        try:
+            i = int(x)
+            if 0 <= i < N:
+                out[i] = 1.0
+        except Exception:
+            pass
+    return out
+
+def project_delta_to_mosaic(delta_report: Mapping[str, Any]) -> "object":
+    """
+    Rzutuje elastycznie różne warianty delta_report -> AnalysisMosaic.
+    """
+    core = _coerce_core(delta_report)
+    rows = cols = 0
+    try:
+        xs = sorted({int(c["center"][0]) for c in core.get("cells", [])})
+        ys = sorted({int(c["center"][1]) for c in core.get("cells", [])})
+        cols = len(xs); rows = len(ys)
+    except Exception:
+        rows = int(_try_get(delta_report, "grid", "rows", default=0) or 0)
+        cols = int(_try_get(delta_report, "grid", "cols", default=0) or 0)
+    N = max(0, rows * cols)
+
+    edges_vec = _coerce_edges_per_cell(delta_report, N)
+    block_stats = _parse_block_stats(
+        _try_get(delta_report, "block_stats")
+        or _try_get(delta_report, "blocks", "stats")
+        or _try_get(delta_report, "mosaic", "block_stats")
     )
-    res = analyze_repo_ast(repo_m, src_text=None, cfg=cfg)
+    roi_mask = _coerce_roi(delta_report, N)
 
-    print(res.commit_note)
-    if args.export:
-        payload = dict(
-            details=res.details,
-            policies=[dict(name=p.name, score=p.score, hints=p.hints, actions=p.actions) for p in res.policies],
-            note=res.commit_note,
-        )
-        print("\n[JSON]\n" + json.dumps(payload, ensure_ascii=False, indent=2))
-
-
-if __name__ == "__main__":
-    cli_main()
+    return core_to_analysis_mosaic(
+        core,
+        edges_per_cell=edges_vec,
+        block_stats=(block_stats if edges_vec is None else None),
+        metric_name="edges",
+        roi_mask=roi_mask,
+        kind=None,
+    )

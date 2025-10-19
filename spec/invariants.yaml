@@ -1,0 +1,47 @@
+version: 1
+calibration:
+  mode: adaptive
+  window_events: 500
+  floor:
+    alpha: 0.10
+    beta:  0.10
+    zeta:  0.10
+weights:
+  dS: 1.0
+  dH: 1.0
+  dZ: 1.0
+
+invariants:
+  I1:
+    desc: "Spójność typów/nośników; stabilność public API"
+    check:
+      inputs: ["code.ast.built","refactor.plan.ready","refactor.apply.done"]
+      rules: ["sig_compat","public_api_stability"]
+    thresholds: { alpha: 0.0, beta: 0.0, zeta: 0.05 }
+    action_on_violation: "drop_event"
+  I2:
+    desc: "Porządek warstw/import DAG"
+    check:
+      inputs: ["git.delta.ready","code.ast.built"]
+      rules: ["layering_ok","no_shortcuts_up"]
+    thresholds: { alpha: 0.05, beta: 0.05, zeta: 0.10 }
+    action_on_violation: "drop_event"
+  I3:
+    desc: "Lokalność zmian — Δ w zadeklarowanym scope Φ"
+    check:
+      inputs: ["git.scope.ready","refactor.plan.ready"]
+      rules: ["delta_in_scope","no_extraneous_changes"]
+    thresholds: { alpha: 0.05, beta: 0.05, zeta: 0.05 }
+    action_on_violation: "drop_event"
+  I4:
+    desc: "Budżety metryk (complexity/hotspot/coupling) nie rosną"
+    check:
+      inputs: ["refactor.apply.done","core.metrics.*"]
+      rules: ["budget_respected"]
+    thresholds: { alpha: 0.0, beta: 0.0, zeta: 0.0 }
+    action_on_violation: "drop_event"
+
+evidence:
+  proof_store: ".glx/grammar/egdb.sqlite"
+  rules_file:  ".glx/grammar/rules.yaml"
+  views_sql:   ".glx/grammar/views.sql"

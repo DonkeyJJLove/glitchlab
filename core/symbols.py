@@ -36,7 +36,7 @@ interfaces:
     - "load_symbol"
     - "stamp_mask"
   depends_on: ["numpy","Pillow"]
-  used_by: ["glitchlab.core.roi","glitchlab.core.pipeline","glitchlab.filters","glitchlab.gui"]
+  used_by: ["glitchlab.core.roi","glitchlab.core.pipeline","glitchlab.filters","glitchlab.app"]
 
 contracts:
   - "bitmap_to_mask zwraca maskę float32 [0,1]; obsługuje (H,W) i (H,W,3)"

@@ -10,7 +10,7 @@ role: "Python AST → Graph & Mosaic Projector"
 description: >
   Parsuje źródło Pythona do AST, buduje lekki graf semantyczny (funkcje/klasy/połączenia)
   z metrykami złożoności i opcjonalnie rzutuje je na mozaikę jako overlay RGB.
-  Eksportuje JSON grafu pod kluczem 'ast/json' dla HUD/GUI.
+  Eksportuje JSON grafu pod kluczem 'ast/json' dla HUD/APP(gui).
 inputs:
   source: {type: "str", desc: "tekst źródłowy Pythona"}
   mosaic: {type: "Mosaic", optional: true, desc: "mapa z glitchlab.core.mosaic"}
@@ -28,7 +28,7 @@ outputs:
 interfaces:
   exports: ["build_ast","ast_to_graph","project_ast_to_mosaic","export_ast_json"]
   depends_on: ["ast","numpy"]
-  used_by: ["glitchlab.gui","glitchlab.core.mosaic","glitchlab.analysis.exporters","glitchlab.core.graph"]
+  used_by: ["glitchlab.app","glitchlab.core.mosaic","glitchlab.analysis.exporters","glitchlab.core.graph"]
 policy:
   deterministic: true
   side_effects: "opcjonalny zapis do ctx.cache['ast/json']"

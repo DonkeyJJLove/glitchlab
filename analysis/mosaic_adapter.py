@@ -8,11 +8,20 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Uni
 
 import numpy as np
 
-try:
-    # Analiza/ΦΨ – dataclass Mosaic wykorzystywana przez hybrydę
-    from glitchlab.gui.mosaic.hybrid_ast_mosaic import Mosaic as AnalysisMosaic
-except Exception as _e:  # pragma: no cover
-    AnalysisMosaic = None  # type: ignore
+# ── Łagodne importy dataclass Mosaic (nowa struktura katalogów) ───────────────
+AnalysisMosaic = None  # type: ignore
+for _mod in (
+    "glitchlab.src.mosaic.hybrid_ast_mosaic",
+    "glitchlab.mosaic.hybrid_ast_mosaic",
+    "glitchlab.gui.mosaic.hybrid_ast_mosaic",
+    "mosaic.hybrid_ast_mosaic",
+    "app.mosaic.hybrid_ast_mosaic",
+):
+    try:
+        AnalysisMosaic = __import__(_mod, fromlist=["Mosaic"]).Mosaic  # type: ignore
+        break
+    except Exception:
+        continue
 
 CoreMosaic = Mapping[str, object]  # {"mode","cell_px","size","cells","raster", ...}
 
@@ -46,7 +55,6 @@ def grid_dims_from_core(core: CoreMosaic) -> Tuple[int, int]:
     ny = len(ys)
     # sanity – liczba komórek powinna się zgadzać
     if nx * ny != len(cells):
-        # W skrajnych przypadkach (np. nieregularne granice) wróć do heurystyki z rastera
         lab = core.get("raster")
         if isinstance(lab, np.ndarray) and lab.ndim == 2:
             # Szacunek nx,ny po liczbie etykiet i proporcjach obrazu
@@ -99,7 +107,8 @@ def edges_vector_from_block_stats(
         cx, cy = map(int, c["center"])
         bi = int(np.clip(cx // bw, 0, bx - 1))
         bj = int(np.clip(cy // bh, 0, by - 1))
-        val = float(block_stats.get((bi, bj), {}).get(metric_name, 0.0))
+        cell_stats = block_stats.get((bi, bj), {})
+        val = float(cell_stats.get(metric_name, cell_stats.get("edge", 0.0)))
         out[cid] = val
 
     # normalizacja do [0,1] i sanity na NaN/Inf
@@ -176,7 +185,6 @@ def core_to_analysis_mosaic(
     elif block_stats:
         edge = edges_vector_from_block_stats(core, block_stats, metric_name=metric_name)
         if edge.size != N:
-            # bezpieczeństwo – w razie rozjazdu wypełnij zerami
             edge = np.zeros(N, dtype=float)
     else:
         edge = np.zeros(N, dtype=float)
@@ -194,10 +202,8 @@ def core_to_analysis_mosaic(
     else:
         arr = np.asarray(list(roi_mask))
         if arr.ndim == 1 and arr.size == N and arr.dtype.kind in "fcui":
-            # bezpośredni wektor 0..1 / bool
             roi = np.clip(arr.astype(float, copy=False), 0.0, 1.0)
         else:
-            # potraktuj jako listę indeksów kafli
             roi = np.zeros(N, dtype=float)
             for idx in arr.reshape(-1):
                 ii = int(idx)
@@ -210,7 +216,6 @@ def core_to_analysis_mosaic(
     if kind_eff not in ("grid", "hex"):
         kind_eff = "grid"
 
-    # Budujemy AnalysisMosaic (hex_centers/R zostawiamy None – hybryda ma fallback na współrzędne gridowe)
     return AnalysisMosaic(
         rows=int(rows),
         cols=int(cols),

@@ -33,7 +33,7 @@ record_model:
 interfaces:
   exports: ["normalize_preset","build_ctx","apply_pipeline"]
   depends_on: ["glitchlab.core.registry","glitchlab.analysis.metrics","glitchlab.analysis.diff","Pillow"]
-  used_by: ["glitchlab.gui","glitchlab.analysis.exporters","glitchlab.core.graph"]
+  used_by: ["glitchlab.app","glitchlab.analysis.exporters","glitchlab.core.graph"]
 policy:
   fail_fast: true
   gather_metrics: true

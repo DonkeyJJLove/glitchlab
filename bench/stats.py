@@ -1,4 +1,4 @@
-# glitchlab/gui/bench/stats.py
+# glitchlab/app/bench/stats.py
 import statistics
 import math
 from typing import Dict, Any, List

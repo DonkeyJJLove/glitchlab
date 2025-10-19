@@ -1,0 +1,77 @@
+{
+  "$id": "https://glx/schemas/delta_tokens.schema.json",
+  "type": "object",
+  "required": [
+    "repo",
+    "base",
+    "head",
+    "tokens",
+    "fingerprint",
+    "features"
+  ],
+  "properties": {
+    "repo": {
+      "type": "string"
+    },
+    "base": {
+      "type": "string"
+    },
+    "head": {
+      "type": "string"
+    },
+    "tokens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "file",
+          "target",
+          "meta"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "fingerprint": {
+      "type": "object",
+      "required": [
+        "histogram",
+        "weighted_sum",
+        "digest"
+      ],
+      "properties": {
+        "histogram": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "weighted_sum": {
+          "type": "number"
+        },
+        "digest": {
+          "type": "string"
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glitchlab"
+version = "0.1.0"
+description = "GlitchLab — repozytorium narzędzi i bibliotek projektu GlitchLab."
+readme = "README.MD"
+requires-python = ">=3.9"
+authors = [
+  { name = "Sebastian Wieremiejczyk", email = "you@example.com" },
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.6.9",
+  "black>=24.0.0",
+  "mypy>=1.10.0",
+  "pytest>=8.0.0",
+  "coverage[toml]>=7.6.0",
+  "types-PyYAML>=6.0.12"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["glitchlab*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_unused_ignores = true
+disallow_untyped_defs = true

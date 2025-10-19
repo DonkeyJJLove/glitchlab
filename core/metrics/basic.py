@@ -8,12 +8,12 @@ Lekki interfejs metryk w warstwie `core`. Preferuje delegację do
 aby moduł działał także bez warstwy analysis.
 """
 
-from typing import Dict, Tuple, Mapping
+from typing import Dict, Tuple
 import numpy as np
 
 try:
     # Preferowany wariant: użyj implementacji z analysis.*
-    from glitchlab.analysis.metrics import (  # type: ignore
+    from backup.analysis import (  # type: ignore
         to_gray_f32 as _to_gray_f32,
         downsample_max_side as _downsample_max_side,
         compute_entropy as _compute_entropy,

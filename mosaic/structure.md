@@ -1,6 +1,6 @@
 # AST ⇄ Mozaika — „latawce”/płaszczyzny polityk (opis obrazu)
 
-![Model – schemat](../resources/img/model.png)
+![Model – schemat](resourcesg/model.png)
 
 ## Co widać
 

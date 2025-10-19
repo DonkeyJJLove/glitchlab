@@ -1,4 +1,4 @@
-# glitchlab/gui/mosaic/hybrid_ast_mosaic.py
+# glitchlab/app/mosaic/hybrid_ast_mosaic.py
 # Hybrydowy algorytm AST ⇄ Mozaika (Φ/Ψ), ΔS/ΔH/ΔZ, λ-kompresja,
 # warianty Φ, Ψ-feedback, metryki, inwarianty, sweep λ×Δ, CLI, + from-git z obsługą .env.
 # Python 3.9+  (deps: numpy; stdlib: ast, math, json, argparse, itertools, hashlib, os)
@@ -132,7 +132,7 @@ def _env_float(name: str, default: float) -> float:
 
 # git_io
 try:
-    from glitchlab.analysis.git_io import (
+    from backup.analysis.git_io import (
         repo_root as _repo_root_ana,
         git_merge_base,
         changed_py_files as _changed_py_files,
@@ -148,32 +148,32 @@ except Exception:
 
 # ast_index
 try:
-    from glitchlab.analysis.ast_index import ast_summary_of_source as idx_ast_summary_of_source
+    from backup.analysis.ast_index import ast_summary_of_source as idx_ast_summary_of_source
 except Exception:
     idx_ast_summary_of_source = None
 
 # ast_delta
 try:
-    from glitchlab.analysis.ast_delta import ast_delta as idx_ast_delta
+    from backup.analysis import ast_delta as idx_ast_delta
 except Exception:
     idx_ast_delta = None
 
 # impact (opcjonalnie)
 try:
-    from glitchlab.analysis.impact import impact_zone
+    from backup.analysis.impact import impact_zone
 except Exception:
     impact_zone = None
 
 # reporting (opcjonalnie – pełne artefakty)
 try:
-    from glitchlab.analysis.reporting import emit_artifacts as _emit_artifacts
+    from backup.analysis import emit_artifacts as _emit_artifacts
 except Exception:
     _emit_artifacts = None  # pragma: no cover
 
 # Zbiórka zmienionych plików (publiczny helper z GUI) – to *musi* mieć globalny alias
 # bo test monkeypatchuje: hma.collect_changed_files
 try:
-    from glitchlab.gui.mosaic.git_delta import collect_changed_files as _collect_changed_files
+    from glitchlab.app.mosaic.git_delta import collect_changed_files as _collect_changed_files
 except Exception:
     _collect_changed_files = None
 
@@ -929,7 +929,7 @@ def ana_show_file_at_rev(rel_path: str, rev: str) -> Optional[str]:
 
 
 # Publiczna funkcja (łatwa do monkeypatchowania w testach).
-# Jeśli nie ma wersji z gui/mosaic/git_delta – użyj fallbacku lokalnego.
+# Jeśli nie ma wersji z app/mosaic/git_delta – użyj fallbacku lokalnego.
 def collect_changed_files(repo_root: Path, base: str, head: str) -> List[str]:
     if '_collect_changed_files' in globals() and callable(_collect_changed_files):
         try:

@@ -35,7 +35,7 @@ interfaces:
     - "safe_clip01"
     - "box_blur"
   depends_on: ["numpy","Pillow"]
-  used_by: ["glitchlab.core.pipeline","glitchlab.core.roi","glitchlab.filters","glitchlab.gui"]
+  used_by: ["glitchlab.core.pipeline","glitchlab.core.roi","glitchlab.filters","glitchlab.app"]
 
 contracts:
   - "funkcje są czyste i deterministyczne; nie mutują wejść"
@@ -64,7 +64,6 @@ from typing import Optional, Tuple, Mapping, Any
 import numpy as np
 from PIL import Image, ImageFilter
 
-
 __all__ = [
     "to_gray_f32_u8",
     "to_u8_rgb",
@@ -73,6 +72,7 @@ __all__ = [
     "safe_clip01",
     "box_blur",
 ]
+
 
 # --------------------------------------------------------------------------------------
 # Type helpers
@@ -86,22 +86,24 @@ def to_gray_f32_u8(img_u8: np.ndarray) -> np.ndarray:
     g = 0.299 * f[..., 0] + 0.587 * f[..., 1] + 0.114 * f[..., 2]
     return np.clip(g, 0.0, 1.0)
 
+
 def _sobel_mag_gray01(g: np.ndarray) -> np.ndarray:
     """Sobel magnitude for gray f32 [0,1], kernel 3x3, returns [0,1]."""
     assert g.ndim == 2
-    Kx = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.float32)
-    Ky = np.array([[1,2,1],[0,0,0],[-1,-2,-1]], dtype=np.float32)
+    Kx = np.array([[1, 0, -1], [2, 0, -2], [1, 0, -1]], dtype=np.float32)
+    Ky = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=np.float32)
     pad = np.pad(g, 1, mode="edge")
     H, W = g.shape
     gx = np.zeros_like(g, dtype=np.float32)
     gy = np.zeros_like(g, dtype=np.float32)
     for i in range(3):
         for j in range(3):
-            sl = pad[i:i+H, j:j+W]
+            sl = pad[i:i + H, j:j + W]
             gx += sl * Kx[i, j]
             gy += sl * Ky[i, j]
-    mag = np.sqrt(gx*gx + gy*gy) * (1.0/8.0)
+    mag = np.sqrt(gx * gx + gy * gy) * (1.0 / 8.0)
     return np.clip(mag, 0.0, 1.0)
+
 
 def compute_edges(img_u8: np.ndarray, *, ksize: int = 3,
                   thresh: Optional[float] = None,
@@ -137,6 +139,7 @@ def compute_edges(img_u8: np.ndarray, *, ksize: int = 3,
 
     return np.clip(m, 0.0, 1.0)
 
+
 def resize_mask_to(mask_f32: np.ndarray,
                    like_or_hw: Tuple[int, int] | np.ndarray,
                    *, method: str = "bicubic") -> np.ndarray:
@@ -154,11 +157,12 @@ def resize_mask_to(mask_f32: np.ndarray,
     out = np.asarray(im, dtype=np.float32) / 255.0
     return np.clip(out, 0.0, 1.0)
 
-def make_amplitude(shape_or_img: Tuple[int,int] | np.ndarray,
+
+def make_amplitude(shape_or_img: Tuple[int, int] | np.ndarray,
                    *, kind: str = "none", strength: float = 1.0,
                    scale: float = 96.0, octaves: int = 3,
                    persistence: float = 0.5, lacunarity: float = 2.0,
-                   center: Optional[Tuple[float,float]] = None) -> np.ndarray:
+                   center: Optional[Tuple[float, float]] = None) -> np.ndarray:
     """
     Generuje mapę amplitudy f32 [0,1] (H,W):
       - none:      ones
@@ -176,25 +180,27 @@ def make_amplitude(shape_or_img: Tuple[int,int] | np.ndarray,
     if kind == "none":
         base = np.ones((H, W), np.float32)
     elif kind == "linear_x":
-        base = xx / max(W-1, 1)
+        base = xx / max(W - 1, 1)
     elif kind == "linear_y":
-        base = yy / max(H-1, 1)
+        base = yy / max(H - 1, 1)
     elif kind == "radial":
-        cx, cy = (W-1)/2.0, (H-1)/2.0
+        cx, cy = (W - 1) / 2.0, (H - 1) / 2.0
         if center is not None:
             cx, cy = float(center[0]), float(center[1])
-        r = np.sqrt((xx - cx)**2 + (yy - cy)**2)
-        base = r / (np.sqrt(cx*cx + cy*cy) + 1e-6)
+        r = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2)
+        base = r / (np.sqrt(cx * cx + cy * cy) + 1e-6)
         base = np.clip(1.0 - base, 0.0, 1.0)  # 1 w środku, 0 na brzegu
     elif kind == "perlin":
         # szybki "value noise": losowa siatka -> bilinear upsample; nakładamy oktawy
         rng = np.random.default_rng(12345)
+
         def octave(freq_px: float) -> np.ndarray:
-            gH = max(1, int(max(H,1) / max(freq_px, 1.0)))
-            gW = max(1, int(max(W,1) / max(freq_px, 1.0)))
+            gH = max(1, int(max(H, 1) / max(freq_px, 1.0)))
+            gW = max(1, int(max(W, 1) / max(freq_px, 1.0)))
             grid = rng.random((gH, gW), dtype=np.float32)
-            im = Image.fromarray((grid*255).astype(np.uint8), "L").resize((W, H), Image.BILINEAR)
+            im = Image.fromarray((grid * 255).astype(np.uint8), "L").resize((W, H), Image.BILINEAR)
             return np.asarray(im, np.float32) / 255.0
+
         amp = 0.0
         total = 0.0
         freq = max(scale, 8.0)

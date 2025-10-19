@@ -4,9 +4,9 @@
 
 > Ten README zastępuje poprzednie „PRZEDAWNIONE README.MD”.
 > Spina algorytm `hybrid_ast_mosaic.py`, wizualizacje `vis_ast_kites_all.py` i praktyki sterowania generacją kodu.
-> Nacisk: **działanie w łańcuchu** (lekka telemetria per-node), **modalność** płaszczyzn/latawców i **miary**. 
+> Nacisk: **działanie w łańcuchu** (lekka telemetria per-node), **modalność** płaszczyzn/latawców i **miary**.
 
->[Struktura](structure.md) | [Case Study](cstudy.md)
+>[Struktura](mosaic/structure.md) | [Case Study](mosaic/cstudy.md)
 ---
 
 ## Spis treści

@@ -27,7 +27,7 @@ record_model:
 interfaces:
   exports: ["build_graph_from_cache","export_ast_json","build_and_export_graph"]
   depends_on: ["typing"]  # brak ciężkich zależności
-  used_by: ["glitchlab.core.pipeline","glitchlab.gui","glitchlab.analysis.exporters"]
+  used_by: ["glitchlab.core.pipeline","glitchlab.app","glitchlab.analysis.exporters"]
 policy:
   deterministic: true
   side_effects: "opcjonalny zapis do ctx.cache['ast/json']"

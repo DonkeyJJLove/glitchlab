@@ -25,7 +25,7 @@ outputs:
 interfaces:
   exports: ["to_gray_f32","psnr","ssim_box"]
   depends_on: ["numpy"]
-  used_by: ["glitchlab.core.pipeline","glitchlab.analysis.exporters","glitchlab.gui"]
+  used_by: ["glitchlab.core.pipeline","glitchlab.analysis.exporters","glitchlab.app"]
 policy:
   deterministic: true
   side_effects: false

@@ -49,9 +49,9 @@ interfaces:
     - "save_spec"
   depends_on: ["json","re","pathlib","yaml?","copy","typing"]
   used_by:
-    - "glitchlab.gui.widgets.hud"
-    - "glitchlab.gui.widgets.image_canvas"
-    - "glitchlab.gui.app"
+    - "glitchlab.app.widgets.hud"
+    - "glitchlab.app.widgets.image_canvas"
+    - "glitchlab.app.app"
     - "glitchlab.analysis.exporters"
 
 policy:

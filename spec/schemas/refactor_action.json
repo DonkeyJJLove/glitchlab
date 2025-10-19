@@ -1,0 +1,34 @@
+{
+  "$id": "https://glx/schemas/refactor_action.json",
+  "type": "object",
+  "required": [
+    "type",
+    "target",
+    "params"
+  ],
+  "properties": {
+    "type": {
+      "enum": [
+        "rename_symbol",
+        "extract_function",
+        "inline_function",
+        "split_module",
+        "introduce_interface",
+        "limit_public_surface",
+        "deduplicate",
+        "parameter_object",
+        "break_dependency",
+        "stabilize_api"
+      ]
+    },
+    "target": {
+      "type": "string"
+    },
+    "params": {
+      "type": "object"
+    },
+    "preview_patch": {
+      "type": "string"
+    }
+  }
+}

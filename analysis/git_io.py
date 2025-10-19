@@ -1,7 +1,33 @@
 # glitchlab/analysis/git_io.py
-# Git I/O + RepoMosaic (kafel=plik) dla analizy Δ (BASE..HEAD)
-# Python 3.9+ (stdlib only)
+# -*- coding: utf-8 -*-
+"""
+Git I/O + RepoMosaic (kafel=plik) dla analizy Δ (BASE..HEAD) — Python 3.9 (stdlib only)
 
+Cele:
+- Jednoznaczne rozwiązywanie zakresów (A..B) z deterministycznymi fallbackami.
+- Odporne na brak base: merge-base → HEAD~1 → pusty tree.
+- Integracja z .glx/state.json (odczyt/zapis base_sha), pomocnicze narzędzia Git.
+- RepoMosaic: lista „kafli” (pliki), edge/roi, siatka, churn; tryb „unstaged”.
+- Stabilne parsowanie `git diff --name-status` (A/M/D/R/C/T …).
+- Proste CLI do inspekcji.
+
+Publiczne API:
+- resolve_range(repo_root, base=None, head=None) -> (range_str, base_sha, head_sha)
+- parse_range_arg(repo_root, diff_range) -> (range_str, base_sha, head_sha)
+- repo_root(start=None) -> Path
+- is_git_repo(repo_root) -> bool
+- rev_parse(repo_root, ref) -> Optional[str]
+- merge_base(repo_root, a, b) -> Optional[str]
+- empty_tree(repo_root) -> str
+- current_branch(repo_root=None) -> Optional[str]
+- rev_short(repo_root, rev) -> str
+- list_tracked_files(repo_root=None) -> List[str]
+- changed_files(base, head="HEAD", filters=None) -> List[str]
+- changed_py_files(base, head="HEAD") -> List[str]
+- show_file_at_rev(path, rev="HEAD") -> Optional[str]
+- read_glx_state() / write_glx_state(state)
+- build_repo_mosaic(base=None, head="HEAD", include_unstaged=False) -> (RepoInfo, RepoMosaic, churn)
+"""
 from __future__ import annotations
 
 import json
@@ -12,12 +38,18 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Stałe i narzędzia
+# Stałe
 # ──────────────────────────────────────────────────────────────────────────────
 
 # SHA „pustego drzewa” (gdy repo ma 0/1 commit i HEAD~1 nie istnieje)
 EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+GLX_DIR = ".glx"
+GLX_STATE = "state.json"
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Lokator repo i podstawowe wywołania gita
+# ──────────────────────────────────────────────────────────────────────────────
 
 def repo_root(start: Optional[Path] = None) -> Path:
     """
@@ -37,151 +69,188 @@ def repo_root(start: Optional[Path] = None) -> Path:
 
     # fallback: manualny spacer w górę
     for p in [start, *start.parents]:
-        if (p / ".git").exists() or (p / ".glx" / "state.json").exists():
+        if (p / ".git").exists() or (p / GLX_DIR / "state.json").exists():
             return p
     return start
 
 
-def _git(args: List[str], cwd: Optional[Path] = None, check: bool = True) -> str:
-    """
-    Uruchamia 'git <args>' i zwraca stdout (text). Przy błędzie – rzuca CalledProcessError,
-    chyba że check=False, wtedy zwraca stdout (może być pusty).
-    """
+def _git(args: List[str], cwd: Optional[Path] = None, check: bool = True) -> subprocess.CompletedProcess:
+    """Uruchamia 'git <args>' i zwraca CompletedProcess (text)."""
     cwd = cwd or repo_root()
     res = subprocess.run(["git", *args], cwd=str(cwd),
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if check and res.returncode != 0:
         raise subprocess.CalledProcessError(res.returncode, ["git", *args], res.stdout, res.stderr)
-    return res.stdout
+    return res
 
 
-def _git_ok(args: List[str], cwd: Optional[Path] = None) -> bool:
-    """Zwraca True jeśli 'git <args>' kończy się rc==0."""
+def _git_text(args: List[str], cwd: Optional[Path] = None, check: bool = True) -> str:
+    p = _git(args, cwd=cwd, check=check)
+    return p.stdout.strip() if p.stdout else ""
+
+
+def is_git_repo(root: Path) -> bool:
     try:
-        _git(args, cwd=cwd, check=True)
-        return True
-    except subprocess.CalledProcessError:
+        out = _git_text(["rev-parse", "--is-inside-work-tree"], cwd=root, check=True)
+        return out.lower() == "true"
+    except Exception:
         return False
 
 
-def _rev_ok(rev: str, cwd: Optional[Path] = None) -> bool:
+def rev_parse(root: Path, ref: str) -> Optional[str]:
+    """Zwraca pełny SHA dla `ref` lub None, jeśli niepoprawny."""
+    if not ref:
+        return None
+    try:
+        out = _git_text(["rev-parse", ref], cwd=root, check=True)
+        return out or None
+    except Exception:
+        return None
+
+
+def merge_base(root: Path, a: str, b: str) -> Optional[str]:
+    """Zwraca merge-base(a, b) lub None."""
+    try:
+        out = _git_text(["merge-base", a, b], cwd=root, check=True)
+        return out or None
+    except Exception:
+        return None
+
+
+def empty_tree(root: Path) -> str:
+    """Hash pustego drzewa Gita (stały w ramach implementacji gita)."""
+    try:
+        out = _git_text(["hash-object", "-t", "tree", "/dev/null"], cwd=root, check=True)
+        return out or EMPTY_TREE_SHA
+    except Exception:
+        return EMPTY_TREE_SHA
+
+
+def current_branch(root: Optional[Path] = None) -> Optional[str]:
+    """Zwraca nazwę aktualnej gałęzi (lub None np. w detached HEAD)."""
+    try:
+        b = _git_text(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root or repo_root(), check=True)
+        return b if b and b != "HEAD" else None
+    except Exception:
+        return None
+
+
+def rev_short(root: Path, rev: str) -> str:
+    """Zwraca skrót 7 znaków dla podanego revision (bez rzucania błędów na brak)."""
+    try:
+        s = _git_text(["rev-parse", "--short=7", rev], cwd=root, check=True)
+        return s or (rev[:7] if len(rev) >= 7 else rev)
+    except Exception:
+        return rev[:7] if len(rev) >= 7 else rev
+
+
+def list_tracked_files(root: Optional[Path] = None) -> List[str]:
+    """Wszystkie śledzone pliki (git ls-files)."""
+    out = _git_text(["ls-files"], cwd=root or repo_root(), check=True)
+    return [ln.strip() for ln in out.splitlines() if ln.strip()]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Walidacja / fallbacki referencji
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _rev_ok(rev: str, root: Optional[Path] = None) -> bool:
     """
     Czy referencja istnieje? Akceptujemy commit/annotated tag.
-    UWAGA: empty-tree nie jest revem gita – traktujemy ją jako „ok”, jeśli równa EMPTY_TREE_SHA.
+    UWAGA: empty-tree nie jest zwykłym refem – ale traktujemy go jako „ok”.
     """
+    root = root or repo_root()
     if not rev:
         return False
     if rev == EMPTY_TREE_SHA:
         return True
     try:
-        # 'rev^{commit}' – zweryfikuj, że to parsuje się do commita (lub annotated tag -> commit)
         subprocess.check_output(
             ["git", "rev-parse", "--verify", f"{rev}^{{commit}}"],
-            cwd=str(cwd or repo_root()), text=True, stderr=subprocess.DEVNULL
+            cwd=str(root), text=True, stderr=subprocess.DEVNULL
         )
         return True
     except Exception:
         return False
 
 
-def _empty_tree_sha(cwd: Optional[Path] = None) -> str:
-    """Pobiera SHA pustego drzewa z gita, z bezpiecznym fallbackiem na stałą."""
-    try:
-        out = subprocess.check_output(
-            ["git", "hash-object", "-t", "tree", "/dev/null"],
-            cwd=str(cwd or repo_root()), text=True, stderr=subprocess.DEVNULL
-        ).strip()
-        return out or EMPTY_TREE_SHA
-    except Exception:
-        return EMPTY_TREE_SHA
-
-
 # ──────────────────────────────────────────────────────────────────────────────
-# Podstawowe operacje GIT
+# ŹRÓDŁO PRAWDY DLA ZAKRESÓW: resolve_range / parse_range_arg
 # ──────────────────────────────────────────────────────────────────────────────
 
-def git_merge_base(head: str = "HEAD", other: str = "origin/master") -> Optional[str]:
+def _resolve_head(root: Path, head: Optional[str]) -> str:
+    """HEAD jeśli brak, inaczej ref → sha (o ile możliwe)."""
+    h = head or "HEAD"
+    return rev_parse(root, h) or h
+
+
+def _resolve_base_with_fallbacks(root: Path, head_sha: str, base: Optional[str]) -> str:
     """
-    Zwraca sha wspólnego przodka (merge-base). Gdy brak – None.
-    Próbuje 'origin/<branch>', 'origin/master', 'origin/main'.
+    Strategia:
+      1) jeśli `base` podano → zrev-parsuj (lub zostaw jak jest, jeśli nie można).
+      2) spróbuj merge-base(HEAD, origin/<branch|master|main>).
+      3) HEAD~1
+      4) pusty tree (pierwszy commit).
     """
-    # spróbuj z bieżącą gałęzią
-    br = current_branch()
-    candidates = []
-    if br:
-        candidates.append(f"origin/{br}")
-    candidates.extend(["origin/master", "origin/main"])
-    for remote in candidates:
-        try:
-            sha = _git(["merge-base", head, remote]).strip()
-            if sha:
-                return sha
-        except subprocess.CalledProcessError:
+    if base:
+        return rev_parse(root, base) or base
+
+    # 2) merge-base z „główną” gałęzią zdalną (preferencja: bieżąca → master → main)
+    br = current_branch(root) or ""
+    for remote in (f"origin/{br}" if br else None, "origin/master", "origin/main"):
+        if not remote:
             continue
-    return None
+        mb = merge_base(root, head_sha or "HEAD", remote)
+        if mb:
+            return mb
+
+    # 3) HEAD~1
+    prev = rev_parse(root, "HEAD~1")
+    if prev:
+        return prev
+
+    # 4) pusty tree
+    return empty_tree(root)
 
 
-def current_branch() -> Optional[str]:
-    """Zwraca nazwę aktualnej gałęzi (lub None np. w detached HEAD)."""
-    try:
-        b = _git(["rev-parse", "--abbrev-ref", "HEAD"]).strip()
-        return b if b and b != "HEAD" else None
-    except subprocess.CalledProcessError:
-        return None
+def resolve_range(repo_root_: Path, base: Optional[str] = None, head: Optional[str] = None) -> Tuple[str, str, str]:
+    """
+    Zwraca (range_str, base_sha, head_sha) z deterministycznymi fallbackami.
+    Przykłady:
+      - resolve_range(root) → („HEAD~1..HEAD”, <sha_prev|empty_tree>, <sha_head>)
+      - resolve_range(root, base="A", head="B") → („A..B”, <shaA>, <shaB>)
+      - resolve_range(root, head="HEAD") → („<auto_base>..HEAD”, <sha>, <shaHEAD>)
+    """
+    root = Path(repo_root_)
+    if not is_git_repo(root):
+        raise RuntimeError(f"Nieprawidłowe repozytorium git: {root}")
+
+    head_sha = _resolve_head(root, head)
+    base_sha = _resolve_base_with_fallbacks(root, head_sha, base)
+    return f"{base_sha}..{head_sha}", base_sha, head_sha
 
 
-def rev_short(rev: str) -> str:
-    """Zwraca skrót 7 znaków dla podanego revision (bez rzucania błędów na brak)."""
-    try:
-        s = _git(["rev-parse", "--short=7", rev]).strip()
-        return s or (rev[:7] if len(rev) >= 7 else rev)
-    except subprocess.CalledProcessError:
-        return rev[:7] if len(rev) >= 7 else rev
-
-
-def list_tracked_files() -> List[str]:
-    """Wszystkie śledzone pliki (git ls-files)."""
-    out = _git(["ls-files"]).splitlines()
-    return [ln.strip() for ln in out if ln.strip()]
+def parse_range_arg(repo_root_: Path, diff_range: str) -> Tuple[str, str, str]:
+    """
+    Parsuje argument zakresu w formatach:
+      - 'A..B'  → resolve A..B (rev-parse każdego końca)
+      - 'HEAD'  → resolve_range(head='HEAD')  (base: fallbacki)
+      - '<sha>' → resolve_range(head='<sha>')
+    Zwraca (range_str, base_sha, head_sha).
+    """
+    root = Path(repo_root_)
+    dr = (diff_range or "").strip()
+    if ".." in dr:
+        a, b = dr.split("..", 1)
+        a_sha = rev_parse(root, a.strip()) or a.strip()
+        b_sha = rev_parse(root, b.strip()) or b.strip()
+        return f"{a_sha}..{b_sha}", a_sha, b_sha
+    return resolve_range(root, base=None, head=dr or "HEAD")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Fallback-odporny diff (kluczowa poprawka)
+# Parsowanie diffu name-status z fallbackami
 # ──────────────────────────────────────────────────────────────────────────────
-
-def _diff_name_status_safe(base: str, head: str, cwd: Optional[Path] = None) -> List[Tuple[str, str]]:
-    """
-    Zwraca listę (status, path) z `git diff --name-status base..head`, z fallbackami:
-      1) jeśli base nie istnieje → spróbuj merge-base(HEAD, origin/<branch|master|main>)
-      2) jeśli dalej nie działa → użyj pustego drzewa jako base (pierwszy commit)
-      3) jeśli nadal błąd → zwróć pustą listę (bez wysadzania procesu)
-    """
-    root = cwd or repo_root()
-    # 1) szybka ścieżka
-    try:
-        out = _git(["diff", "--name-status", f"{base}..{head}"], cwd=root, check=True).splitlines()
-        return _parse_diff_name_status_lines(out)
-    except subprocess.CalledProcessError:
-        pass
-
-    # 2) spróbuj merge-base
-    mb = git_merge_base(head, f"origin/{current_branch() or 'master'}")
-    candidate = mb or base
-    if not _rev_ok(candidate, cwd=root):
-        # 3) spróbuj HEAD~1 dla pewności
-        if _rev_ok("HEAD~1", cwd=root):
-            candidate = "HEAD~1"
-        else:
-            # 4) ostatnia deska ratunku – empty tree
-            candidate = _empty_tree_sha(cwd=root)
-
-    try:
-        out = _git(["diff", "--name-status", f"{candidate}..{head}"], cwd=root, check=True).splitlines()
-        return _parse_diff_name_status_lines(out)
-    except subprocess.CalledProcessError:
-        # 5) ostatecznie nie podnoś wyjątku – pusta Δ
-        return []
-
 
 def _parse_diff_name_status_lines(lines: List[str]) -> List[Tuple[str, str]]:
     items: List[Tuple[str, str]] = []
@@ -192,7 +261,7 @@ def _parse_diff_name_status_lines(lines: List[str]) -> List[Tuple[str, str]]:
         if len(parts) == 2:
             st, p = parts
         elif len(parts) == 3:
-            st, _, p = parts
+            st, _, p = parts  # Rxxx<TAB>old<TAB>new → bierzemy „new”
         else:
             st, p = parts[0], parts[-1]
         st = st.strip()
@@ -202,29 +271,65 @@ def _parse_diff_name_status_lines(lines: List[str]) -> List[Tuple[str, str]]:
     return items
 
 
-def changed_files(base: str, head: str = "HEAD",
-                  filters: Optional[Iterable[str]] = None) -> List[str]:
+def _diff_name_status_safe(base: str, head: str, cwd: Optional[Path] = None) -> List[Tuple[str, str]]:
     """
-    Lista zmienionych ścieżek (A/M/D/R/T) między base..head (odporna na brak base).
+    Zwraca listę (status, path) z `git diff --name-status base..head`, z fallbackami:
+      1) jeśli base nie istnieje → spróbuj merge-base(HEAD, origin/<branch|master|main>)
+      2) jeśli dalej nie działa → HEAD~1
+      3) jeśli nadal błąd → użyj pustego drzewa jako base
+      4) jeśli nadal błąd → pusta lista
+    """
+    root = cwd or repo_root()
+
+    # 1) szybka ścieżka
+    p = _git(["diff", "--name-status", f"{base}..{head}"], cwd=root, check=False)
+    if p.returncode == 0:
+        return _parse_diff_name_status_lines(p.stdout.splitlines())
+
+    # 2) merge-base
+    br = current_branch(root) or "master"
+    mb = merge_base(root, head or "HEAD", f"origin/{br}") or merge_base(root, head or "HEAD", "origin/master") or merge_base(root, head or "HEAD", "origin/main")
+    candidate = mb or base
+
+    if not _rev_ok(candidate, root=root):
+        # 3) HEAD~1
+        if _rev_ok("HEAD~1", root=root):
+            candidate = "HEAD~1"
+        else:
+            # 4) pusty tree
+            candidate = empty_tree(root)
+
+    p2 = _git(["diff", "--name-status", f"{candidate}..{head}"], cwd=root, check=False)
+    if p2.returncode == 0:
+        return _parse_diff_name_status_lines(p2.stdout.splitlines())
+
+    return []
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pliki zmienione i snapshoty
+# ──────────────────────────────────────────────────────────────────────────────
+
+def changed_files(base: str, head: str = "HEAD", filters: Optional[Iterable[str]] = None) -> List[str]:
+    """
+    Lista zmienionych ścieżek (A/M/D/R/C/T) między base..head (odporna na brak base).
     filters: np. (".py", "glitchlab/") – proste startswith/endswith; None = bez filtra.
     """
     name_status = _diff_name_status_safe(base, head)
     paths: List[str] = []
     for st_code, path in name_status:
-        p = path.strip()
-        if not p:
+        if not path:
             continue
         if filters:
             ok = False
             for f in filters:
                 if f.startswith("."):
-                    ok |= p.endswith(f)
+                    ok |= path.endswith(f)
                 else:
-                    ok |= p.startswith(f)
+                    ok |= path.startswith(f)
             if not ok:
                 continue
-        # rename-y mają status Rxxx – bierz nową ścieżkę (już zparsowane w _parse_diff_name_status_lines)
-        paths.append(p)
+        paths.append(path)  # dla rename mamy już „new”
     return paths
 
 
@@ -237,48 +342,42 @@ def show_file_at_rev(path: str, rev: str = "HEAD") -> Optional[str]:
     """
     Zwraca zawartość pliku z danej rewizji (git show rev:path). Gdy plik nie istniał – None.
     """
-    try:
-        blob = _git(["show", f"{rev}:{path}"])
-        return blob
-    except subprocess.CalledProcessError:
-        return None
+    p = _git(["show", f"{rev}:{path}"], check=False)
+    return p.stdout if p.returncode == 0 else None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # GLX state.json (źródło prawdy: base_sha, itp.)
 # ──────────────────────────────────────────────────────────────────────────────
 
-GLX_DIR = ".glx"
-GLX_STATE = "state.json"
+def _glx_path(root: Optional[Path] = None) -> Path:
+    return (root or repo_root()) / GLX_DIR
 
 
-def _glx_path() -> Path:
-    return repo_root() / GLX_DIR
+def _glx_state_path(root: Optional[Path] = None) -> Path:
+    return _glx_path(root) / GLX_STATE
 
 
-def _glx_state_path() -> Path:
-    return _glx_path() / GLX_STATE
-
-
-def read_glx_state() -> Dict:
+def read_glx_state(root: Optional[Path] = None) -> Dict:
     """
     Czyta .glx/state.json. Gdy brak – zwraca domyślne pole z base_sha=None.
     """
-    p = _glx_state_path()
+    r = root or repo_root()
+    p = _glx_state_path(r)
     if not p.exists():
-        return {"app": "glitchlab", "base_sha": None, "last_seq": "", "branch": current_branch() or "master"}
+        return {"app": "glitchlab", "base_sha": None, "last_seq": "", "branch": current_branch(r) or "master"}
     try:
         return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
-        # plik uszkodzony: nie blokuj – zwróć minimalny słownik
-        return {"app": "glitchlab", "base_sha": None, "last_seq": "", "branch": current_branch() or "master"}
+        return {"app": "glitchlab", "base_sha": None, "last_seq": "", "branch": current_branch(r) or "master"}
 
 
-def write_glx_state(state: Dict) -> None:
+def write_glx_state(state: Dict, root: Optional[Path] = None) -> None:
     """
     Zapisuje .glx/state.json (pretty, utf-8). Tworzy katalog .glx jeśli trzeba.
     """
-    d = _glx_path()
+    r = root or repo_root()
+    d = _glx_path(r)
     d.mkdir(parents=True, exist_ok=True)
     p = d / GLX_STATE
     p.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -346,11 +445,6 @@ def _roi_flag_for_path(path: str, status: str) -> float:
     return 1.0 if path.endswith(".py") and status[:1] in {"A", "M", "R", "C", "D"} else 0.0
 
 
-def _diff_name_status(base: str, head: str) -> List[Tuple[str, str]]:
-    """Zachowana sygnatura pomocnicza (wykorzystuje wersję bezpieczną)."""
-    return _diff_name_status_safe(base, head)
-
-
 def build_repo_mosaic(
     base: Optional[str] = None,
     head: str = "HEAD",
@@ -360,56 +454,37 @@ def build_repo_mosaic(
     Buduje RepoMosaic dla zakresu base..head.
     - base: gdy None → .glx/state.json:base_sha, w ostateczności merge-base(HEAD, origin/<branch>),
             a jeśli brak – empty-tree (pierwszy commit)
-    - include_unstaged: jeśli True, traktuje 'git diff' jako HEAD + working tree (porównuje z HEAD)
+    - include_unstaged: jeśli True, traktuje 'git status --porcelain' jako diff vs HEAD
     Zwraca: (RepoInfo, RepoMosaic, churn_counters)
     """
     root = repo_root()
-    branch = current_branch() or "master"
+    branch = current_branch(root) or "master"
 
-    # HEAD sha
-    try:
-        head_sha = _git(["rev-parse", head]).strip()
-    except subprocess.CalledProcessError:
-        head_sha = head
+    # resolve base/head (użyjemy też „źródła prawdy”)
+    if base is None:
+        st = read_glx_state(root)
+        base = st.get("base_sha") or None
+    _, base_sha, head_sha = resolve_range(root, base=base, head=head)
 
-    # base sha (state → merge-base → empty-tree)
-    st = read_glx_state()
-    base_sha = base or st.get("base_sha")
-    if not base_sha:
-        fallback = git_merge_base("HEAD", f"origin/{branch}")
-        base_sha = fallback or "HEAD~1"
-    if not _rev_ok(base_sha, cwd=root):
-        base_sha = _empty_tree_sha(cwd=root)
-
-    base7 = rev_short(base_sha)
-    head7 = rev_short(head_sha)
+    base7 = rev_short(root, base_sha)
+    head7 = rev_short(root, head_sha)
 
     # nazwy/statusy
     if include_unstaged:
-        # porównanie HEAD..(working tree) – użyjemy 'git status --porcelain'
-        st_out = _git(["status", "--porcelain"]).splitlines()
-        # mapowanie na status 'M'/'A'/'D' jak najbliższe name-status
+        # porównanie HEAD..(working tree) – 'git status --porcelain'
+        st_out = _git_text(["status", "--porcelain"], cwd=root, check=True).splitlines()
         ns: List[Tuple[str, str]] = []
         for ln in st_out:
             ln = ln.strip()
-            if not ln:
-                continue
-            # format: XY path  (X=index, Y=worktree)
-            # bierzemy Y (worktree) gdy różny od ' '
-            if len(ln) < 4:
+            if not ln or len(ln) < 4:
                 continue
             X, Y, rest = ln[0], ln[1], ln[3:]
             status = (Y if Y != " " else X).strip()
-            if status in {"M", "A", "D"}:
-                ns.append((status, rest))
-            else:
-                # sprowadź np. 'R'/'C' itp. do „zmienione”
-                ns.append((status, rest))
+            ns.append((status, rest))
         name_status = ns
     else:
         name_status = _diff_name_status_safe(base_sha, head_sha, cwd=root)
 
-    # metryki ruchu
     churn = {"A": 0, "M": 0, "D": 0, "R": 0, "C": 0, "other": 0}
     files: List[str] = []
     edge: List[float] = []
@@ -419,7 +494,6 @@ def build_repo_mosaic(
         if not path:
             continue
         files.append(path)
-        # status bazowy (pierwsza litera)
         sig = st_code[:1] if st_code else "M"
         if sig in churn:
             churn[sig] += 1
@@ -430,29 +504,15 @@ def build_repo_mosaic(
 
     # jeśli brak zmian – użyj śledzonych .py jako kafli „spokojnych”
     if not files:
-        tracked = [p for p in list_tracked_files() if p.endswith(".py")]
-        files = tracked[:36]  # nie przesadzaj z rozmiarem siatki
+        tracked = [p for p in list_tracked_files(root) if p.endswith(".py")]
+        files = tracked[:36]
         edge = [0.35 for _ in files]
         roi = [0.0 for _ in files]
 
     rows, cols = _grid_for_n(len(files))
-    repoM = RepoMosaic(
-        files=files,
-        edge=edge,
-        roi=roi,
-        layout_rows=rows,
-        layout_cols=cols,
-        extras={}
-    )
+    repoM = RepoMosaic(files=files, edge=edge, roi=roi, layout_rows=rows, layout_cols=cols, extras={})
 
-    info = RepoInfo(
-        root=root,
-        branch=branch,
-        base_sha=base_sha,
-        head_sha=head_sha,
-        base7=base7,
-        head7=head7
-    )
+    info = RepoInfo(root=root, branch=branch, base_sha=base_sha, head_sha=head_sha, base7=base7, head7=head7)
     return info, repoM, churn
 
 

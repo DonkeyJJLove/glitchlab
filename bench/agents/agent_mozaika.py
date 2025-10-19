@@ -6,7 +6,7 @@ import re, math, ast
 from collections import Counter
 
 # Protokół
-from glitchlab.gui.mosaic import hybrid_ast_mosaic as hma
+from glitchlab.app.mosaic import hybrid_ast_mosaic as hma
 
 
 # ─────────────────────────────────────────────────────────────

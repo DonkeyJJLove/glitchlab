@@ -1,0 +1,61 @@
+{
+  "$id": "https://glx/schemas/node_impact.json",
+  "type": "object",
+  "required": [
+    "node_id",
+    "kind",
+    "span",
+    "delta"
+  ],
+  "properties": {
+    "node_id": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "func",
+        "class",
+        "method",
+        "module",
+        "block"
+      ]
+    },
+    "func_name": {
+      "type": "string"
+    },
+    "span": {
+      "type": "object",
+      "required": [
+        "start_line",
+        "end_line"
+      ],
+      "properties": {
+        "start_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "delta": {
+      "type": "object",
+      "required": [
+        "plus",
+        "minus"
+      ],
+      "properties": {
+        "plus": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minus": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

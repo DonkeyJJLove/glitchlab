@@ -30,7 +30,7 @@ outputs:
 interfaces:
   exports: ["mask_polygon","mask_rect","mask_circle","merge_masks"]
   depends_on: ["numpy","Pillow"]
-  used_by: ["glitchlab.core.pipeline","glitchlab.filters","glitchlab.gui"]
+  used_by: ["glitchlab.core.pipeline","glitchlab.filters","glitchlab.app"]
 
 contracts:
   - "maski są typu float32 i mieszczą się w [0,1]"

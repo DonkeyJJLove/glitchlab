@@ -7,11 +7,11 @@ id: "analysis-metrics"
 created_at: "2025-09-11"
 name: "glitchlab.analysis.metrics"
 author: "GlitchLab v2"
-role: "Image Metrics Library"
+role: "Image & Quality Metrics Library"
 description: >
-  Zestaw szybkich metryk obrazu: konwersja do Gray, downsampling,
-  entropia (Shannon), gęstość krawędzi (|∇x|+|∇y|), kontrast RMS oraz
-  statystyki blokowe dla mozaiki HUD. Zaprojektowane do pracy <50 ms dla obrazu ~1K.
+  Zestaw szybkich metryk obrazu (entropy, edge_density, contrast_rms, block_stats)
+  oraz opcjonalne narzędzia do normalizacji i łączenia sygnałów jakości wykorzystywanych przez
+  metasoczewki/fields. Nowe API *nie zmienia* dotychczasowego kontraktu ani wyników funkcji.
 inputs:
   arr: {dtype: "uint8|float32", shape: "(H,W)|(H,W,3)", colorspace: "RGB/Gray"}
   params:
@@ -24,42 +24,40 @@ outputs:
     contrast_rms: {type: float, range: "[0,1]"}
   blocks:
     block_stats: {type: dict[(bx,by)->{entropy:float,edges:float,mean:float,variance:float}]}
-record_model:
-  stage_keys:
-    metrics_in: "stage/{i}/metrics_in"
-    metrics_out: "stage/{i}/metrics_out"
-  mosaic_features: ["entropy","edges","mean","variance"]
-interfaces:
-  exports: ["to_gray_f32","downsample_max_side","compute_entropy","edge_density","contrast_rms","block_stats"]
-  depends_on: ["numpy","Pillow"]
-  used_by: ["glitchlab.core.pipeline","glitchlab.analysis.mosaic","glitchlab.analysis.exporters","glitchlab.gui"]
+quality_api:
+  utilities:
+    normalize_array_01(x, robust=True, q_lo=5, q_hi=95) -> np.ndarray[0..1]
+    normalize_field_map(field_map, robust=True, q_lo=5, q_hi=95) -> dict[node->0..1]
+    blend_fields(field_maps, weights=None, normalize_each=True, robust=True) -> dict[node->0..1]
+    nan_safe(value_or_array) -> value_or_array_without_nans
 policy:
   deterministic: true
   side_effects: false
 constraints:
   - "no SciPy/OpenCV"
   - "clamp/NaN-safe wyniki"
-telemetry:
-  global_metrics: ["entropy","edge_density","contrast_rms"]
-  block_metrics: ["entropy","edges","mean","variance"]
-hud:
-  channels: {}  # wizualizację mozaiki realizuje analysis.mosaic/GUI
 license: "Proprietary"
 ---
 """
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Mapping, Iterable, Optional
 import numpy as np
 from PIL import Image
 
 __all__ = [
+    # istniejące API (nie zmieniamy)
     "to_gray_f32",
     "downsample_max_side",
     "compute_entropy",
     "edge_density",
     "contrast_rms",
     "block_stats",
+    # nowe, opcjonalne narzędzia do jakości
+    "nan_safe",
+    "normalize_array_01",
+    "normalize_field_map",
+    "blend_fields",
 ]
 
 # -----------------------------
@@ -232,3 +230,152 @@ def block_stats(
 
     return out
 
+
+# ============================================================
+# Nowe: opcjonalne narzędzia jakości (normalizacja i blending)
+# ============================================================
+
+def nan_safe(x):
+    """
+    Zastępuje NaN/Inf bezpiecznymi wartościami. Działa dla skalarów i ndarray.
+    - NaN -> 0.0
+    - +Inf -> 1.0
+    - -Inf -> 0.0
+    """
+    if isinstance(x, (int, float)):
+        if np.isnan(x):  # type: ignore[arg-type]
+            return 0.0
+        if x == float("inf"):
+            return 1.0
+        if x == float("-inf"):
+            return 0.0
+        return float(x)
+    arr = np.asarray(x, dtype=np.float64)
+    arr = np.nan_to_num(arr, nan=0.0, posinf=1.0, neginf=0.0)
+    return arr
+
+
+def _robust_minmax_params(arr: np.ndarray, q_lo: float = 5.0, q_hi: float = 95.0) -> Tuple[float, float]:
+    """
+    Zwraca (lo, hi) na bazie kwantyli — odporne na outliery.
+    Gdy hi<=lo, poszerza przedział minimalnie, by uniknąć dzielenia przez zero.
+    """
+    if arr.size == 0:
+        return (0.0, 1.0)
+    lo = float(np.percentile(arr, max(0.0, min(100.0, q_lo))))
+    hi = float(np.percentile(arr, max(0.0, min(100.0, q_hi))))
+    if not np.isfinite(lo):
+        lo = 0.0
+    if not np.isfinite(hi):
+        hi = 1.0
+    if hi <= lo:
+        hi = lo + 1e-9
+    return (lo, hi)
+
+
+def normalize_array_01(
+    x: Iterable[float] | np.ndarray,
+    *,
+    robust: bool = True,
+    q_lo: float = 5.0,
+    q_hi: float = 95.0,
+) -> np.ndarray:
+    """
+    Normalizacja do [0,1]:
+      - jeśli robust=True: używa kwantyli (q_lo,q_hi), następnie przycina do [0,1],
+      - jeśli robust=False: używa min/max z całej próbki,
+      - zawsze NaN-safe.
+    """
+    arr = nan_safe(x).astype(np.float64)
+    if arr.size == 0:
+        return arr
+    if robust:
+        lo, hi = _robust_minmax_params(arr, q_lo=q_lo, q_hi=q_hi)
+    else:
+        lo = float(np.nanmin(arr))
+        hi = float(np.nanmax(arr))
+        if not np.isfinite(lo):
+            lo = 0.0
+        if not np.isfinite(hi) or hi <= lo:
+            hi = lo + 1e-9
+    y = (arr - lo) / (hi - lo)
+    return np.clip(y, 0.0, 1.0, out=y)
+
+
+def normalize_field_map(
+    field_map: Mapping[str, float],
+    *,
+    robust: bool = True,
+    q_lo: float = 5.0,
+    q_hi: float = 95.0,
+) -> Dict[str, float]:
+    """
+    Normalizuje mapę {node_id -> value} do [0,1] (NaN-safe, Inf-safe).
+    Używa normalize_array_01 na wartościach i odtwarza mapę.
+    """
+    if not field_map:
+        return {}
+    keys = list(field_map.keys())
+    vals = np.array([field_map[k] for k in keys], dtype=np.float64)
+    norm = normalize_array_01(vals, robust=robust, q_lo=q_lo, q_hi=q_hi)
+    return {k: float(v) for k, v in zip(keys, norm.tolist())}
+
+
+def blend_fields(
+    field_maps: Mapping[str, Mapping[str, float]],
+    weights: Optional[Mapping[str, float]] = None,
+    *,
+    normalize_each: bool = True,
+    robust: bool = True,
+    q_lo: float = 5.0,
+    q_hi: float = 95.0,
+) -> Dict[str, float]:
+    """
+    Łączy wiele pól w jeden wynik {node_id->score in [0,1]}:
+      - dopasowuje klucze po unii node_id,
+      - opcjonalnie normalizuje każde pole do [0,1] (robust kwantylami),
+      - stosuje wagi (domyślnie równe),
+      - wynik to ważona średnia, NaN/Inf-safe i *zawsze* przycięta do [0,1].
+
+    Przykład:
+      blend_fields(
+        {"pagerank": pr_map, "degree": deg_map, "churn": ch_map},
+        weights={"pagerank": 0.5, "degree": 0.3, "churn": 0.2}
+      )
+    """
+    if not field_maps:
+        return {}
+
+    # zbuduj unijny zbiór węzłów
+    all_nodes: set[str] = set()
+    for m in field_maps.values():
+        all_nodes.update(m.keys())
+
+    # domyślne wagi
+    if weights is None:
+        weights = {name: 1.0 for name in field_maps.keys()}
+    # normalizacja wag na wypadek dowolnych skal
+    w_vec = np.array([max(0.0, float(weights.get(name, 0.0))) for name in field_maps.keys()], dtype=np.float64)
+    w_sum = float(np.sum(w_vec))
+    if w_sum <= 0:
+        # gdy same zera → równomierne
+        w_vec = np.ones_like(w_vec)
+        w_sum = float(np.sum(w_vec))
+    w_norm = (w_vec / w_sum).tolist()
+
+    # (opcjonalnie) przeskaluj każde pole do [0,1]
+    field_names = list(field_maps.keys())
+    processed: Dict[str, Dict[str, float]] = {}
+    for name in field_names:
+        m = field_maps[name]
+        processed[name] = normalize_field_map(m, robust=robust, q_lo=q_lo, q_hi=q_hi) if normalize_each else {k: float(nan_safe(v)) for k, v in m.items()}
+
+    # składanie: ważona średnia; brakujące wartości → 0.0
+    out: Dict[str, float] = {}
+    for nid in all_nodes:
+        acc = 0.0
+        for j, name in enumerate(field_names):
+            v = float(processed[name].get(nid, 0.0))
+            acc += w_norm[j] * v
+        out[nid] = float(np.clip(acc, 0.0, 1.0))
+    return out

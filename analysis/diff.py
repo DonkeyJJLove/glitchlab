@@ -1,207 +1,406 @@
 # glitchlab/analysis/diff.py
+# -*- coding: utf-8 -*-
 """
-version: 2
+Visual-less DIFF: odczyt patcha i metryki zmian dla zakresu GIT (BASE..HEAD).
+Bez tokenizacji/AST — tylko statystyki i surowy patch.
 
-kind: module
-id: "analysis-diff"
-created_at: "2025-09-11"
-name: "glitchlab.analysis.diff"
-author: "GlitchLab v2"
-role: "Visual Diff & Change Statistics"
-description: >
-  Oblicza różnice pomiędzy dwoma obrazami: mapę |Δ| (Gray), składowe per-kanał,
-  prostą „heatmapę” oraz statystyki (mean/p95/max; opcjonalnie PSNR). Dostosowuje
-  rozmiary i skaluje do max_side dla wydajności.
-inputs:
-  a: {dtype: "uint8|float32", shape: "(H,W)|(H,W,3)"}
-  b: {dtype: "uint8|float32", shape: "(H,W)|(H,W,3)"}
-  max_side: {type: int, default: 1024}
-  add_psnr: {type: bool, default: false}
-outputs:
-  abs: {dtype: "float32", shape: "(H,W)", range: "[0,1]"}
-  per_channel: {dtype: "tuple(float32,float32,float32)", shape: "(H,W)×3", range: "[0,1]"}
-  heatmap: {dtype: "float32", shape: "(H,W)", range: "[0,1]"}
-  stats: {type: "dict{mean,p95,max[,psnr]}", units: "mean/p95/max in [0,1], psnr in dB"}
-interfaces:
-  exports: ["to_rgb_f32","resize_like","compute_diff"]
-  depends_on: ["numpy","Pillow"]
-  used_by: ["glitchlab.core.pipeline","glitchlab.analysis.exporters","glitchlab.gui"]
-policy:
-  deterministic: true
-  side_effects: false
-constraints:
-  - "no SciPy/OpenCV"
-  - "wyniki w float32 [0,1] poza PSNR (dB)"
-telemetry:
-  channels:
-    diff_image: "stage/{i}/diff"
-    diff_stats: "stage/{i}/diff_stats"
-license: "Proprietary"
----
+Python: 3.9 (stdlib only)
+
+Publiczne API:
+- read_unified_patch(repo_root: Path, diff_range: str, **opts) -> str
+- read_numstat(repo_root: Path, diff_range: str, include=None, exclude=None) -> list[dict]
+- read_name_status(repo_root: Path, diff_range: str, include=None, exclude=None) -> list[dict]
+- read_shortstat(repo_root: Path, diff_range: str) -> dict
+- summarize_diff(repo_root: Path, diff_range: str, include=None, exclude=None) -> dict
+
+Uwaga:
+- „Zakres” może mieć postać 'A..B', pojedynczego refa ('HEAD' / sha),
+  lub być rozwiązywany z fallbackami zgodnie z analysis.git_io.parse_range_arg().
+- Filtry include/exclude to listy regexów (kompilowane z re.IGNORECASE).
 """
-
-# glitchlab/analysis/diff.py
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple
-import numpy as np
-from PIL import Image
+import re
+import subprocess
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
+from typing import Dict, Iterable, List, Optional, Tuple
 
-__all__ = ["to_rgb_f32", "resize_like", "compute_diff"]
+from .git_io import parse_range_arg, repo_root as _repo_root
 
+__all__ = [
+    "DEFAULT_IGNORE_REGEX",
+    "read_unified_patch",
+    "read_numstat",
+    "read_name_status",
+    "read_shortstat",
+    "summarize_diff",
+]
 
-# -----------------------------
-# Konwersje i skalowanie
-# -----------------------------
+# ──────────────────────────────────────────────────────────────────────────────
+# Konfiguracja filtrowania (domyślna)
+# ──────────────────────────────────────────────────────────────────────────────
 
-def to_rgb_f32(arr: np.ndarray) -> np.ndarray:
+DEFAULT_IGNORE_REGEX = re.compile(
+    r"""(?ix)
+    ( ^|/ )(
+        \.git
+      | \.glx
+      | __pycache__
+      | \.pytest_cache
+      | dist
+      | build
+      | backup
+    )( /|$ )
+    | \.(png|jpg|jpeg|gif|svg|ico|bmp|pdf|zip|tar|gz|7z|bin|exe|dll|dylib)$
     """
-    uint8/float, Gray/RGB -> RGB float32 [0,1]
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pomocnicze
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", *args],
+        cwd=str(repo),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+def _ensure_repo(path: Optional[Path]) -> Path:
+    return _repo_root(path)
+
+def _compile_filters(patterns: Optional[Iterable[str]]) -> Optional[List[re.Pattern]]:
+    if not patterns:
+        return None
+    out: List[re.Pattern] = []
+    for p in patterns:
+        try:
+            out.append(re.compile(p, re.IGNORECASE))
+        except re.error:
+            # potraktuj jako dosłowny fragment ścieżki
+            out.append(re.compile(re.escape(p), re.IGNORECASE))
+    return out
+
+def _wanted(path: str, include: Optional[List[re.Pattern]], exclude: Optional[List[re.Pattern]]) -> bool:
+    # normalizacja separatorów
+    p = str(PurePosixPath(path))
+    if exclude and any(rx.search(p) for rx in exclude):
+        return False
+    if DEFAULT_IGNORE_REGEX.search(p):
+        # domyślne ignorowanie – ale include może nadpisać (preferencja dla include)
+        if include and any(rx.search(p) for rx in include):
+            return True
+        return False
+    if include:
+        return any(rx.search(p) for rx in include)
+    return True
+
+def _split_range(repo: Path, diff_range: str) -> Tuple[str, str, str]:
+    rng, base, head = parse_range_arg(repo, diff_range)
+    return rng, base, head
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Odczyt patcha (unified diff)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def read_unified_patch(
+    repo_root: Path,
+    diff_range: str,
+    *,
+    unified: int = 3,
+    detect_renames: bool = True,
+    detect_copies: bool = True,
+    ignore_ws: bool = False,
+    pathspec: Optional[Iterable[str]] = None,
+) -> str:
     """
-    if arr.ndim == 2:
-        if arr.dtype == np.uint8:
-            a = arr.astype(np.float32) / 255.0
+    Zwraca surowy patch (unified diff) dla zakresu.
+    """
+    repo = _ensure_repo(repo_root)
+    rng, base, head = _split_range(repo, diff_range)
+
+    args = ["diff", f"-U{unified}"]
+    if detect_renames:
+        args.append("-M")
+    if detect_copies:
+        args.append("-C")
+    # stabilna kolejność plików
+    args.extend(["--diff-algorithm=histogram", "--no-color"])
+    if ignore_ws:
+        args.append("-w")
+    args.append(rng)
+    if pathspec:
+        args.append("--")
+        args.extend(list(pathspec))
+
+    proc = _git(repo, *args)
+    return proc.stdout if proc.returncode == 0 else ""
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Numstat / Name-Status / Shortstat
+# ──────────────────────────────────────────────────────────────────────────────
+
+def read_numstat(
+    repo_root: Path,
+    diff_range: str,
+    *,
+    include: Optional[Iterable[str]] = None,
+    exclude: Optional[Iterable[str]] = None,
+) -> List[Dict[str, object]]:
+    """
+    Zwraca listę rekordów: {"adds": int|None, "dels": int|None, "path": str, "binary": bool}
+    (None dla wartości z '-' w numstat = plik binarny).
+    """
+    repo = _ensure_repo(repo_root)
+    rng, base, head = _split_range(repo, diff_range)
+    inc = _compile_filters(include)
+    exc = _compile_filters(exclude)
+
+    args = ["diff", "--numstat", "-M", "-C", rng]
+    out = _git(repo, *args)
+    rows: List[Dict[str, object]] = []
+    if out.returncode != 0:
+        return rows
+
+    for ln in out.stdout.splitlines():
+        if not ln.strip():
+            continue
+        parts = ln.split("\t")
+        if len(parts) < 3:
+            continue
+        a_raw, d_raw, path = parts[0], parts[1], parts[2]
+        if not _wanted(path, inc, exc):
+            continue
+        binary = (a_raw == "-" or d_raw == "-")
+        adds = None if binary else int(a_raw or 0)
+        dels = None if binary else int(d_raw or 0)
+        rows.append({"adds": adds, "dels": dels, "path": path, "binary": binary})
+    return rows
+
+
+def read_name_status(
+    repo_root: Path,
+    diff_range: str,
+    *,
+    include: Optional[Iterable[str]] = None,
+    exclude: Optional[Iterable[str]] = None,
+) -> List[Dict[str, str]]:
+    """
+    Zwraca listę rekordów: {"status": "A|M|D|R|C|T", "path": "nowa_ścieżka", "from": "stara_ścieżka?"}
+    """
+    repo = _ensure_repo(repo_root)
+    rng, base, head = _split_range(repo, diff_range)
+    inc = _compile_filters(include)
+    exc = _compile_filters(exclude)
+
+    args = ["diff", "--name-status", "-M", "-C", rng]
+    out = _git(repo, *args)
+    rows: List[Dict[str, str]] = []
+    if out.returncode != 0:
+        return rows
+
+    for ln in out.stdout.splitlines():
+        if not ln.strip():
+            continue
+        parts = ln.split("\t")
+        st = parts[0].strip()
+        if st.startswith("R") or st.startswith("C"):
+            # R### <old> <new>  |  C### <old> <new>
+            if len(parts) >= 3:
+                old_p, new_p = parts[1], parts[2]
+                if _wanted(new_p, inc, exc):
+                    rows.append({"status": st[:1], "path": new_p, "from": old_p})
         else:
-            a = arr.astype(np.float32, copy=False)
-        a = np.clip(a, 0.0, 1.0, out=a)
-        return np.stack([a, a, a], axis=-1)
-    elif arr.ndim == 3:
-        if arr.shape[-1] == 3:
-            if arr.dtype == np.uint8:
-                a = arr.astype(np.float32) / 255.0
-            else:
-                a = arr.astype(np.float32, copy=False)
-            return np.clip(a, 0.0, 1.0, out=a)
-        else:
-            raise ValueError("to_rgb_f32: last dim must be 3 for 3D arrays")
-    else:
-        raise ValueError("to_rgb_f32: expected 2D or 3D array")
+            # A/M/D/T  <path>
+            if len(parts) >= 2:
+                p = parts[1]
+                if _wanted(p, inc, exc):
+                    rows.append({"status": st[:1], "path": p, "from": ""})
+    return rows
 
 
-def _resize_to(arr_u8: np.ndarray, size: Tuple[int, int]) -> np.ndarray:
-    mode = "L" if (arr_u8.ndim == 2 or arr_u8.shape[-1] == 1) else "RGB"
-    im = Image.fromarray(arr_u8, mode=mode).resize(size, resample=Image.BICUBIC)
-    return np.asarray(im, dtype=np.uint8)
-
-
-def resize_like(a: np.ndarray, b: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def read_shortstat(repo_root: Path, diff_range: str) -> Dict[str, int]:
     """
-    Zwraca (a_resized, b_resized) o wspólnym rozmiarze (H',W'), dopasowując do mniejszej strony (bicubic).
+    Zwraca: {"files": X, "insertions": Y, "deletions": Z}
+    (parsowane z `git diff --shortstat`).
     """
-    Ha, Wa = a.shape[:2]
-    Hb, Wb = b.shape[:2]
-    # wybierz rozmiar docelowy jako min(max_side a, max_side b) per wymiar – tu: bierzemy rozmiar a
-    size = (Wa, Ha)
-    if (Hb, Wb) != (Ha, Wa):
-        # u8 konwersja po drodze
-        if a.dtype != np.uint8:
-            au8 = (np.clip(a, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
-        else:
-            au8 = a
-        if b.dtype != np.uint8:
-            bu8 = (np.clip(b, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
-        else:
-            bu8 = b
-        b_res = _resize_to(bu8, (Wa, Ha))
-        a_res = au8
-        return a_res, b_res
-    else:
-        if a.dtype == np.uint8 and b.dtype == np.uint8:
-            return a, b
-        # wyrównaj typy do u8
-        au8 = (np.clip(a, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8) if a.dtype != np.uint8 else a
-        bu8 = (np.clip(b, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8) if b.dtype != np.uint8 else b
-        return au8, bu8
+    repo = _ensure_repo(repo_root)
+    rng, base, head = _split_range(repo, diff_range)
+    args = ["diff", "--shortstat", rng]
+    out = _git(repo, *args)
+    files = insertions = deletions = 0
+    if out.returncode == 0:
+        txt = out.stdout.strip()
+        # Przykład: "3 files changed, 12 insertions(+), 5 deletions(-)"
+        m_files = re.search(r"(\d+)\s+files?\s+changed", txt)
+        m_ins = re.search(r"(\d+)\s+insertions?\(\+\)", txt)
+        m_del = re.search(r"(\d+)\s+deletions?\(-\)", txt)
+        files = int(m_files.group(1)) if m_files else 0
+        insertions = int(m_ins.group(1)) if m_ins else 0
+        deletions = int(m_del.group(1)) if m_del else 0
+    return {"files": files, "insertions": insertions, "deletions": deletions}
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Agregaty i metryki
+# ──────────────────────────────────────────────────────────────────────────────
 
-def _resize_max_side_rgb(a_rgb: np.ndarray, b_rgb: np.ndarray, max_side: int) -> Tuple[np.ndarray, np.ndarray]:
+def _ext_of(path: str) -> str:
+    p = str(PurePosixPath(path))
+    dot = p.rfind(".")
+    if dot <= 0:
+        return ""
+    return p[dot + 1 :].lower()
+
+def _top_k(counter: Counter, k: int = 10) -> List[Tuple[str, int]]:
+    return counter.most_common(k)
+
+def summarize_diff(
+    repo_root: Path,
+    diff_range: str,
+    *,
+    include: Optional[Iterable[str]] = None,
+    exclude: Optional[Iterable[str]] = None,
+) -> Dict[str, object]:
     """
-    Skaluje oba obrazy (RGB f32 [0,1]) tak, by ich max(H,W) <= max_side i miały identyczny rozmiar.
-    Rozmiar docelowy – rozmiar mniejszego po downsamplingu.
+    Zwraca syntetyczny raport z zakresu (bez tokenów):
+    {
+      "range": "A..B",
+      "base": "<sha>",
+      "head": "<sha>",
+      "files_changed": int,
+      "insertions": int,
+      "deletions": int,
+      "delta": int,               # adds + dels
+      "net": int,                 # adds - dels
+      "binary_files": int,
+      "by_status": {"A": n, "M": n, "D": n, "R": n, "C": n, "T": n},
+      "by_ext": { "py": {"files": n, "adds": a, "dels": d}, ... },
+      "top_dirs": [ ["analysis", n], ... ],
+      "top_files_adds": [ ["path", adds], ... ],
+      "top_files_dels": [ ["path", dels], ... ],
+      "hunks": int,               # liczba @@ w unified patch
+      "patch_bytes": int
+    }
     """
+    repo = _ensure_repo(repo_root)
+    rng, base, head = _split_range(repo, diff_range)
 
-    def down(a: np.ndarray) -> np.ndarray:
-        H, W = a.shape[:2]
-        m = max(H, W)
-        if m <= max_side:
-            return a
-        scale = max_side / float(m)
-        new_size = (max(1, int(round(W * scale))), max(1, int(round(H * scale))))
-        im = Image.fromarray((np.clip(a, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8), mode="RGB")
-        im = im.resize(new_size, resample=Image.BICUBIC)
-        return (np.asarray(im, dtype=np.float32) / 255.0)
+    inc = _compile_filters(include)
+    exc = _compile_filters(exclude)
 
-    A = down(a_rgb)
-    B = down(b_rgb)
-    Ha, Wa = A.shape[:2]
-    Hb, Wb = B.shape[:2]
-    # dopasuj B do A
-    if (Ha, Wa) != (Hb, Wb):
-        im = Image.fromarray((np.clip(B, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8), mode="RGB")
-        im = im.resize((Wa, Ha), resample=Image.BICUBIC)
-        B = np.asarray(im, dtype=np.float32) / 255.0
-    return A, B
+    # 1) shortstat
+    ss = read_shortstat(repo, diff_range)
 
+    # 2) name-status
+    ns = read_name_status(repo, diff_range, include=include, exclude=exclude)
+    by_status = Counter([r["status"] for r in ns])
 
-# -----------------------------
-# Różnice i statystyki
-# -----------------------------
-def compute_diff(
-        a: np.ndarray,
-        b: np.ndarray,
-        *,
-        max_side: int = 1024,
-        add_psnr: bool = False,
-) -> Dict[str, Any]:
-    """
-    Zwraca:
-      {
-        "abs": gray |Δ| [0,1],
-        "per_channel": (dR,dG,dB) [0,1],
-        "heatmap": gray [0,1],
-        "stats": {"mean":..,"p95":..,"max":.., "psnr"?:..}
-      }
-    """
-    Ar = to_rgb_f32(a)
-    Br = to_rgb_f32(b)
-    A, B = _resize_max_side_rgb(Ar, Br, max_side=max_side)
+    # 3) numstat
+    num = read_numstat(repo, diff_range, include=include, exclude=exclude)
 
-    # per channel abs
-    d = np.abs(A - B)  # [0,1], shape (H,W,3)
-    dR = d[..., 0]
-    dG = d[..., 1]
-    dB = d[..., 2]
-    # gray abs
-    dY = 0.299 * dR + 0.587 * dG + 0.114 * dB
-    dY = np.clip(dY, 0.0, 1.0)
+    # agregaty
+    adds_total = sum((r["adds"] or 0) for r in num)
+    dels_total = sum((r["dels"] or 0) for r in num)
+    binary_files = sum(1 for r in num if r["binary"])
 
-    # lekka „heatmapa” = samo dY (HUD może pokolorować po swojemu)
-    heat = dY
+    # by_ext
+    ext_files: Dict[str, set] = defaultdict(set)
+    ext_adds: Dict[str, int] = defaultdict(int)
+    ext_dels: Dict[str, int] = defaultdict(int)
 
-    # statystyki
-    flat = dY.reshape(-1)
-    mean = float(np.mean(flat)) if flat.size else 0.0
-    p95 = float(np.percentile(flat, 95.0)) if flat.size else 0.0
-    dmax = float(np.max(flat)) if flat.size else 0.0
-    stats = {"mean": mean, "p95": p95, "max": dmax}
+    for r in num:
+        ext = _ext_of(str(r["path"]))
+        ext_files[ext].add(r["path"])
+        if not r["binary"]:
+            ext_adds[ext] += int(r["adds"] or 0)
+            ext_dels[ext] += int(r["dels"] or 0)
 
-    if add_psnr:
-        # proste PSNR na gray [0,1] po dopasowaniu rozmiarów
-        Ay = 0.299 * A[..., 0] + 0.587 * A[..., 1] + 0.114 * A[..., 2]
-        By = 0.299 * B[..., 0] + 0.587 * B[..., 1] + 0.114 * B[..., 2]
-        diff = Ay - By
-        mse = float(np.mean(diff * diff)) if diff.size else 0.0
-        if mse <= 1e-12:
-            psnr = float("inf")
-        else:
-            psnr = 10.0 * np.log10(1.0 / mse)
-        stats["psnr"] = psnr
+    by_ext = {
+        k or "": {"files": len(ext_files[k]), "adds": ext_adds[k], "dels": ext_dels[k]}
+        for k in sorted(ext_files.keys())
+    }
+
+    # top dirs (po pierwszym segmentcie ścieżki)
+    dir_counter: Counter = Counter()
+    for r in ns:
+        p = str(PurePosixPath(r["path"]))
+        first = p.split("/", 1)[0] if "/" in p else p
+        if not _wanted(p, inc, exc):
+            continue
+        dir_counter[first] += 1
+
+    # top files by adds/dels
+    adds_by_file: Dict[str, int] = defaultdict(int)
+    dels_by_file: Dict[str, int] = defaultdict(int)
+    for r in num:
+        if r["binary"]:
+            continue
+        adds_by_file[str(r["path"])] += int(r["adds"] or 0)
+        dels_by_file[str(r["path"])] += int(r["dels"] or 0)
+
+    top_adds = sorted(adds_by_file.items(), key=lambda kv: kv[1], reverse=True)[:10]
+    top_dels = sorted(dels_by_file.items(), key=lambda kv: kv[1], reverse=True)[:10]
+
+    # 4) policz hunki i wielkość patcha (unified = 3, wykrywanie rename/copy)
+    patch_txt = read_unified_patch(repo, diff_range, unified=3, detect_renames=True, detect_copies=True, ignore_ws=False)
+    hunks = len(re.findall(r"^@@", patch_txt, flags=re.MULTILINE))
+    patch_bytes = len(patch_txt.encode("utf-8"))
 
     return {
-        "abs": dY.astype(np.float32, copy=False),
-        "per_channel": (dR.astype(np.float32, copy=False),
-                        dG.astype(np.float32, copy=False),
-                        dB.astype(np.float32, copy=False)),
-        "heatmap": heat.astype(np.float32, copy=False),
-        "stats": stats,
+        "range": rng,
+        "base": base,
+        "head": head,
+        "files_changed": int(ss.get("files", 0)),
+        "insertions": int(ss.get("insertions", adds_total)),  # shortstat preferowane; fallback na numstat
+        "deletions": int(ss.get("deletions", dels_total)),
+        "delta": int(adds_total + dels_total),
+        "net": int(adds_total - dels_total),
+        "binary_files": int(binary_files),
+        "by_status": dict(by_status),
+        "by_ext": by_ext,
+        "top_dirs": _top_k(dir_counter, 10),
+        "top_files_adds": top_adds,
+        "top_files_dels": top_dels,
+        "hunks": hunks,
+        "patch_bytes": patch_bytes,
     }
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Proste CLI (dla szybkiej inspekcji lokalnej)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _cli(argv: Optional[List[str]] = None) -> None:
+    import argparse
+    import json as _json
+
+    p = argparse.ArgumentParser(prog="analysis.diff", description="GLX: patch & metrics (bez tokenizacji)")
+    p.add_argument("--range", dest="diff_range", default="HEAD~1..HEAD", help="zakres A..B lub pojedynczy ref (domyślnie HEAD~1..HEAD)")
+    p.add_argument("--patch", action="store_true", help="wypisz unified diff")
+    p.add_argument("--json", action="store_true", help="wypisz JSON z summarize_diff()")
+    p.add_argument("--include", nargs="*", default=None, help="regex-y include (nadpisują domyślne ignore)")
+    p.add_argument("--exclude", nargs="*", default=None, help="regex-y exclude")
+    args = p.parse_args(argv)
+
+    repo = _ensure_repo(None)
+
+    if args.patch:
+        print(read_unified_patch(repo, args.diff_range))
+        return
+
+    rep = summarize_diff(repo, args.diff_range, include=args.include, exclude=args.exclude)
+    if args.json:
+        print(_json.dumps(rep, ensure_ascii=False, indent=2))
+    else:
+        print(f"[range] {rep['range']}  files={rep['files_changed']}  +{rep['insertions']} -{rep['deletions']}  Δ={rep['delta']} net={rep['net']}")
+        print(f"[status] {rep['by_status']}")
+        print(f"[binary] {rep['binary_files']}  [hunks] {rep['hunks']}  [patch_bytes] {rep['patch_bytes']}")
+        print(f"[top dirs] {rep['top_dirs'][:5]}")
+        print(f"[by ext] keys={list(rep['by_ext'].keys())[:6]} ..")
+
+if __name__ == "__main__":
+    _cli()

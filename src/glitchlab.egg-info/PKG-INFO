@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: glitchlab
+Version: 0.1.0
+Summary: GlitchLab — repozytorium narzędzi i bibliotek projektu GlitchLab.
+Author-email: Sebastian Wieremiejczyk <you@example.com>
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Provides-Extra: dev
+Requires-Dist: ruff>=0.6.9; extra == "dev"
+Requires-Dist: black>=24.0.0; extra == "dev"
+Requires-Dist: mypy>=1.10.0; extra == "dev"
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: coverage[toml]>=7.6.0; extra == "dev"
+Requires-Dist: types-PyYAML>=6.0.12; extra == "dev"
+Dynamic: license-file

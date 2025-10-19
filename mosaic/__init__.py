@@ -1,5 +1,5 @@
 
-# glitchlab/gui/mosaic/__init__.py
+# glitchlab/app/mosaic/__init__.py
 # Python 3.9 — lazy re-exports to avoid heavy import side effects.
 
 from importlib import import_module

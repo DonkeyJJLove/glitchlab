@@ -1,4 +1,4 @@
-# glitchlab/gui/mosaic/git_delta.py
+# glitchlab/app/mosaic/git_delta.py
 # -*- coding: utf-8 -*-
 """
 Robust Git delta utilities (BASE..HEAD, staged, fallbacks).

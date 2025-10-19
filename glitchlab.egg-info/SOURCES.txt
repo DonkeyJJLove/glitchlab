@@ -1,0 +1,7 @@
+LICENSE
+pyproject.toml
+glitchlab.egg-info/PKG-INFO
+glitchlab.egg-info/SOURCES.txt
+glitchlab.egg-info/dependency_links.txt
+glitchlab.egg-info/requires.txt
+glitchlab.egg-info/top_level.txt

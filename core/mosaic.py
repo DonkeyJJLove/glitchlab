@@ -33,7 +33,7 @@ interfaces:
   exports: ["mosaic_map","mosaic_label_raster","mosaic_project_blocks","mosaic_overlay",
             "mosaic_grid_shape","mosaic_centers","mosaic_neighbors"]
   depends_on: ["numpy"]
-  used_by: ["glitchlab.core.pipeline","glitchlab.analysis.exporters","glitchlab.gui",
+  used_by: ["glitchlab.core.pipeline","glitchlab.analysis.exporters","glitchlab.app",
             "glitchlab.analysis.mosaic_adapter"]
 policy:
   deterministic: true

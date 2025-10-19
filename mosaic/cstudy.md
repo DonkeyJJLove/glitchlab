@@ -1,9 +1,9 @@
 # Case Study: Generacja i transformacja kodu z AST ⇄ Mozaika (Φ/Ψ)
 
->[Moziaka](README.md) | [Struktura](structure.md) | [Case Study](cstudy.md)
+>[Moziaka](mosaic/README.md) | [Struktura](mosaic/structure.md) | [Case Study](mosaic/cstudy.md)
 
 > **Schemat wizualny:**
-> ![Model – schemat](../resources/img/model.png)
+> ![Model – schemat](resourcesg/model.png)
 
 To studium przypadku pokazuje **praktyczny** przepływ pracy: od analizy kodu (AST + meta), przez mapowanie Φ i feedback Ψ, po **reguły sterujące** (meta-tagi) i **wymuszenia architektoniczne** (np. *Dependency Injection*, *Factory*, wstrzymanie generacji). Całość opiera się na referencyjnych plikach:
 

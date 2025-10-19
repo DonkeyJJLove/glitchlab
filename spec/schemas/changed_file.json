@@ -1,0 +1,53 @@
+{
+  "$id": "https://glx/schemas/changed_file.json",
+  "type": "object",
+  "required": [
+    "path",
+    "status",
+    "hunks"
+  ],
+  "properties": {
+    "path": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "A",
+        "M",
+        "D",
+        "R",
+        "C"
+      ]
+    },
+    "hunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "old_start",
+          "old_lines",
+          "new_start",
+          "new_lines"
+        ],
+        "properties": {
+          "old_start": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "old_lines": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "new_start": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "new_lines": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}
