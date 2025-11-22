@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# GLX pre-merge-commit (wrapper) — uruchamia Pythona 3.9+ z .githooks/pre-merge-commit.py
+set -euo pipefail
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# 🧩 Awaryjna ścieżka do Twojej instalacji Pythona (zgodna z Git Bash)
+PY_FALLBACK="/c/Python39/python.exe"
+
+# 🧠 Główny interpreter (zmienna środowiskowa lub python3)
+PY="${PYTHON:-python3}"
+
+# 🔍 Sprawdź dostępność interpretera
+if ! command -v "$PY" >/dev/null 2>&1; then
+  if [ -x "$PY_FALLBACK" ]; then
+    echo "[pre-merge-commit] python3 not found, using fallback: $PY_FALLBACK" >&2
+    PY="$PY_FALLBACK"
+  elif command -v python >/dev/null 2>&1; then
+    echo "[pre-merge-commit] python3 not found, using 'python'." >&2
+    PY="python"
+  else
+    echo "[pre-merge-commit] Python not found. Set \$PYTHON or install Python 3.9+." >&2
+    exit 127
+  fi
+fi
+
+# 🧮 Sprawdź wersję Pythona
+"$PY" - <<'PYVER'
+import sys
+maj, min = sys.version_info[:2]
+if (maj, min) < (3, 9):
+    print(f"[pre-merge-commit] Python >= 3.9 required (found {maj}.{min}).", file=sys.stderr)
+    sys.exit(2)
+PYVER
+
+# 🚀 Uruchom właściwy skrypt hooka
+exec "$PY" "$HOOK_DIR/pre-merge-commit.py" "$@"

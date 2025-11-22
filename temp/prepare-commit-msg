@@ -1,0 +1,50 @@
+@echo off
+REM ==============================================
+REM  GLX prepare-commit-msg — Windows CMD wrapper
+REM  Uruchamia .githooks\prepare-commit-msg.py
+REM  twardo wskazując Pythona i sprawdzając wersję
+REM ==============================================
+
+setlocal
+
+REM Katalog hooków
+set "HOOK_DIR=%~dp0"
+
+REM Domyślny interpreter: twarda ścieżka
+set "PY=C:\Python39\python.exe"
+
+REM Jeśli ktoś podał %PYTHON% w środowisku, użyj go
+if defined PYTHON set "PY=%PYTHON%"
+
+REM Jeśli nadal nie istnieje, awaryjnie spróbuj "python" z PATH
+if not exist "%PY%" (
+  where python >nul 2>&1
+  if not errorlevel 1 for /f "usebackq delims=" %%P in (`where python`) do (
+    set "PY=%%P"
+    goto :vercheck
+  )
+)
+
+:vercheck
+if not exist "%PY%" (
+  echo [prepare-commit-msg] Python not found. Expected at C:\Python39\python.exe or in PATH.
+  exit /b 127
+)
+
+REM Sprawdź wersję (>= 3.9)
+"%PY%" -c "import sys;maj,mi=sys.version_info[:2];import sys;sys.exit(0 if (maj,mi)>=(3,9) else 2)"
+if errorlevel 2 (
+  for /f "tokens=2 delims== " %%V in ('"%PY%" -c "import sys;print('==',sys.version.split()[0])"') do set "PV=%%V"
+  echo [prepare-commit-msg] Python >= 3.9 required (found %PV%).
+  exit /b 2
+)
+
+REM Uruchom właściwy skrypt
+set "SCRIPT=%HOOK_DIR%prepare-commit-msg.py"
+if not exist "%SCRIPT%" (
+  echo [prepare-commit-msg] Missing script: %SCRIPT%
+  exit /b 3
+)
+
+"%PY%" "%SCRIPT%" %*
+exit /b %errorlevel%
