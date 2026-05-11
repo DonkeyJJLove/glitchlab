@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import types, traceback, inspect, signal
+import keyword
 from typing import Dict, Any, List
 
 
@@ -19,6 +20,10 @@ def _exec_code(src: str) -> types.ModuleType:
     return mod
 
 
+def _is_safe_entrypoint(name: Any) -> bool:
+    return isinstance(name, str) and name.isidentifier() and not keyword.iskeyword(name)
+
+
 def run_tests(code: str, task: Dict[str, Any], timeout_s: int = 2) -> Dict[str, Any]:
     """
     Zwraca: {pass_cnt, total, pass_at_1(0/1), errors:[...]}.
@@ -31,6 +36,11 @@ def run_tests(code: str, task: Dict[str, Any], timeout_s: int = 2) -> Dict[str, 
     total = len(task.get("tests", []))
     errors: List[str] = []
     passed = 0
+    name = task.get("entrypoint")
+
+    if not _is_safe_entrypoint(name):
+        return dict(pass_cnt=0, total=total, pass_at_1=0,
+                    errors=[f"invalid_entrypoint: {name!r}"])
 
     try:
         mod = _exec_code(code)
@@ -38,7 +48,6 @@ def run_tests(code: str, task: Dict[str, Any], timeout_s: int = 2) -> Dict[str, 
         tb = traceback.format_exc()
         return dict(pass_cnt=0, total=total, pass_at_1=0, errors=[f"load_error:\n{tb}"])
 
-    name = task["entrypoint"]
     if not hasattr(mod, name):
         return dict(pass_cnt=0, total=total, pass_at_1=0,
                     errors=[f"entrypoint_missing: {name}"])
