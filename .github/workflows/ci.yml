@@ -58,7 +58,7 @@ jobs:
           echo "Using range: ${RANGE}"
 
       - name: Ruff (lint)
-        run: ruff . --force-exclude
+        run: ruff check . --force-exclude
 
       - name: Black (format check)
         run: python -m black --check .
