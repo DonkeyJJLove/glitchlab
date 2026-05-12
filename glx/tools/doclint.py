@@ -15,12 +15,14 @@ Zakończenie:
 - 0 → OK
 - 1 → wykryto błędy (wypisane na stderr)
 """
+
 from __future__ import annotations
 
 import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
+
 
 def _docs_dir() -> Path:
     legacy = Path("glitchlab") / "docs"
@@ -32,10 +34,23 @@ def _docs_dir() -> Path:
 DOCS = _docs_dir()
 
 REQUIRED_FILES = {
-    "00_overview.md", "10_architecture.md", "11_spec_glossary.md", "12_invariants.md",
-    "13_delta_algebra.md", "14_mosaic.md", "20_bus.md", "21_egdb.md", "22_analytics.md",
-    "30_sast_bridge.md", "40_gui_app.md", "41_pipelines.md", "50_ci_ops.md", "60_security.md",
-    "70_observability.md", "82_release_and_channels.md", "92_playbooks.md",
+    "00_overview.md",
+    "10_architecture.md",
+    "11_spec_glossary.md",
+    "12_invariants.md",
+    "13_delta_algebra.md",
+    "14_mosaic.md",
+    "20_bus.md",
+    "21_egdb.md",
+    "22_analytics.md",
+    "30_sast_bridge.md",
+    "40_gui_app.md",
+    "41_pipelines.md",
+    "50_ci_ops.md",
+    "60_security.md",
+    "70_observability.md",
+    "82_release_and_channels.md",
+    "92_playbooks.md",
 }
 
 REQ_VERSION = "v1.0"
@@ -49,6 +64,7 @@ FM_END = re.compile(r"\n---\s*\n", re.DOTALL)
 
 # Prosty parser klucz: wartość (w obrębie front-matter)
 KV_RE = re.compile(r"^([a-zA-Z0-9_\-]+)\s*:\s*(.+?)\s*$")
+
 
 # Dopuszczamy zarówno en-dash (–) jak i minus (-) w zapisie I1–I4
 def _spec_tokens_ok(spec_raw: str) -> bool:
@@ -64,6 +80,7 @@ def _spec_tokens_ok(spec_raw: str) -> bool:
     must = {"S", "H", "Z", "Δ", "Φ", "Ψ"}
     return i14_ok and must.issubset(items)
 
+
 def _extract_front_matter(text: str) -> Tuple[str, str]:
     """
     Zwraca (blok_front_matter, reszta_treści). Gdy brak poprawnego FM, zwraca ("","").
@@ -77,8 +94,9 @@ def _extract_front_matter(text: str) -> Tuple[str, str]:
     start = 4  # po pierwszym '---\n'
     end = m.start()
     fm = text[start:end]
-    rest = text[m.end():]
+    rest = text[m.end() :]
     return fm, rest
+
 
 def _parse_front_matter(fm: str) -> Dict[str, str]:
     """
@@ -96,6 +114,7 @@ def _parse_front_matter(fm: str) -> Dict[str, str]:
             data[k] = v
     return data
 
+
 def _has_glossary_link(fm: str) -> bool:
     """
     Sprawdza, czy front-matter zawiera blok:
@@ -105,13 +124,16 @@ def _has_glossary_link(fm: str) -> bool:
     Dopuszczamy dowolne odstępy i dodatkowe wpisy w links.
     """
     # szukamy 'links:' a dalej co najmniej jeden wpis z rel: glossary i właściwym href
-    links_block = re.search(r"(?ms)^\s*links\s*:\s*\n(.+?)(?:^\S| \Z)", fm + "\nX")  # do następnego klucza lub końca
+    links_block = re.search(
+        r"(?ms)^\s*links\s*:\s*\n(.+?)(?:^\S| \Z)", fm + "\nX"
+    )  # do następnego klucza lub końca
     if not links_block:
         return False
     block = links_block.group(1)
     has_rel = re.search(r"(?m)^\s*-\s*rel\s*:\s*glossary\s*$", block) is not None
     has_href = re.search(r"(?m)^\s*href\s*:\s*\.\/11_spec_glossary\.md\s*$", block) is not None
     return bool(has_rel and has_href)
+
 
 def _check_file(md_path: Path) -> List[str]:
     errors: List[str] = []
@@ -148,13 +170,16 @@ def _check_file(md_path: Path) -> List[str]:
         errors.append(f"{md_path.name}: pole 'spec' musi zawierać S,H,Z, Δ, Φ, Ψ, I1–I4")
     # links → glossary
     if not _has_glossary_link(fm):
-        errors.append(f"{md_path.name}: sekcja 'links' musi zawierać wpis (rel: glossary, href: {REQ_GLOSSARY_HREF})")
+        errors.append(
+            f"{md_path.name}: sekcja 'links' musi zawierać wpis (rel: glossary, href: {REQ_GLOSSARY_HREF})"
+        )
 
     # 2) Migracja GUI→APP
     if "gui/" in text:
         errors.append(f"{md_path.name}: wykryto przestarzałe ścieżki 'gui/' — zamień na 'app/'")
 
     return errors
+
 
 def main() -> int:
     if not DOCS.exists():
@@ -182,6 +207,7 @@ def main() -> int:
 
     print("[doclint] OK")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
