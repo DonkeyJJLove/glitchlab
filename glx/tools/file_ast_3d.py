@@ -30,6 +30,7 @@ import ast
 import html
 import json
 import sys
+import html as html_lib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
