@@ -617,6 +617,8 @@ def _resolve_glx_graphs_dir(file_path: Path) -> Path:
 
 
 def _write_html(payload: Dict[str, object], out_path: Path, title: str) -> Path:
+    from html import escape
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     safe_title = html.escape(title, quote=True)
     html_doc = HTML.replace("__DATA_JSON__", _script_safe_json(payload)).replace(
