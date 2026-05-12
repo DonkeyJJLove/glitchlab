@@ -1,4 +1,5 @@
 from __future__ import annotations
+from glitchlab.analysis.project_graph import ProjectGraph, build_project_graph  # noqa: E402
 """
 EGDB (Event Grammar DB) adapter for Postgres + snapshoty artefaktów (projektowy graf, metryki, metasoczewki).
 
