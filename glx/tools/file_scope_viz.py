@@ -281,6 +281,11 @@ drawMosaic();
 def _read_json(p: Path) -> Dict[str, Any]:
     return json.loads(p.read_text(encoding="utf-8"))
 
+
+def _script_safe_json(data: Dict[str, Any]) -> str:
+    # Prevent closing inline <script> blocks via untrusted payload content.
+    return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+
 def _atomic_write_text(path: Path, data: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile("w", delete=False, dir=str(path.parent), encoding="utf-8", newline="\n") as tmp:
@@ -649,7 +654,7 @@ def main(argv=None) -> int:
 
     out = Path(args.output).resolve() if args.output else (root/".glx"/"graphs"/"file_scope_viz.html")
     out.parent.mkdir(parents=True, exist_ok=True)
-    html = HTML.replace("__PAYLOAD_JSON__", json.dumps(payload, ensure_ascii=False))
+    html = HTML.replace("__PAYLOAD_JSON__", _script_safe_json(payload))
     _atomic_write_text(out, html)
     print(str(out))
     return 0

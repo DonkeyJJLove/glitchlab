@@ -1,5 +1,6 @@
 # glitchlab/glx/tools/file_ast_3d.py
 from __future__ import annotations
+
 """
 File AST 3D — interaktywny podgląd grafu jednego pliku .py w 3D (ForceGraph3D).
 
@@ -27,6 +28,7 @@ Krawędzie:
 """
 
 import ast
+import html
 import json
 import sys
 import html
@@ -38,6 +40,7 @@ from typing import Dict, List, Optional, Tuple
 # Model i ekstrakcja AST dla jednego pliku (bez zależności zewnętrznych)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class Node:
     id: str
@@ -45,11 +48,13 @@ class Node:
     label: str
     meta: Dict[str, object] = field(default_factory=dict)
 
+
 @dataclass
 class Edge:
     src: str
     dst: str
     kind: str
+
 
 @dataclass
 class Graph:
@@ -107,7 +112,11 @@ class _FileVisitor(ast.NodeVisitor):
         self.scope.pop()
 
     def visit_Call(self, node: ast.Call) -> None:
-        callee = _attr_to_dotted(node.func) or (getattr(ast, "unparse", None) and ast.unparse(node.func)) or ""
+        callee = (
+            _attr_to_dotted(node.func)
+            or (getattr(ast, "unparse", None) and ast.unparse(node.func))
+            or ""
+        )
         self.calls.append((self._cur(), callee, node.lineno))
         self.generic_visit(node)
 
@@ -213,6 +222,11 @@ def graph_to_payload(g: Graph) -> Dict[str, object]:
         ],
         "edges": [{"src": e.src, "dst": e.dst, "kind": e.kind} for e in g.edges],
     }
+
+
+def _script_safe_json(data: Dict[str, object]) -> str:
+    # Prevent </script> breakout from inline script payload.
+    return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -607,7 +621,10 @@ def _resolve_glx_graphs_dir(file_path: Path) -> Path:
     glx.mkdir(parents=True, exist_ok=True)
     return glx
 
+
 def _write_html(payload: Dict[str, object], out_path: Path, title: str) -> Path:
+    from html import escape
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     safe_title = html.escape(title, quote=True)
     html_doc = HTML.replace("__DATA_JSON__", _script_safe_json(payload)) \
@@ -620,11 +637,17 @@ def _write_html(payload: Dict[str, object], out_path: Path, title: str) -> Path:
 # CLI
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def main(argv=None) -> int:
     import argparse
+
     ap = argparse.ArgumentParser(description="3D AST of a single Python file (interactive)")
     ap.add_argument("--file", required=True, help="ścieżka do pliku .py do wizualizacji")
-    ap.add_argument("--output", default=None, help="ścieżka wyjściowa .html (domyślnie: <repo>/.glx/graphs/file_ast_3d_<stem>.html)")
+    ap.add_argument(
+        "--output",
+        default=None,
+        help="ścieżka wyjściowa .html (domyślnie: <repo>/.glx/graphs/file_ast_3d_<stem>.html)",
+    )
     ap.add_argument("--title", default=None, help="tytuł w HTML (opcjonalnie)")
     args = ap.parse_args(argv)
 
@@ -637,7 +660,11 @@ def main(argv=None) -> int:
     payload = graph_to_payload(g)
 
     title = args.title or f"{f.name} • AST graph"
-    out = Path(args.output).resolve() if args.output else (_resolve_glx_graphs_dir(f) / f"file_ast_3d_{f.stem}.html")
+    out = (
+        Path(args.output).resolve()
+        if args.output
+        else (_resolve_glx_graphs_dir(f) / f"file_ast_3d_{f.stem}.html")
+    )
     _write_html(payload, out, title)
     print(str(out))
     return 0

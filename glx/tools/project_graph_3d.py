@@ -178,6 +178,11 @@ def _load_json(p: Path) -> Dict[str, Any]:
     return json.loads(p.read_text(encoding="utf-8"))
 
 
+def _script_safe_json(data: Dict[str, Any]) -> str:
+    # Prevent closing inline <script> blocks via </script> in untrusted data.
+    return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+
+
 def _load_or_build_graph(repo_root: Path, input_path: Optional[Path]) -> Dict[str, Any]:
     # 1) prefer explicit --input
     if input_path and input_path.exists():
@@ -220,8 +225,8 @@ def _load_or_build_graph(repo_root: Path, input_path: Optional[Path]) -> Dict[st
 
 def _write_html(payload: Dict[str, Any], out_path: Path) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    # wstawiamy JSON „inline”
-    data_json = json.dumps(payload, ensure_ascii=False)
+    # wstawiamy JSON „inline” w kontekście <script> (XSS-safe)
+    data_json = _script_safe_json(payload)
     html = HTML_TEMPLATE.replace("__DATA_JSON__", data_json)
     out_path.write_text(html, encoding="utf-8")
     return out_path
