@@ -30,7 +30,6 @@ import ast
 import html
 import json
 import sys
-import html as html_lib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -610,9 +609,9 @@ def _resolve_glx_graphs_dir(file_path: Path) -> Path:
 def _write_html(payload: Dict[str, object], out_path: Path, title: str) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     safe_title = html.escape(title, quote=True)
-    html = HTML.replace("__DATA_JSON__", _script_safe_json(payload)) \
-               .replace("__TITLE__", safe_title)
-    out_path.write_text(html, encoding="utf-8")
+    html_doc = HTML.replace("__DATA_JSON__", _script_safe_json(payload)) \
+                  .replace("__TITLE__", safe_title)
+    out_path.write_text(html_doc, encoding="utf-8")
     return out_path
 
 
