@@ -22,6 +22,7 @@ Zasada punktacji (heurystyczna, 0..1):
 Progi (domyślne, gdy brak spec_state.json):
 - α=0.85, β=0.92, Z=0.99 (repo-level). Plik baseline tworzy się automatycznie.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -234,16 +235,22 @@ def run(commit_range: str) -> Dict[str, Any]:
     # Gating — uwzględniamy tylko progi β/Z do kodów wyjścia
     exit_code = 0
     if score > b:
-        analysis["violations"].append({"invariant": "I*", "severity": "block", "details": "score > beta"})
+        analysis["violations"].append(
+            {"invariant": "I*", "severity": "block", "details": "score > beta"}
+        )
         exit_code = 1
     if score > z:
-        analysis["violations"].append({"invariant": "I*", "severity": "hard-block", "details": "score > Z"})
+        analysis["violations"].append(
+            {"invariant": "I*", "severity": "hard-block", "details": "score > Z"}
+        )
         exit_code = 2
 
     # Zapis artefaktu
     try:
         GLX_DIR.mkdir(parents=True, exist_ok=True)
-        COMMIT_ANALYSIS.write_text(json.dumps(analysis, indent=2, ensure_ascii=False), encoding="utf-8")
+        COMMIT_ANALYSIS.write_text(
+            json.dumps(analysis, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
     except Exception as e:
         print(f"[invariants_check] cannot write {COMMIT_ANALYSIS}: {e}", file=sys.stderr)
 
