@@ -76,8 +76,10 @@ def cmd_project_graph(args: argparse.Namespace) -> int:
         cli = getattr(mod, "_cli", None)
         if cli:
             argv = ["build", "--repo-root", str(rr)]
-            if args.write: argv.append("--write")
-            if args.stdout: argv.append("--stdout")
+            if args.write:
+                argv.append("--write")
+            if args.stdout:
+                argv.append("--stdout")
             return int(cli(argv))
         _print_err("project_graph: brak API i CLI w module")
         return 2
