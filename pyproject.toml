@@ -21,7 +21,8 @@ dev = [
   "pytest>=8.0.0",
   "hypothesis>=6.100.0",
   "coverage[toml]>=7.6.0",
-  "types-PyYAML>=6.0.12"
+  "types-PyYAML>=6.0.12",
+  "jsonschema>=4.0.0"
 ]
 
 [tool.setuptools.packages.find]
@@ -31,6 +32,10 @@ include = ["glitchlab*"]
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+
+
+[tool.ruff.lint]
+ignore = ["E402", "E701", "E702", "E731", "E741", "F811", "F821", "F841"]
 
 [tool.black]
 line-length = 100

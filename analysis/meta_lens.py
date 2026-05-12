@@ -14,7 +14,7 @@ import fnmatch
 import math
 import re as _re
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional
+from typing import Dict
 
 from glitchlab.analysis.project_graph import ProjectGraph, Node  # kanoniczny graf
 

@@ -57,7 +57,6 @@ af = GlxArtifacts()
 # ── Biblioteki projektowe ─────────────────────────────────────────────────────
 from glitchlab.analysis.project_graph import (  # type: ignore
     ProjectGraph,
-    build_project_graph,
     to_dot as graph_to_dot,
 )
 from glitchlab.analysis.scope_meta import (  # type: ignore

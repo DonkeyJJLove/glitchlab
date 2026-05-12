@@ -65,20 +65,20 @@ class ImageCanvas(ttk.Frame):
         self._render()
 
     def zoom_in(self, factor: float = 1.25):
-        self._scale = min(64.0, self._scale * factor);
+        self._scale = min(64.0, self._scale * factor)
         self._render()
 
     def zoom_out(self, factor: float = 1.25):
-        self._scale = max(0.05, self._scale / factor);
+        self._scale = max(0.05, self._scale / factor)
         self._render()
 
     def zoom_to(self, scale: float):
-        self._scale = max(0.05, min(64.0, float(scale)));
+        self._scale = max(0.05, min(64.0, float(scale)))
         self._render()
 
     def center(self):
         self.canvas.update_idletasks()
-        self.canvas.xview_moveto(0.0);
+        self.canvas.xview_moveto(0.0)
         self.canvas.yview_moveto(0.0)
 
     def fit(self, margin: int = 16):
@@ -87,13 +87,13 @@ class ImageCanvas(ttk.Frame):
         ch = max(32, self.canvas.winfo_height() - margin * 2)
         iw, ih = self._pil.size
         if iw <= 0 or ih <= 0: return
-        sx = cw / iw;
+        sx = cw / iw
         sy = ch / ih
         self._scale = max(0.05, min(64.0, min(sx, sy)))
         self._render()
 
     def set_crosshair(self, on: bool = True):
-        self._crosshair = bool(on);
+        self._crosshair = bool(on)
         self._draw_cross(None)
 
     # internal
@@ -133,7 +133,7 @@ class ImageCanvas(ttk.Frame):
             self.canvas.delete(cid)
         self._cross_ids.clear()
         if not self._crosshair: return
-        w = self.canvas.winfo_width();
+        w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
         if xy is None:
             x, y = w // 2, h // 2

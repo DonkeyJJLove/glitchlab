@@ -21,9 +21,12 @@ Wszystko działa z samym stdlib + UMD CDN (Three, SpriteText, ForceGraph).
 """
 
 from __future__ import annotations
-import argparse, json, sys, re
+import argparse
+import json
+import sys
+import re
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple
 
 HTML = r"""<!doctype html>
 <html lang="en">

@@ -22,11 +22,11 @@ Zasada punktacji (heurystyczna, 0..1):
 Progi (domyślne, gdy brak spec_state.json):
 - α=0.85, β=0.92, Z=0.99 (repo-level). Plik baseline tworzy się automatycznie.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import time
@@ -177,6 +177,41 @@ def _score_from(rep: Dict[str, Any], diff_text: str) -> float:
     return max(0.0, min(1.0, score))
 
 
+def compute_score_from_report(report: dict) -> float:
+    """
+    Compute normalized risk score in [0, 1] from delta report.
+    Expected keys:
+    - hist: dict token -> count
+    - psnr: float, optional
+    - ssim: float, optional
+    """
+    hist = report.get("hist") or {}
+    modify = float(hist.get("MODIFY_SIG", 0) or hist.get("CHANGE_SIG", 0) or 0)
+    imp = float(hist.get("ΔIMPORT", 0) or hist.get("DELTA_IMPORT", 0) or 0)
+    token_pressure = min(1.0, (modify + imp) / 100.0)
+
+    psnr_raw = report.get("psnr", 50.0)
+    ssim_raw = report.get("ssim", 1.0)
+    psnr = float(50.0 if psnr_raw is None else psnr_raw)
+    ssim = float(1.0 if ssim_raw is None else ssim_raw)
+
+    psnr_pressure = 0.0 if psnr >= 40.0 else (1.0 if psnr <= 20.0 else (40.0 - psnr) / 20.0)
+    ssim_pressure = min(1.0, max(0.0, 1.0 - ssim))
+
+    score = 0.6 * token_pressure + 0.2 * psnr_pressure + 0.2 * ssim_pressure
+    return max(0.0, min(1.0, float(score)))
+
+
+def classify_by_thresholds(score: float, thresholds: dict | None = None):
+    """
+    Return bool block decision for compatibility with tests.
+    Uses z threshold if present, otherwise beta/alpha fallback.
+    """
+    thresholds = thresholds or {}
+    z = float(thresholds.get("z", thresholds.get("beta", thresholds.get("alpha", 0.85))))
+    return float(score) >= z
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Główna procedura
 # ──────────────────────────────────────────────────────────────────────────────
@@ -200,16 +235,22 @@ def run(commit_range: str) -> Dict[str, Any]:
     # Gating — uwzględniamy tylko progi β/Z do kodów wyjścia
     exit_code = 0
     if score > b:
-        analysis["violations"].append({"invariant": "I*", "severity": "block", "details": "score > beta"})
+        analysis["violations"].append(
+            {"invariant": "I*", "severity": "block", "details": "score > beta"}
+        )
         exit_code = 1
     if score > z:
-        analysis["violations"].append({"invariant": "I*", "severity": "hard-block", "details": "score > Z"})
+        analysis["violations"].append(
+            {"invariant": "I*", "severity": "hard-block", "details": "score > Z"}
+        )
         exit_code = 2
 
     # Zapis artefaktu
     try:
         GLX_DIR.mkdir(parents=True, exist_ok=True)
-        COMMIT_ANALYSIS.write_text(json.dumps(analysis, indent=2, ensure_ascii=False), encoding="utf-8")
+        COMMIT_ANALYSIS.write_text(
+            json.dumps(analysis, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
     except Exception as e:
         print(f"[invariants_check] cannot write {COMMIT_ANALYSIS}: {e}", file=sys.stderr)
 

@@ -1,7 +1,11 @@
 # glitchlab/app/views/tab_filter.py
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import importlib, importlib.util, pkgutil, sys, traceback
+import importlib
+import importlib.util
+import pkgutil
+import sys
+import traceback
 import tkinter as tk
 from tkinter import ttk
 from typing import Any, Dict, Optional, List, Tuple, Type, Iterable

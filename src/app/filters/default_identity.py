@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import numpy as np
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 try:
     from glitchlab.core.registry import register  # normal route

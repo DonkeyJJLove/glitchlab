@@ -39,7 +39,7 @@ Zależności: wyłącznie stdlib (typing).
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, List, Optional, Literal, TypedDict
+from typing import Any, Dict, Mapping, List, Literal, TypedDict
 
 # Wersja kontraktu (schematów) w tej warstwie
 EVENTS_SCHEMA_VERSION: str = "v1"

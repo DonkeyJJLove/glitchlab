@@ -71,7 +71,6 @@ def list_registered_panels():
 def list_panels() -> List[str]:
     """Lista zarejestrowanych paneli."""
     try:
-        from glitchlab.app.panel_loader import list_available_panels
         return list_registered_panels()
     except Exception:
         return []

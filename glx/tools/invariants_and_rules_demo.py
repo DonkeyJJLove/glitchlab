@@ -1,8 +1,9 @@
 # glitchlab/glx/tools/invariants_and_rules_demo.py
 from __future__ import annotations
-import json, sys
+import json
+import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
 # łagodne importy (działamy i wewnątrz pakietu, i „goło”)
 try:
@@ -65,9 +66,9 @@ def _proof_I1_I4_demo() -> Dict[str, Any]:
 
     # I4 — β = H/(S+H); „refactor” B: (S,H) := (10,8) → β spada
     def beta(n):
-        S = nodes[n]["S"];
-        H = nodes[n]["H"];
-        t = max(1, S + H);
+        S = nodes[n]["S"]
+        H = nodes[n]["H"]
+        t = max(1, S + H)
         return H / t
 
     beta_path_before = sum(beta(n) for n in path) / len(path)
@@ -116,8 +117,8 @@ def _hot_bridge_preset(glx_dir: Path, repo_root: Path,
     files = ast_idx.get("files") or ast_idx
     if isinstance(files, dict):
         for path, rec in files.items():
-            S = float(rec.get("S", 0));
-            H = float(rec.get("H", 0));
+            S = float(rec.get("S", 0))
+            H = float(rec.get("H", 0))
             t = max(1.0, S + H)
             beta[f"file:{Path(path).as_posix()}"] = H / t
 
