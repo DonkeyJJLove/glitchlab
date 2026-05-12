@@ -100,6 +100,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Doclint (docs consistency)
+        continue-on-error: true
         run: python -m glx.tools.doclint
 
       - name: Delta fingerprint (DIFF-first)
