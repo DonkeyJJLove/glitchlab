@@ -386,7 +386,8 @@ class FieldsRegistry:
             if isinstance(files, dict):
                 for p, rec in files.items():
                     try:
-                        S = float(rec.get("S", 0.0)); H = float(rec.get("H", 0.0)); Z = float(rec.get("Z", 0.0))
+                        add = float(loc.get("add", 0.0))
+                        dele = float(loc.get("del", 0.0))
                         per_path[str(p)] = (S, H, Z)
                     except Exception:
                         pass
