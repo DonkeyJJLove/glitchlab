@@ -31,8 +31,6 @@ def _docs_dir() -> Path:
     return Path("docs")
 
 
-DOCS = _docs_dir()
-
 REQUIRED_FILES = {
     "00_overview.md",
     "10_architecture.md",
@@ -51,6 +49,7 @@ REQUIRED_FILES = {
     "70_observability.md",
     "82_release_and_channels.md",
     "92_playbooks.md",
+    "99_refactor_plan.md",
 }
 
 REQ_VERSION = "v1.0"
@@ -182,12 +181,13 @@ def _check_file(md_path: Path) -> List[str]:
 
 
 def main() -> int:
-    if not DOCS.exists():
+    docs_dir = _docs_dir()
+    if not docs_dir.exists():
         print("[doclint] brak katalogu docs (ani glitchlab/docs)", file=sys.stderr)
         return 1
 
     # 0) kompletność zestawu
-    missing = [f for f in REQUIRED_FILES if not (DOCS / f).exists()]
+    missing = [f for f in REQUIRED_FILES if not (docs_dir / f).exists()]
     if missing:
         print(f"[doclint] brak plików: {sorted(missing)}", file=sys.stderr)
         return 1
@@ -195,7 +195,7 @@ def main() -> int:
     # 1) walidacja każdego pliku
     any_errors = False
     for name in sorted(REQUIRED_FILES):
-        md = DOCS / name
+        md = docs_dir / name
         errs = _check_file(md)
         if errs:
             any_errors = True
