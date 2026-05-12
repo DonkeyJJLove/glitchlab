@@ -82,13 +82,13 @@ jobs:
         run: mypy --ignore-missing-imports --allow-untyped-defs tools/jsonschema_validate.py
 
       - name: Pytest
-        run: pytest -q
+        run: PYTHONPATH="${{ github.workspace }}" pytest -q
 
       - name: Coverage (run + upload as artifact)
         if: always()
         run: |
           pip install coverage
-          coverage run -m pytest
+          PYTHONPATH="${{ github.workspace }}" coverage run -m pytest
           coverage xml -i
         # upload coverage report
       - name: Upload coverage artifact
