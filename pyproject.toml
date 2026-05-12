@@ -19,6 +19,7 @@ dev = [
   "black>=24.0.0",
   "mypy>=1.10.0",
   "pytest>=8.0.0",
+  "hypothesis>=6.100.0",
   "coverage[toml]>=7.6.0",
   "types-PyYAML>=6.0.12"
 ]
