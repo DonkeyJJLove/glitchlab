@@ -14,10 +14,13 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies: []
+        exclude: ^(\.githooks/|temp/|src/glitchlab\.egg-info/|\.venv/|venv/|build/|dist/)
   - repo: local
     hooks:
       - id: jsonschema-validate
         name: jsonschema-validate
         entry: python -m tools.jsonschema_validate
-        language: system
+        language: python
         files: ^(.glx/|spec/)
+        additional_dependencies:
+          - jsonschema>=4

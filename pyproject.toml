@@ -21,7 +21,8 @@ dev = [
   "pytest>=8.0.0",
   "hypothesis>=6.100.0",
   "coverage[toml]>=7.6.0",
-  "types-PyYAML>=6.0.12"
+  "types-PyYAML>=6.0.12",
+  "jsonschema>=4.0.0"
 ]
 
 [tool.setuptools.packages.find]
