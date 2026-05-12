@@ -589,6 +589,12 @@ setTimeout(()=>Graph.zoomToFit(400,80,()=>true), 200);
 # I/O
 # ──────────────────────────────────────────────────────────────────────────────
 
+
+
+def _script_safe_json(payload: Dict[str, object]) -> str:
+    data = json.dumps(payload, ensure_ascii=False)
+    return data.replace("</", "<\/").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+
 def _resolve_glx_graphs_dir(file_path: Path) -> Path:
     # Prefer: REPO/.glx/graphs (jeśli w drzewie istnieje ".glx"), else obok pliku
     for p in [file_path.parent] + list(file_path.parents):
@@ -601,10 +607,13 @@ def _resolve_glx_graphs_dir(file_path: Path) -> Path:
     return glx
 
 def _write_html(payload: Dict[str, object], out_path: Path, title: str) -> Path:
+    from html import escape
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    html = HTML.replace("__DATA_JSON__", json.dumps(payload, ensure_ascii=False)) \
-               .replace("__TITLE__", title)
-    out_path.write_text(html, encoding="utf-8")
+    safe_title = escape(title, quote=True)
+    html_doc = HTML.replace("__DATA_JSON__", _script_safe_json(payload)) \
+                   .replace("__TITLE__", safe_title)
+    out_path.write_text(html_doc, encoding="utf-8")
     return out_path
 
 
