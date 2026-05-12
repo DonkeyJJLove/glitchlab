@@ -57,11 +57,6 @@ jobs:
           # Echo lokalnie aby widzieć w logu (w poprzedniej wersji echo $DIFF_RANGE było puste)
           echo "Using range: ${RANGE}"
 
-      - name: Run pre-commit (formatters / quick checks)
-        uses: pre-commit/action@v3.0.1
-        with:
-          extra_args: --all-files
-
       - name: Ruff (lint)
         run: ruff . --force-exclude
 

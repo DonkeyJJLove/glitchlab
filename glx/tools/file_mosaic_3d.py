@@ -20,10 +20,12 @@ Opcje:
 """
 
 from __future__ import annotations
-import argparse, ast, math
+import argparse
+import ast
+import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Optional, Any
 
 import numpy as np
 import networkx as nx

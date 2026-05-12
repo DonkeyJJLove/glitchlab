@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import math
 from typing import Any, Dict, Optional
 
 try:
@@ -13,7 +12,7 @@ except Exception:  # pragma: no cover
 # Rejestr filtrów
 try:
     from glitchlab.core.registry import register
-except Exception as e:  # pragma: no cover
+except Exception:  # pragma: no cover
     def register(_name: str):
         def deco(f): return f
         return deco

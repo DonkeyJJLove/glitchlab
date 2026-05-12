@@ -27,7 +27,7 @@ Uwaga: Funkcje 'write_*' wykonują walidację przez analysis.formats.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Set
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from uuid import uuid4

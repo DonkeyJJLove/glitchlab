@@ -127,7 +127,7 @@ def draw_scene(ast, M, thr: float, annotate_n: int = 6, elev: float = 24, azim: 
     if getattr(M, "hex_centers", None) is not None:
         xs, ys = zip(*M.hex_centers)
     else:
-        cols = int(M.cols);
+        cols = int(M.cols)
         rows = int(M.rows)
         xs = [i % cols for i in range(rows * cols)]
         ys = [i // cols for i in range(rows * cols)]

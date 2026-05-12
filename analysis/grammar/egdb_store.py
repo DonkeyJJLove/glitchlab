@@ -1,5 +1,4 @@
 from __future__ import annotations
-from glitchlab.analysis.project_graph import ProjectGraph, build_project_graph  # noqa: E402
 """
 EGDB (Event Grammar DB) adapter for Postgres + snapshoty artefaktów (projektowy graf, metryki, metasoczewki).
 
@@ -13,13 +12,16 @@ Usage:
 Zależności: psycopg v3 (jeśli brak – moduł rzuci RuntimeError).
 """
 
-import os, json, typing as t, datetime as dt
+import os
+import json
+import typing as t
+import datetime as dt
 from dataclasses import dataclass
 from uuid import uuid4
 
 try:
     import psycopg  # psycopg v3
-except Exception as e:  # pragma: no cover
+except Exception:  # pragma: no cover
     psycopg = None
 
 # Kontrakty topiców BUS (nazwy + wersjonowanie)

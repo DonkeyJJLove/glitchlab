@@ -168,7 +168,7 @@ def _gauss_blur(img: np.ndarray, sigma: float) -> np.ndarray:
         return img
     radius = max(1, int(round(3.0 * sigma)))
     x = np.arange(-radius, radius + 1, dtype=np.float32)
-    g = np.exp(-0.5 * (x / float(sigma)) ** 2);
+    g = np.exp(-0.5 * (x / float(sigma)) ** 2)
     g /= g.sum()
 
     def _conv1(u: np.ndarray, kern: np.ndarray, axis: int) -> np.ndarray:
@@ -205,7 +205,7 @@ def _resolve_mask(ctx, mask_key: str | None, H: int, W: int) -> np.ndarray:
 def _fit_mask_hw(m: np.ndarray, H: int, W: int) -> np.ndarray:
     mh, mw = m.shape[:2]
     out = np.zeros((H, W), dtype=np.float32)
-    h = min(H, mh);
+    h = min(H, mh)
     w = min(W, mw)
     out[:h, :w] = m[:h, :w].astype(np.float32)
     if h < H:

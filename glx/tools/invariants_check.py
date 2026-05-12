@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import time
@@ -175,6 +174,41 @@ def _score_from(rep: Dict[str, Any], diff_text: str) -> float:
 
     score = part_tokens + part_churn + part_quality
     return max(0.0, min(1.0, score))
+
+
+def compute_score_from_report(report: dict) -> float:
+    """
+    Compute normalized risk score in [0, 1] from delta report.
+    Expected keys:
+    - hist: dict token -> count
+    - psnr: float, optional
+    - ssim: float, optional
+    """
+    hist = report.get("hist") or {}
+    modify = float(hist.get("MODIFY_SIG", 0) or hist.get("CHANGE_SIG", 0) or 0)
+    imp = float(hist.get("ΔIMPORT", 0) or hist.get("DELTA_IMPORT", 0) or 0)
+    token_pressure = min(1.0, (modify + imp) / 100.0)
+
+    psnr_raw = report.get("psnr", 50.0)
+    ssim_raw = report.get("ssim", 1.0)
+    psnr = float(50.0 if psnr_raw is None else psnr_raw)
+    ssim = float(1.0 if ssim_raw is None else ssim_raw)
+
+    psnr_pressure = 0.0 if psnr >= 40.0 else (1.0 if psnr <= 20.0 else (40.0 - psnr) / 20.0)
+    ssim_pressure = min(1.0, max(0.0, 1.0 - ssim))
+
+    score = 0.6 * token_pressure + 0.2 * psnr_pressure + 0.2 * ssim_pressure
+    return max(0.0, min(1.0, float(score)))
+
+
+def classify_by_thresholds(score: float, thresholds: dict | None = None):
+    """
+    Return bool block decision for compatibility with tests.
+    Uses z threshold if present, otherwise beta/alpha fallback.
+    """
+    thresholds = thresholds or {}
+    z = float(thresholds.get("z", thresholds.get("beta", thresholds.get("alpha", 0.85))))
+    return float(score) >= z
 
 
 # ──────────────────────────────────────────────────────────────────────────────

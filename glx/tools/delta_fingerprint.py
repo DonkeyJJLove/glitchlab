@@ -30,13 +30,27 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Konfiguracja ścieżek artefaktów
 # ──────────────────────────────────────────────────────────────────────────────
 GLX_DIR = Path("glitchlab/.glx")
 DELTA_REPORT = GLX_DIR / "delta_report.json"
+
+
+def _guess_repo_root() -> Path:
+    if sys.path:
+        try:
+            first = Path(sys.path[0]).resolve()
+            if first.is_dir() and (first / ".git").exists():
+                return first
+        except Exception:
+            pass
+    cwd = Path.cwd()
+    if (cwd / ".git").exists():
+        return cwd
+    return cwd
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -52,13 +66,15 @@ def _git_changed_files(commit_range: str) -> List[str]:
         args.append(commit_range)
     else:
         args += [f"{commit_range}^!", "--"]
-    out = subprocess.check_output(args, text=True)
+    out = subprocess.check_output(["git", "-C", str(_guess_repo_root()), *args[1:]], text=True)
     return [p for p in out.splitlines() if p.strip()]
 
 
 def _get_parent_sha(rev: str) -> str:
     try:
-        return subprocess.check_output(["git", "rev-parse", f"{rev}^"], text=True).strip()
+        return subprocess.check_output(
+            ["git", "-C", str(_guess_repo_root()), "rev-parse", f"{rev}^"], text=True
+        ).strip()
     except subprocess.CalledProcessError:
         return ""
 
@@ -68,7 +84,11 @@ def _git_show(path: str, rev: str) -> str:
     Zwraca zawartość pliku `path` na rewizji `rev`. Gdy nie istnieje — pusty string.
     """
     try:
-        return subprocess.check_output(["git", "show", f"{rev}:{path}"], text=True, stderr=subprocess.DEVNULL)
+        return subprocess.check_output(
+            ["git", "-C", str(_guess_repo_root()), "show", f"{rev}:{path}"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
     except subprocess.CalledProcessError:
         return ""
 
@@ -123,11 +143,33 @@ def _fingerprint(hist: Dict[str, int]) -> str:
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
+def extract_delta_tokens(old: str, new: str) -> Dict[str, int]:
+    """Publiczny helper dla testów: histogram Δ-tokenów dla dwóch tekstów."""
+    return _py_tokens(old, new)
+
+
+def fingerprint_from_texts(old: str, new: str, *, prefix_len: Optional[int] = 16) -> str:
+    """Publiczny helper dla testów: deterministyczny fingerprint zmian tekstowych."""
+    hist = extract_delta_tokens(old, new)
+    fp = _fingerprint(hist)
+    if prefix_len is None:
+        return fp
+    try:
+        n = max(1, int(prefix_len))
+    except (TypeError, ValueError):
+        n = 16
+    return fp[:n]
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Główna ścieżka
 # ──────────────────────────────────────────────────────────────────────────────
+def _report_path() -> Path:
+    return _guess_repo_root() / DELTA_REPORT
+
+
 def _ensure_dirs() -> None:
-    GLX_DIR.mkdir(parents=True, exist_ok=True)
+    _report_path().parent.mkdir(parents=True, exist_ok=True)
 
 
 def _resolve_parent_head(commit_range: str) -> (str, str):
@@ -165,7 +207,7 @@ def run(commit_range: str) -> Dict[str, object]:
 
 def main(argv: List[str] = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--range", default="HEAD~1..HEAD", help="Zakres diff (A..B) lub pojedynczy commit")
+    ap.add_argument("--range", default="HEAD", help="Zakres diff (A..B) lub pojedynczy commit")
     args = ap.parse_args(argv)
 
     _ensure_dirs()
@@ -178,7 +220,7 @@ def main(argv: List[str] = None) -> int:
 
     # Zapis artefaktu
     try:
-        DELTA_REPORT.write_text(json.dumps(rep, indent=2, ensure_ascii=False), encoding="utf-8")
+        _report_path().write_text(json.dumps(rep, indent=2, ensure_ascii=False), encoding="utf-8")
     except Exception as e:
         print(f"[delta_fingerprint] cannot write {DELTA_REPORT}: {e}", file=sys.stderr)
         return 1

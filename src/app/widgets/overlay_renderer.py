@@ -24,8 +24,8 @@ Style – domyślne:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Tuple, Optional, List, Any
+from dataclasses import dataclass
+from typing import Dict, Tuple, Optional, List
 import tkinter as tk
 
 

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import math, time, json
 from typing import List, Dict, Any
 import numpy as np
 
@@ -15,7 +14,7 @@ def sign_test_p(wins: int, losses: int) -> float:
 
 def cliffs_delta(diffs: List[float]) -> float:
     x = np.asarray(diffs, float)
-    gt = np.count_nonzero(x > 0);
+    gt = np.count_nonzero(x > 0)
     lt = np.count_nonzero(x < 0)
     n = max(1, x.size)
     return float((gt - lt) / n)

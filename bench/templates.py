@@ -1,7 +1,4 @@
 from __future__ import annotations
-import re
-from collections import Counter
-import ast
 
 _TEMPLATES = {
     "reverse_str": "def reverse_str(s: str) -> str:\n    return s[::-1]\n",
