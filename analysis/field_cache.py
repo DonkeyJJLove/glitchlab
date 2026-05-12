@@ -37,6 +37,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional, Tuple
+from glitchlab.analysis.project_graph import ProjectGraph, build_project_graph  # noqa: E402
 
 # ── Artefakty (.glx/*) ────────────────────────────────────────────────────────
 try:
