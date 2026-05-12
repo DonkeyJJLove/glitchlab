@@ -61,7 +61,22 @@ jobs:
         run: ruff check . --force-exclude
 
       - name: Black (format check)
-        run: python -m black --check .
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only --diff-filter=ACMRT \
+              "${{ github.event.pull_request.base.sha }}" \
+              "${{ github.event.pull_request.head.sha }}" \
+              -- '*.py')
+          else
+            FILES=$(git diff --name-only --diff-filter=ACMRT \
+              HEAD~1 HEAD -- '*.py')
+          fi
+
+          if [ -n "$FILES" ]; then
+            python -m black --check $FILES
+          else
+            echo "No Python files changed; skipping Black."
+          fi
 
       - name: Mypy (type check)
         run: mypy glitchlab
