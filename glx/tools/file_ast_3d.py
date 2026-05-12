@@ -27,6 +27,7 @@ Krawędzie:
 """
 
 import ast
+import html
 import json
 import sys
 import html
@@ -213,6 +214,11 @@ def graph_to_payload(g: Graph) -> Dict[str, object]:
         ],
         "edges": [{"src": e.src, "dst": e.dst, "kind": e.kind} for e in g.edges],
     }
+
+
+def _script_safe_json(data: Dict[str, object]) -> str:
+    # Prevent </script> breakout from inline script payload.
+    return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -604,9 +610,9 @@ def _resolve_glx_graphs_dir(file_path: Path) -> Path:
 def _write_html(payload: Dict[str, object], out_path: Path, title: str) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     safe_title = html.escape(title, quote=True)
-    html_doc = HTML.replace("__DATA_JSON__", json.dumps(payload, ensure_ascii=False)) \
-                   .replace("__TITLE__", safe_title)
-    out_path.write_text(html_doc, encoding="utf-8")
+    html = HTML.replace("__DATA_JSON__", _script_safe_json(payload)) \
+               .replace("__TITLE__", safe_title)
+    out_path.write_text(html, encoding="utf-8")
     return out_path
 
 
