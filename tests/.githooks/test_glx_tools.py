@@ -10,9 +10,7 @@ import importlib
 import json
 import sys
 from pathlib import Path
-from typing import Tuple, Dict, Any
 
-import pytest
 
 
 def _ensure_tmp_repo_layout(tmp_path: Path) -> Path:

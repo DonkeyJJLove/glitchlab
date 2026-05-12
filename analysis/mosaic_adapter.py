@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 

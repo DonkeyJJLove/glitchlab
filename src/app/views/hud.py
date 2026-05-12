@@ -12,7 +12,7 @@ Zmiany vs. poprzednie:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, List
+from typing import Any, Dict, Mapping, Optional
 
 import tkinter as tk
 from tkinter import ttk

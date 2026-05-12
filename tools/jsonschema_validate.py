@@ -1,4 +1,5 @@
-import json, sys
+import json
+import sys
 from pathlib import Path
 from jsonschema import Draft7Validator
 

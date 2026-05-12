@@ -18,7 +18,7 @@ Obsługa mask_key: miks ROI w przestrzeni obrazu po wyliczeniu efektu.
 
 from __future__ import annotations
 import numpy as np
-from typing import Any, Dict, Tuple, Optional
+from typing import Any, Dict
 
 try:
     from glitchlab.core.registry import register

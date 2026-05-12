@@ -20,9 +20,9 @@ Python: 3.9
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
-from .tokens import Token, tokens_to_hist, Vocabulary
+from .tokens import Token, tokens_to_hist
 
 FEATURES_VERSION = "v1"
 

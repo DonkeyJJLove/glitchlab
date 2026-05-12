@@ -1,7 +1,8 @@
 # glitchlab/app/widgets/preset_folder.py
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import os, json
+import os
+import json
 from typing import Callable, Optional
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox

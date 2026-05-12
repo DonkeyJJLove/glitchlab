@@ -77,7 +77,7 @@ f) 'policy' możesz nadpisać na poziomie pliku (np. domyślnie fail_fast:false 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple, TypedDict
+from typing import Any, Dict, List, Mapping, Optional, Tuple, TypedDict
 import time
 import uuid
 

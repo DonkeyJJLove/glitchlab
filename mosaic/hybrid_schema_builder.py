@@ -4,7 +4,9 @@
 # Python 3.9+ (deps: numpy; opcjonalnie pyyaml do .yaml)
 
 from __future__ import annotations
-import json, os, math
+import json
+import os
+import math
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional, Tuple, Literal, Callable
 import numpy as np
@@ -13,11 +15,11 @@ import numpy as np
 from hybrid_ast_mosaic import (
     EXAMPLE_SRC, EDGE_THR_DEFAULT,
     AstSummary, Mosaic,
-    build_mosaic, build_mosaic_grid, build_mosaic_hex, region_ids,
+    build_mosaic, region_ids,
     ast_deltas, compress_ast,
     phi_region_for, phi_region_for_balanced, phi_region_for_entropy,
     phi_cost, psi_feedback,
-    distance_ast_mosaic, sweep, run_once, sign_test_phi2_better
+    distance_ast_mosaic, run_once, sign_test_phi2_better
 )
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -362,7 +364,7 @@ def load_and_benchmark(path_or_dict: Any) -> Dict[str, Any]:
 # ───────────────────────────────────────────────────────────────────────────────
 
 def _cli():
-    import argparse, sys
+    import argparse
     ap = argparse.ArgumentParser(prog="hybrid-schema-builder",
         description="Budowa hybrydy AST⇄Mozaika z YAML/JSON + mini-benchmark")
     ap.add_argument("schema", help="Ścieżka do .yaml/.json lub '-' dla wbudowanego przykładu")

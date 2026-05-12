@@ -60,7 +60,7 @@ license: "Proprietary"
 
 from __future__ import annotations
 
-from typing import Optional, Tuple, Mapping, Any
+from typing import Optional, Tuple
 import numpy as np
 from PIL import Image, ImageFilter
 

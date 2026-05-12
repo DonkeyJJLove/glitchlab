@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import types, traceback, inspect, signal
+import types
+import traceback
+import inspect
+import signal
 import keyword
 from typing import Dict, Any, List
 

@@ -23,7 +23,6 @@ from __future__ import annotations
 import re
 import subprocess
 from collections import Counter, defaultdict
-from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Tuple
 

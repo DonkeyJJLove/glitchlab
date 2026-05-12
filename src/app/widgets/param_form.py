@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Callable, Dict, Any, List, Union, Optional, Iterable
+from typing import Callable, Dict, Any, List, Optional
 
 
 class ParamForm(ttk.Frame):

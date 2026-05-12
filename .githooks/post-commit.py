@@ -21,14 +21,13 @@ Wymagania:
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 import sys
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 # Helpery wspÃ³lne
 THIS_DIR = Path(__file__).resolve().parent

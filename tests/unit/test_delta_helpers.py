@@ -1,6 +1,5 @@
 # tests/unit/test_delta_helpers.py
 import importlib
-import pytest
 
 # załaduj moduł (dostosuj ścieżkę jeśli używasz glitchlab.glx)
 df = importlib.import_module("glx.tools.delta_fingerprint")

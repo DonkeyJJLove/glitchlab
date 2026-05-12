@@ -2,8 +2,7 @@
 from __future__ import annotations
 import time
 from typing import Dict, Any
-import re, math, ast
-from collections import Counter
+import re
 
 # Protokół
 from glitchlab.app.mosaic import hybrid_ast_mosaic as hma

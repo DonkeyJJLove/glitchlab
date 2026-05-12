@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import json, argparse, glob
+import json
+import argparse
+import glob
 from typing import Dict, Any, List
 
 from agents import agent_mozaika as A

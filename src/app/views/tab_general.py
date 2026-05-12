@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Iterable, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox

@@ -769,7 +769,6 @@ def export_ast_index_json(repo_root: Optional[Path] = None) -> Path:
 
 def _cli(argv: Optional[List[str]] = None) -> None:
     import argparse
-    from datetime import datetime, timezone
 
     p = argparse.ArgumentParser(prog="analysis.ast_index", description="Indeks AST (defs/uses/calls/imports) + #glx-tags + S/H/Z + eksport zbiorczy")
     sub = p.add_subparsers(dest="cmd", required=True)

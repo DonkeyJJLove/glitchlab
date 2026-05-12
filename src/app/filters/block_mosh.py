@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import numpy as np
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 try:
     from glitchlab.core.registry import register  # normal
@@ -40,7 +40,7 @@ def _to_u8(f32: np.ndarray) -> np.ndarray:
 def _fit_hw(m: np.ndarray, H: int, W: int) -> np.ndarray:
     mh, mw = m.shape[:2]
     out = np.zeros((H, W), dtype=np.float32)
-    h = min(H, mh);
+    h = min(H, mh)
     w = min(W, mw)
     out[:h, :w] = m[:h, :w].astype(np.float32)
     if h < H: out[h:, :w] = out[h - 1:h, :w]
@@ -64,7 +64,7 @@ def _amplitude_map(ctx, H: int, W: int, use_amp) -> np.ndarray:
         return np.ones((H, W), dtype=np.float32)
     amp = np.asarray(ctx.amplitude).astype(np.float32)
     if amp.shape != (H, W): amp = _fit_hw(amp, H, W)
-    amp -= amp.min();
+    amp -= amp.min()
     amp /= (amp.max() + 1e-12)
     base = 0.25 + 0.75 * amp
     if isinstance(use_amp, bool):
@@ -80,13 +80,13 @@ def _shift_patch_u8(patch: np.ndarray, dx: int, dy: int, wrap: bool) -> np.ndarr
         return np.roll(np.roll(patch, dy, axis=0), dx, axis=1)
     H, W, _ = patch.shape
     out = patch.copy()
-    y_src0 = max(0, -dy);
+    y_src0 = max(0, -dy)
     y_src1 = min(H, H - dy)
-    x_src0 = max(0, -dx);
+    x_src0 = max(0, -dx)
     x_src1 = min(W, W - dx)
-    y_dst0 = max(0, dy);
+    y_dst0 = max(0, dy)
     y_dst1 = min(H, H + dy)
-    x_dst0 = max(0, dx);
+    x_dst0 = max(0, dx)
     x_dst1 = min(W, W + dx)
     if y_src0 < y_src1 and x_src0 < x_src1:
         out[y_dst0:y_dst1, x_dst0:x_dst1, :] = patch[y_src0:y_src1, x_src0:x_src1, :]
