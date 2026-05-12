@@ -31,6 +31,7 @@ import ast
 import html
 import json
 import sys
+import html
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -604,6 +605,11 @@ setTimeout(()=>Graph.zoomToFit(400,80,()=>true), 200);
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+
+def _script_safe_json(payload: Dict[str, object]) -> str:
+    data = json.dumps(payload, ensure_ascii=False)
+    return data.replace("</", "<\/").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+
 def _resolve_glx_graphs_dir(file_path: Path) -> Path:
     # Prefer: REPO/.glx/graphs (jeśli w drzewie istnieje ".glx"), else obok pliku
     for p in [file_path.parent] + list(file_path.parents):
@@ -621,9 +627,8 @@ def _write_html(payload: Dict[str, object], out_path: Path, title: str) -> Path:
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     safe_title = html.escape(title, quote=True)
-    html_doc = HTML.replace("__DATA_JSON__", _script_safe_json(payload)).replace(
-        "__TITLE__", safe_title
-    )
+    html_doc = HTML.replace("__DATA_JSON__", _script_safe_json(payload)) \
+                   .replace("__TITLE__", safe_title)
     out_path.write_text(html_doc, encoding="utf-8")
     return out_path
 
