@@ -4,7 +4,6 @@ import hashlib
 from pathlib import Path
 from typing import Any, Dict, List
 
-import pytest
 
 # Testujemy publiczne API modułu grafu projektu
 # Oczekujemy co najmniej:

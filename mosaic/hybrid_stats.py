@@ -12,8 +12,8 @@ Wymaga: glitchlab.mosaic.hybrid_ast_mosaic jako hma (Twoja ostatnia wersja).
 """
 
 from __future__ import annotations
-import json, argparse, math
-from dataclasses import dataclass
+import json
+import argparse
 from typing import Dict, List, Tuple
 import numpy as np
 

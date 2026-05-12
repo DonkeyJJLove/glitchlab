@@ -28,11 +28,10 @@ from __future__ import annotations
 
 import json
 import fnmatch
-import math
 import re
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Iterable, Callable
+from typing import Dict, List, Optional, Set, Tuple, Callable
 
 # ── Artefakty (fallback, jeśli moduł nieobecny) ───────────────────────────────
 try:
@@ -62,7 +61,6 @@ af = GlxArtifacts()
 from glitchlab.analysis.project_graph import (  # type: ignore
     ProjectGraph,
     Node,
-    Edge,
     build_project_graph,
     to_dot as project_to_dot,
 )
@@ -489,7 +487,8 @@ def _spec_to_json(spec: ScopeSpec) -> dict:
 # =============================================================================
 
 if __name__ == "__main__":  # pragma: no cover
-    import argparse, sys
+    import argparse
+    import sys
     p = argparse.ArgumentParser(prog="scope_meta", description="MetaLens (quick preview/emit)")
     p.add_argument("--level", default="module", choices=["project","module","file","func","bus","custom"])
     p.add_argument("--center", action="append", help="Wzorzec (glob/regex) — można wielokrotnie")

@@ -1,6 +1,7 @@
 # glitchlab/app/exporter.py
 from __future__ import annotations
-import json, os, pathlib
+import json
+import pathlib
 from typing import Any, Dict
 
 
@@ -33,7 +34,7 @@ def export_hud_bundle(ctx_like: Any) -> Dict[str, Any]:
 
 
 def save_layout(path: str, d: dict) -> None:
-    p = pathlib.Path(path);
+    p = pathlib.Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(d, indent=2), encoding="utf-8")
 

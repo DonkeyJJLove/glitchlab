@@ -23,11 +23,10 @@ import ast
 import json
 import math
 import os
-import re
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 # ──────────────────────────────────────────────────────────────────────────────
 # HTML (jedna instancja THREE, SpriteText → 3d-force-graph; UI do zmiany grid/metryki)

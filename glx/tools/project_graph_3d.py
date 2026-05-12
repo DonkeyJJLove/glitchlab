@@ -1,6 +1,7 @@
 # glx/tools/project_graph_3d.py
 from __future__ import annotations
-import json, sys
+import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -197,7 +198,7 @@ def _load_or_build_graph(repo_root: Path, input_path: Optional[Path]) -> Dict[st
         except Exception as e:
             raise RuntimeError(
                 "Nie znaleziono artefaktu project_graph.json i nie mogę zbudować grafu, "
-                f"bo nie udało się zaimportować 'glitchlab.analysis.project_graph' ani 'analysis.project_graph'.\n"
+                "bo nie udało się zaimportować 'glitchlab.analysis.project_graph' ani 'analysis.project_graph'.\n"
                 "➡ Upewnij się, że uruchamiasz z ROOT projektu (katalog zawiera folder 'glitchlab/'), "
                 "albo podaj --input do gotowego JSON.\n"
                 "Przykład budowy artefaktu:\n"

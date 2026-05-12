@@ -50,7 +50,6 @@ import ast
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 import numpy as np
-from PIL import Image, ImageDraw
 
 __all__ = [
     "build_ast",
