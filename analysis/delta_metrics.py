@@ -298,7 +298,7 @@ def _cli(argv: Optional[List[str]] = None) -> None:  # pragma: no cover
     r.add_argument("base")
     r.add_argument("head", nargs="?", default="HEAD")
 
-    f = sub.add_parser("features", help="policz wynik z cech (JSON na stdin)")
+    sub.add_parser("features", help="policz wynik z cech (JSON na stdin)")
 
     args = p.parse_args(argv)
     if args.cmd == "range":
