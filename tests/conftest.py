@@ -1,6 +1,5 @@
 # tests/conftest.py
 import pytest
-from pathlib import Path
 
 
 @pytest.fixture

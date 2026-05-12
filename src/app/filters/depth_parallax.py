@@ -52,7 +52,7 @@ def _to_u8(f32: np.ndarray) -> np.ndarray:
 def _fit_hw(m: np.ndarray, H: int, W: int) -> np.ndarray:
     mh, mw = m.shape[:2]
     out = np.zeros((H, W), dtype=np.float32)
-    h = min(H, mh);
+    h = min(H, mh)
     w = min(W, mw)
     out[:h, :w] = m[:h, :w].astype(np.float32)
     if h < H: out[h:, :w] = out[h - 1:h, :w]

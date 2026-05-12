@@ -1,8 +1,5 @@
 # tests/integration/test_with_real_git.py
 import subprocess
-from pathlib import Path
-import tempfile
-import os
 import importlib
 import sys
 

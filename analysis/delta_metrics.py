@@ -290,7 +290,8 @@ def to_jsonable(ev: DeltaEval) -> Dict:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _cli(argv: Optional[List[str]] = None) -> None:  # pragma: no cover
-    import argparse, json
+    import argparse
+    import json
     p = argparse.ArgumentParser(prog="delta-metrics", description="Δ-code score + gates I1–I4")
     sub = p.add_subparsers(dest="cmd", required=True)
 

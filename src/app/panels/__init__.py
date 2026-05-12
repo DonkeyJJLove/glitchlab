@@ -25,7 +25,7 @@ import importlib
 import pkgutil
 import sys
 from types import ModuleType
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Baza (opcjonalna) – łagodny fallback

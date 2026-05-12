@@ -66,12 +66,12 @@ class RgbOffsetPanel(ttk.Frame):
 
     # ---------- UI ----------
     def _build_ui(self) -> None:
-        top = ttk.Frame(self, padding=(8, 8, 8, 4));
+        top = ttk.Frame(self, padding=(8, 8, 8, 4))
         top.pack(fill="x")
         ttk.Label(top, text="RGB Offset", font=("", 10, "bold")).pack(side="left")
 
         # Presets
-        pf = ttk.Frame(self, padding=(8, 0, 8, 8));
+        pf = ttk.Frame(self, padding=(8, 0, 8, 8))
         pf.pack(fill="x")
         ttk.Label(pf, text="Presets:").pack(side="left")
         ttk.Button(pf, text="Classic split", command=self._preset_classic).pack(side="left", padx=2)
@@ -80,7 +80,7 @@ class RgbOffsetPanel(ttk.Frame):
         ttk.Button(pf, text="Reset", command=self._preset_reset).pack(side="left", padx=2)
 
         # Mix & edges
-        me = ttk.LabelFrame(self, text="Mix & Edges", padding=8);
+        me = ttk.LabelFrame(self, text="Mix & Edges", padding=8)
         me.pack(fill="x", padx=8, pady=(0, 6))
         ttk.Label(me, text="mix").grid(row=0, column=0, sticky="w")
         ttk.Scale(me, from_=0.0, to=1.0, variable=self.var_mix).grid(row=0, column=1, sticky="ew", padx=6)
@@ -91,13 +91,13 @@ class RgbOffsetPanel(ttk.Frame):
         me.columnconfigure(1, weight=1)
 
         # Amplitude & mask
-        am = ttk.LabelFrame(self, text="Amplitude & Mask", padding=8);
+        am = ttk.LabelFrame(self, text="Amplitude & Mask", padding=8)
         am.pack(fill="x", padx=8, pady=(0, 6))
         ttk.Label(am, text="use_amp").grid(row=0, column=0, sticky="w")
         ttk.Scale(am, from_=0.0, to=2.0, variable=self.var_use_amp).grid(row=0, column=1, sticky="ew", padx=6)
         ttk.Entry(am, textvariable=self.var_use_amp, width=6).grid(row=0, column=2, sticky="w")
         ttk.Label(am, text="mask_key").grid(row=1, column=0, sticky="w", pady=(6, 0))
-        row = ttk.Frame(am);
+        row = ttk.Frame(am)
         row.grid(row=1, column=1, columnspan=2, sticky="ew", padx=6, pady=(6, 0))
         self.cmb_mask = ttk.Combobox(row, state="readonly", width=24, textvariable=self.var_mask_key, values=[])
         self.cmb_mask.pack(side="left", fill="x", expand=True)
@@ -106,19 +106,19 @@ class RgbOffsetPanel(ttk.Frame):
         am.columnconfigure(1, weight=1)
 
         # Global offset
-        gf = ttk.LabelFrame(self, text="Global Offset (px, float)", padding=8);
+        gf = ttk.LabelFrame(self, text="Global Offset (px, float)", padding=8)
         gf.pack(fill="x", padx=8, pady=(0, 6))
         self._mk_float(gf, "dx", self.var_dx).grid(row=0, column=0, sticky="w", padx=4, pady=2)
         self._mk_float(gf, "dy", self.var_dy).grid(row=0, column=1, sticky="w", padx=4, pady=2)
         ttk.Button(gf, text="Copy → R/G/B", command=self._copy_global_to_all).grid(row=0, column=2, sticky="w", padx=8)
 
         # Per-channel
-        cf = ttk.LabelFrame(self, text="Per-channel Offsets (px, float)", padding=8);
+        cf = ttk.LabelFrame(self, text="Per-channel Offsets (px, float)", padding=8)
         cf.pack(fill="x", padx=8, pady=(0, 8))
         self._mk_chan(cf, "R", self.var_dx_r, self.var_dy_r, self.var_sync_r, 0)
         self._mk_chan(cf, "G", self.var_dx_g, self.var_dy_g, self.var_sync_g, 1)
         self._mk_chan(cf, "B", self.var_dx_b, self.var_dy_b, self.var_sync_b, 2)
-        tools = ttk.Frame(cf);
+        tools = ttk.Frame(cf)
         tools.grid(row=3, column=0, columnspan=5, sticky="w", pady=(6, 0))
         ttk.Button(tools, text="±1 jitter", command=self._jitter_1px).pack(side="left", padx=4)
         ttk.Button(tools, text="Sync enabled now", command=self._sync_enabled_now).pack(side="left", padx=4)
@@ -126,9 +126,9 @@ class RgbOffsetPanel(ttk.Frame):
     def _mk_float(self, parent: tk.Misc, label: str, var: tk.DoubleVar) -> ttk.Frame:
         fr = ttk.Frame(parent)
         ttk.Label(fr, text=label).pack(side="left")
-        e = ttk.Entry(fr, textvariable=var, width=7);
+        e = ttk.Entry(fr, textvariable=var, width=7)
         e.pack(side="left", padx=4)
-        s = ttk.Scale(fr, from_=-64.0, to=64.0, variable=var);
+        s = ttk.Scale(fr, from_=-64.0, to=64.0, variable=var)
         s.pack(side="left", fill="x", expand=True)
         return fr
 
@@ -188,57 +188,57 @@ class RgbOffsetPanel(ttk.Frame):
 
     # ---------- helpers ----------
     def _preset_classic(self) -> None:
-        self.var_dx.set(0.0);
+        self.var_dx.set(0.0)
         self.var_dy.set(0.0)
-        self.var_dx_r.set(4.0);
+        self.var_dx_r.set(4.0)
         self.var_dy_r.set(0.0)
-        self.var_dx_g.set(0.0);
+        self.var_dx_g.set(0.0)
         self.var_dy_g.set(0.0)
-        self.var_dx_b.set(-4.0);
+        self.var_dx_b.set(-4.0)
         self.var_dy_b.set(0.0)
-        self.var_mix.set(1.0);
+        self.var_mix.set(1.0)
         self._emit()
 
     def _preset_halo(self) -> None:
-        self.var_dx.set(0.0);
+        self.var_dx.set(0.0)
         self.var_dy.set(0.0)
-        self.var_dx_r.set(2.0);
+        self.var_dx_r.set(2.0)
         self.var_dy_r.set(1.0)
-        self.var_dx_g.set(0.0);
+        self.var_dx_g.set(0.0)
         self.var_dy_g.set(0.0)
-        self.var_dx_b.set(-2.0);
+        self.var_dx_b.set(-2.0)
         self.var_dy_b.set(-1.0)
-        self.var_mix.set(0.6);
+        self.var_mix.set(0.6)
         self._emit()
 
     def _preset_green(self) -> None:
-        self.var_dx.set(0.0);
+        self.var_dx.set(0.0)
         self.var_dy.set(0.0)
-        self.var_dx_r.set(0.0);
+        self.var_dx_r.set(0.0)
         self.var_dy_r.set(0.0)
-        self.var_dx_g.set(3.0);
+        self.var_dx_g.set(3.0)
         self.var_dy_g.set(0.0)
-        self.var_dx_b.set(0.0);
+        self.var_dx_b.set(0.0)
         self.var_dy_b.set(0.0)
-        self.var_mix.set(0.8);
+        self.var_mix.set(0.8)
         self._emit()
 
     def _preset_reset(self) -> None:
-        self.var_dx.set(0.0);
+        self.var_dx.set(0.0)
         self.var_dy.set(0.0)
-        self.var_dx_r.set(2.0);
+        self.var_dx_r.set(2.0)
         self.var_dy_r.set(0.0)
-        self.var_dx_g.set(0.0);
+        self.var_dx_g.set(0.0)
         self.var_dy_g.set(0.0)
-        self.var_dx_b.set(-2.0);
+        self.var_dx_b.set(-2.0)
         self.var_dy_b.set(0.0)
-        self.var_mix.set(1.0);
-        self.var_wrap.set(False);
+        self.var_mix.set(1.0)
+        self.var_wrap.set(False)
         self.var_clamp.set(True)
-        self.var_use_amp.set(1.0);
+        self.var_use_amp.set(1.0)
         self.var_mask_key.set(PLACEHOLDER_NONE)
-        self.var_sync_r.set(False);
-        self.var_sync_g.set(False);
+        self.var_sync_r.set(False)
+        self.var_sync_g.set(False)
         self.var_sync_b.set(False)
         self._emit()
 
@@ -250,11 +250,11 @@ class RgbOffsetPanel(ttk.Frame):
 
     def _copy_global_to_all(self) -> None:
         dx, dy = float(self.var_dx.get()), float(self.var_dy.get())
-        self.var_dx_r.set(dx);
+        self.var_dx_r.set(dx)
         self.var_dy_r.set(dy)
-        self.var_dx_g.set(dx);
+        self.var_dx_g.set(dx)
         self.var_dy_g.set(dy)
-        self.var_dx_b.set(dx);
+        self.var_dx_b.set(dx)
         self.var_dy_b.set(dy)
         self._emit()
 

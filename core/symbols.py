@@ -63,7 +63,7 @@ license: "Proprietary"
 # glitchlab/core/symbols.py
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Tuple
 import numpy as np
 from PIL import Image, ImageDraw
 

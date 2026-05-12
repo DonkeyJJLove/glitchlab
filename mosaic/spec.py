@@ -72,7 +72,7 @@ license: "Proprietary"
 # mosaic/spec.py
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 from pathlib import Path
 import json
 import re

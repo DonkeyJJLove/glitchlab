@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import typer
 from typing import Optional
-from glitchlab.delta.tokens import extract_from_git, extract_from_files, extract_from_sources
+from glitchlab.delta.tokens import extract_from_git, extract_from_files
 from glitchlab.delta.fingerprint import fingerprint_from_tokens
 from glitchlab.delta.features import features_from_tokens
 

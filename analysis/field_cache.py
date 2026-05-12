@@ -36,7 +36,7 @@ import json
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 from glitchlab.analysis.project_graph import ProjectGraph, build_project_graph  # noqa: E402
 
 # ── Artefakty (.glx/*) ────────────────────────────────────────────────────────
@@ -65,7 +65,6 @@ except Exception:  # pragma: no cover
 af = GlxArtifacts()
 
 # ── Graf projektu i metryki ───────────────────────────────────────────────────
-from glitchlab.analysis.project_graph import ProjectGraph, build_project_graph
 try:
     from glitchlab.analysis.graph_metrics import compute_graph_metrics, GraphMetricsConfig  # type: ignore
 except Exception:  # pragma: no cover
