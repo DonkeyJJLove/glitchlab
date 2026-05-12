@@ -1,6 +1,10 @@
 # glx/tools/demo_scope_showcase.py
 from __future__ import annotations
-import json, sys, re, ast, textwrap
+import json
+import sys
+import re
+import ast
+import textwrap
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 

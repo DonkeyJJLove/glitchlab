@@ -18,7 +18,8 @@ Functions are Windows/Unix safe and handle env overrides.
 """
 from __future__ import annotations
 from pathlib import Path
-import os, json
+import os
+import json
 from typing import List
 
 # Location for small GUI settings

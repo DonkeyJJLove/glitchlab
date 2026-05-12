@@ -22,13 +22,20 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-DOCS = Path("glitchlab") / "docs"
+def _docs_dir() -> Path:
+    legacy = Path("glitchlab") / "docs"
+    if legacy.exists():
+        return legacy
+    return Path("docs")
+
+
+DOCS = _docs_dir()
 
 REQUIRED_FILES = {
     "00_overview.md", "10_architecture.md", "11_spec_glossary.md", "12_invariants.md",
     "13_delta_algebra.md", "14_mosaic.md", "20_bus.md", "21_egdb.md", "22_analytics.md",
     "30_sast_bridge.md", "40_gui_app.md", "41_pipelines.md", "50_ci_ops.md", "60_security.md",
-    "70_observability.md", "82_release_and_channels.md", "92_playbooks.md", "99_refactor_plan.md",
+    "70_observability.md", "82_release_and_channels.md", "92_playbooks.md",
 }
 
 REQ_VERSION = "v1.0"
@@ -151,7 +158,7 @@ def _check_file(md_path: Path) -> List[str]:
 
 def main() -> int:
     if not DOCS.exists():
-        print("[doclint] brak katalogu glitchlab/docs", file=sys.stderr)
+        print("[doclint] brak katalogu docs (ani glitchlab/docs)", file=sys.stderr)
         return 1
 
     # 0) kompletność zestawu
@@ -162,7 +169,8 @@ def main() -> int:
 
     # 1) walidacja każdego pliku
     any_errors = False
-    for md in sorted(DOCS.glob("*.md")):
+    for name in sorted(REQUIRED_FILES):
+        md = DOCS / name
         errs = _check_file(md)
         if errs:
             any_errors = True

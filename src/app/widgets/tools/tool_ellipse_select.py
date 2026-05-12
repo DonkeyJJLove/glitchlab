@@ -17,7 +17,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
-import tkinter as tk
 
 # ── Overlay utils ────────────────────────────────────────────────────────────
 try:
