@@ -58,7 +58,7 @@ jobs:
           echo "Using range: ${RANGE}"
 
       - name: Run pre-commit (formatters / quick checks)
-        uses: pre-commit/action@v4
+        uses: pre-commit/action@v3.0.1
         with:
           extra_args: --all-files
 
