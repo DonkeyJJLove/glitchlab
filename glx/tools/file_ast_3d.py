@@ -28,10 +28,8 @@ Krawędzie:
 """
 
 import ast
-import html
 import json
 import sys
-import html
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -187,14 +185,14 @@ def build_file_graph(py_path: Path) -> Graph:
         if caller != "<module>":
             # próbuj dopasować do istniejącej definicji
             if caller in v.defs:
-                src_id = f"{'class' if v.defs[caller][0]=='class' else 'func'}:{caller}"
+                src_id = f"{'class' if v.defs[caller][0] == 'class' else 'func'}:{caller}"
             else:
                 # jeżeli to w metodzie (np. Class.method), spróbuj dopasować
                 parts = caller.split(".")
                 for j in range(len(parts), 0, -1):
                     q = ".".join(parts[:j])
                     if q in v.defs:
-                        src_id = f"{'class' if v.defs[q][0]=='class' else 'func'}:{q}"
+                        src_id = f"{'class' if v.defs[q][0] == 'class' else 'func'}:{q}"
                         break
 
         dst_id = tail_to_qual.get(callee.split(".")[-1])
@@ -605,10 +603,10 @@ setTimeout(()=>Graph.zoomToFit(400,80,()=>true), 200);
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-
 def _script_safe_json(payload: Dict[str, object]) -> str:
     data = json.dumps(payload, ensure_ascii=False)
     return data.replace("</", "<\/").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+
 
 def _resolve_glx_graphs_dir(file_path: Path) -> Path:
     # Prefer: REPO/.glx/graphs (jeśli w drzewie istnieje ".glx"), else obok pliku
@@ -626,9 +624,10 @@ def _write_html(payload: Dict[str, object], out_path: Path, title: str) -> Path:
     from html import escape
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    safe_title = html.escape(title, quote=True)
-    html_doc = HTML.replace("__DATA_JSON__", _script_safe_json(payload)) \
-                   .replace("__TITLE__", safe_title)
+    safe_title = escape(title, quote=True)
+    html_doc = HTML.replace("__DATA_JSON__", _script_safe_json(payload)).replace(
+        "__TITLE__", safe_title
+    )
     out_path.write_text(html_doc, encoding="utf-8")
     return out_path
 
