@@ -202,8 +202,8 @@ def _entropy(proportions: List[float]) -> float:
 def _label_props(labels: List[str]) -> Dict[str, float]:
     n = max(1, len(labels))
     counts: Dict[str, int] = {}
-    for l in labels:
-        counts[l] = counts.get(l, 0) + 1
+    for label in labels:
+        counts[label] = counts.get(label, 0) + 1
     return {k: v / n for k, v in counts.items()}
 
 def is_import(a: ast.AST) -> bool:
