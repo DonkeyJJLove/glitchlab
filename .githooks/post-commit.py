@@ -25,6 +25,7 @@ import re
 import subprocess
 import sys
 import zipfile
+from urllib.parse import urlsplit
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -216,7 +217,7 @@ def make_audit_zip(env: Dict[str, str], git_root: Path) -> None:
 
     def should_zip(p: Path) -> bool:
         rel = str(p).replace("\\", "/")
-        return p.is_file() and "/.git/" not in rel and "/__pycache__/" not in rel
+        return p.is_file() and "/.git/" not in rel and "/__pycache__/" not in rel and not rel.endswith("/env.json")
 
     added = set()
     with zipfile.ZipFile(str(zip_path), "w", zipfile.ZIP_DEFLATED) as zf:
@@ -252,6 +253,18 @@ def _head_range(repo: Path) -> str:
     if head and parent:
         return "%s..%s" % (parent, head)
     return head or "HEAD"
+
+
+def _looks_like_secret_value(value: str) -> bool:
+    if not value:
+        return False
+    try:
+        parsed = urlsplit(value)
+        if parsed.scheme and (parsed.username or parsed.password):
+            return True
+    except Exception:
+        pass
+    return False
 
 
 def main() -> int:
@@ -293,7 +306,13 @@ def main() -> int:
         redacted = {}
         for k, v in env.items():
             up = k.upper()
-            if "PASS" in up or "SECRET" in up or "TOKEN" in up or "KEY" in up:
+            if (
+                "PASS" in up
+                or "SECRET" in up
+                or "TOKEN" in up
+                or "KEY" in up
+                or _looks_like_secret_value(v)
+            ):
                 redacted[k] = "******"
             else:
                 redacted[k] = v
