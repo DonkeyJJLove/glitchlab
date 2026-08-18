@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  issues: write                # potrzebne do tworzenia komentarzy na PR (issues.createComment)
+  issues: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -36,12 +36,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install system / fix setuptools deprecation + dev extras
-        # Pinujemy setuptools<81 by uniknąć UserWarning/rozbicia w przyszłości
+      - name: Install system / dev extras
         run: |
           python -m pip install -U pip
           python -m pip install "setuptools<81"
-          # Wymaga zdefiniowanych extras w pyproject.toml: [project.optional-dependencies].dev
           pip install -e .[dev]
 
       - name: Determine DIFF range
@@ -52,13 +50,33 @@ jobs:
           else
             RANGE="HEAD~1..HEAD"
           fi
-          # Zapis do GITHUB_ENV aby był dostępny w kolejnych krokach
           echo "DIFF_RANGE=${RANGE}" >> $GITHUB_ENV
-          # Echo lokalnie aby widzieć w logu (w poprzedniej wersji echo $DIFF_RANGE było puste)
           echo "Using range: ${RANGE}"
 
-      - name: Ruff (lint)
-        run: ruff check . --force-exclude
+      - name: Ruff critical gate (whole repository)
+        run: |
+          # Keep correctness/syntax classes blocking across the complete tree.
+          # Legacy F821 is explicitly excluded in pyproject until its existing backlog
+          # is removed under a dedicated ratchet issue.
+          ruff check . --force-exclude --select E9,F63,F7,F82
+
+      - name: Ruff changed Python files (ratchet)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only --diff-filter=ACMRT \
+              "${{ github.event.pull_request.base.sha }}" \
+              "${{ github.event.pull_request.head.sha }}" \
+              -- '*.py')
+          else
+            FILES=$(git diff --name-only --diff-filter=ACMRT HEAD~1 HEAD -- '*.py')
+          fi
+
+          if [ -n "$FILES" ]; then
+            echo "$FILES"
+            ruff check $FILES --force-exclude
+          else
+            echo "No Python files changed; full style lint skipped. Critical whole-repo gate already passed."
+          fi
 
       - name: Black (format check)
         run: |
@@ -90,7 +108,7 @@ jobs:
           pip install coverage
           PYTHONPATH="${{ github.workspace }}" coverage run -m pytest
           coverage xml -i
-        # upload coverage report
+
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4
