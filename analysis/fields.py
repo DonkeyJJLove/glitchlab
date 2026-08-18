@@ -385,12 +385,15 @@ class FieldsRegistry:
             files = self._ast_snapshot["files"]
             if isinstance(files, dict):
                 for p, rec in files.items():
+                    if not isinstance(rec, dict):
+                        continue
                     try:
-                        add = float(loc.get("add", 0.0))
-                        dele = float(loc.get("del", 0.0))
+                        S = float(rec.get("S", 0.0))
+                        H = float(rec.get("H", 0.0))
+                        Z = float(rec.get("Z", 0.0))
                         per_path[str(p)] = (S, H, Z)
-                    except Exception:
-                        pass
+                    except (TypeError, ValueError):
+                        continue
         def _get_SHZ_for_path(path: str) -> Tuple[float, float, float]:
             if path in per_path:
                 return per_path[path]
