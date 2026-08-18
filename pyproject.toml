@@ -9,7 +9,7 @@ description = "GlitchLab — repozytorium narzędzi i bibliotek projektu GlitchL
 readme = "README.MD"
 requires-python = ">=3.9"
 authors = [
-  { name = "Sebastian Wieremiejczyk", email = "you@example.com" },
+  { name = "Sebastian Wieremiejczyk" },
 ]
 dependencies = []
 
@@ -32,7 +32,6 @@ include = ["glitchlab*"]
 [tool.ruff]
 line-length = 100
 target-version = "py39"
-
 
 [tool.ruff.lint]
 ignore = ["E402", "E701", "E702", "E731", "E741", "F811", "F821", "F841"]
