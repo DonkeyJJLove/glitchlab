@@ -43,7 +43,7 @@ class DeltaReport(TypedDict, total=False):
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _now_utc_iso() -> string:
+def _now_utc_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def _parse_range(diff_range: str) -> (str, str):
