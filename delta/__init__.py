@@ -28,10 +28,13 @@ from typing import Dict, Optional, Any
 # ──────────────────────────────────────────────────────────────────────────────
 try:
     from .tokens import tokenize_diff, Vocabulary, VOCAB_VERSION  # type: ignore
-except Exception as _e:
-    # Tymczasowy placeholder gdy plik jeszcze nie został wygenerowany w trakcie refaktoryzacji.
+except Exception as exc:
+    # Exception targets are cleared after the except block in Python. Persist the
+    # cause explicitly so deferred compatibility shims cannot fail with NameError.
+    _tokens_import_error = exc
+
     def tokenize_diff(repo_root: Path, diff_range: str, *, policy: Optional[dict] = None) -> Dict[str, int]:
-        raise ImportError("delta.tokens.tokenize_diff nie jest jeszcze dostępne") from _e
+        raise ImportError("delta.tokens.tokenize_diff nie jest jeszcze dostępne") from _tokens_import_error
 
 
     class Vocabulary:  # type: ignore
@@ -42,9 +45,11 @@ except Exception as _e:
 
 try:
     from .features import build_features, FEATURES_VERSION  # type: ignore
-except Exception as _e:
+except Exception as exc:
+    _features_import_error = exc
+
     def build_features(hist: Dict[str, int]) -> Dict[str, float]:
-        raise ImportError("delta.features.build_features nie jest jeszcze dostępne") from _e
+        raise ImportError("delta.features.build_features nie jest jeszcze dostępne") from _features_import_error
 
 
     FEATURES_VERSION = "v0"  # type: ignore
@@ -52,7 +57,8 @@ except Exception as _e:
 # Typ raportu i budowa raportu (nowe API)
 try:
     from .fingerprint import DeltaReport, build_delta_report, REPORT_VERSION  # type: ignore
-except Exception as _e:
+except Exception as exc:
+    _fingerprint_import_error = exc
     # Minimalny, kompatybilny typ i funkcja — do czasu wygenerowania fingerprint.py
     from typing import TypedDict
 
@@ -66,7 +72,7 @@ except Exception as _e:
 
 
     def build_delta_report(repo_root: Path, diff_range: str, *, policy: Optional[dict] = None) -> "DeltaReport":
-        raise ImportError("delta.fingerprint.build_delta_report nie jest jeszcze dostępne") from _e
+        raise ImportError("delta.fingerprint.build_delta_report nie jest jeszcze dostępne") from _fingerprint_import_error
 
 
     REPORT_VERSION = "v0"  # type: ignore
