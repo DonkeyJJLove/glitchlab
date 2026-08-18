@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "repository": {
+    "id": "DonkeyJJLove/glitchlab",
+    "url": "https://github.com/DonkeyJJLove/glitchlab",
+    "owner": "DonkeyJJLove",
+    "default_branch": "master",
+    "vcs_ref": null
+  },
+  "cyber_lion": {
+    "tile_id": "evolution-compiler.glitchlab",
+    "roles": ["EvolutionCompiler", "DeltaNormalizer", "InvariantEvaluator", "StructuralChangeAnalyzer"],
+    "layers": ["SEM", "MAND"],
+    "disposition": ["KEEP", "REFINE", "GENERALIZE", "INTEGRATE"]
+  },
+  "capabilities": [
+    "delta.normalize",
+    "delta.structural_projection",
+    "invariant.evaluate",
+    "sast.bridge",
+    "change.observability",
+    "change.explain"
+  ],
+  "authority": {
+    "maximum_level": "local_write",
+    "required_gates": ["glitchlab.invariants", "cyber-lion.mand"]
+  },
+  "observability": {
+    "logs": ["delta.analysis", "invariant.verdict", "compiler.decision"],
+    "metrics": ["delta.size", "invariant.failures", "authority.delta", "observability.delta"],
+    "traces": ["source→delta→projection→invariants→decision"]
+  },
+  "security": {
+    "trust_boundaries": [
+      "generated proposal != accepted mutation",
+      "semantic analysis != runtime authority",
+      "local invariant pass != path safety",
+      "self-healing proposal requires external gate before consequential mutation"
+    ]
+  },
+  "epistemic": {
+    "status": "ENGINEERING_CANDIDATE",
+    "confidence": 0.86
+  }
+}
