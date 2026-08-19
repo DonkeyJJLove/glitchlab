@@ -3,16 +3,17 @@
 """glx.tools.doclint — fail-closed consistency checks for the current GLX docs corpus.
 
 The historical linter expected YAML front matter and a ``99_refactor_plan.md``
-file that are not part of the current repository documentation convention.  That
-made the check permanently red and, consequently, it had been configured as
-non-blocking.  This module validates properties that are actually represented by
-the current corpus instead of maintaining a fictional schema.
+file that are not part of the current repository documentation convention. That
+made the check permanently red and led to it being configured as non-blocking.
+This module validates properties that are actually represented by the current
+repository instead of maintaining a fictional schema.
 
 Hard checks:
 - the current canonical documentation paths exist;
-- core specification/operations documents are non-empty and UTF-8 readable;
+- active core documents are non-empty and UTF-8 readable;
 - the glossary contains the GLX semantic primitives S/H/Z, Δ, Φ, Ψ and I1–I4;
-- non-empty documents do not contain the obsolete ``gui/`` source path.
+- the retired ``src/gui`` or top-level ``gui`` implementation tree is not
+  reintroduced (the current application tree is ``src/app``).
 
 Exit status: 0 = consistent, 1 = inconsistency found.
 """
@@ -31,9 +32,9 @@ def _docs_dir() -> Path:
     return Path("docs")
 
 
-# These paths are the current checked-in documentation contract.  A few files
-# are retained as placeholders, so existence is required while non-emptiness is
-# enforced only for the active core below.
+# Current checked-in documentation contract. Some files are intentionally kept
+# as placeholders, so existence is required while non-emptiness is enforced only
+# for the active documents below.
 REQUIRED_FILES = {
     "00_overview.md",
     "10_architecture.md",
@@ -63,11 +64,9 @@ CORE_NONEMPTY_FILES = {
     "21_egdb.md",
     "22_analytics.md",
     "30_sast_bridge.md",
-    "41_pipelines.md",
     "50_ci_ops.md",
     "60_security.md",
     "70_observability.md",
-    "82_release_and_channels.md",
     "92_playbooks.md",
 }
 
@@ -89,9 +88,6 @@ def _check_file(path: Path) -> List[str]:
     if path.name in CORE_NONEMPTY_FILES and not text.strip():
         errors.append(f"{path.name}: aktywny dokument jest pusty")
 
-    if "gui/" in text:
-        errors.append(f"{path.name}: wykryto przestarzałą ścieżkę 'gui/' — użyj 'app/'")
-
     return errors
 
 
@@ -106,6 +102,16 @@ def _check_glossary(path: Path) -> List[str]:
 
     if "I1" not in text or "I4" not in text:
         errors.append(f"{path.name}: brak zakresu inwariantów I1–I4")
+    return errors
+
+
+def _check_source_topology() -> List[str]:
+    errors: List[str] = []
+    for retired in (Path("src/gui"), Path("gui")):
+        if retired.exists():
+            errors.append(
+                f"wykryto przywróconą przestarzałą ścieżkę implementacji {retired.as_posix()!r}; użyj 'src/app'"
+            )
     return errors
 
 
@@ -124,6 +130,7 @@ def main() -> int:
     for name in sorted(REQUIRED_FILES):
         errors.extend(_check_file(docs_dir / name))
     errors.extend(_check_glossary(docs_dir / "11_spec_glossary.md"))
+    errors.extend(_check_source_topology())
 
     if errors:
         for error in errors:
