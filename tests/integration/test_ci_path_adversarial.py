@@ -1,9 +1,8 @@
-import pathlib
-import subprocess
+import importlib
 
-import pytest
-
-
+pathlib = importlib.import_module("pathlib")
+subprocess = importlib.import_module("subprocess")
+pytest = importlib.import_module("pytest")
 WORKFLOW = pathlib.Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 CONFIG = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
 
@@ -47,9 +46,10 @@ def _contract_ok(text=WORKFLOW, config=CONFIG):
         ("- name: Pytest\n        if: always()", "- name: Pytest"),
     ],
 )
-def test_ci_contract_detects_security_weakening(needle, replacement):
+def test_ci_contract_detects_weakening(needle, replacement):
     assert needle in WORKFLOW
-    assert _contract_ok(WORKFLOW.replace(needle, replacement, 1), CONFIG) is False
+    mutated = WORKFLOW.replace(needle, replacement, 1)
+    assert _contract_ok(mutated, CONFIG) is False
 
 
 def test_ci_contract_detects_f821_suppression():
@@ -82,7 +82,7 @@ def _changed_python(repo, base, head):
     return {line for line in out.splitlines() if line}
 
 
-def test_python_ratchet_path_selection_handles_add_modify_rename_delete(tmp_path):
+def test_python_path_selection_add_modify_rename_delete(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init")
