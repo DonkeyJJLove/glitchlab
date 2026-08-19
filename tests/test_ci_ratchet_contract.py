@@ -1,4 +1,5 @@
-TEXT = open(".github/workflows/ci.yml", encoding="utf-8").read()
+with open(".github/workflows/ci.yml", encoding="utf-8") as stream:
+    TEXT = stream.read()
 
 
 def test_ci_uses_exact_pr_head_and_merge_base() -> None:
