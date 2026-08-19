@@ -1,11 +1,11 @@
+import pathlib
 import subprocess
-from pathlib import Path
 
 import pytest
 
 
-WORKFLOW = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
-CONFIG = Path("pyproject.toml").read_text(encoding="utf-8")
+WORKFLOW = pathlib.Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+CONFIG = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
 
 
 def _contract_ok(text=WORKFLOW, config=CONFIG):
@@ -53,11 +53,13 @@ def test_ci_contract_detects_security_weakening(needle, replacement):
 
 
 def test_ci_contract_detects_f821_suppression():
-    assert _contract_ok(WORKFLOW, CONFIG + '\nignore = ["F821"]\n') is False
+    mutated = CONFIG + '\nignore = ["F821"]\n'
+    assert _contract_ok(WORKFLOW, mutated) is False
 
 
 def _git(repo, *args):
-    return subprocess.check_output(["git", "-C", str(repo), *args], text=True).strip()
+    command = ["git", "-C", str(repo), *args]
+    return subprocess.check_output(command, text=True).strip()
 
 
 def _commit(repo, message):
@@ -99,7 +101,8 @@ def test_python_ratchet_path_selection_handles_add_modify_rename_delete(tmp_path
     _git(repo, "mv", "a.py", "c.py")
     renamed = _commit(repo, "rename")
     rename_paths = _changed_python(repo, changed, renamed)
-    assert "c.py" in rename_paths and all(path.endswith(".py") for path in rename_paths)
+    assert "c.py" in rename_paths
+    assert all(path.endswith(".py") for path in rename_paths)
 
     (repo / "c.py").unlink()
     deleted = _commit(repo, "delete")
