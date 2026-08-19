@@ -28,7 +28,7 @@ def test_score_and_block_logic(hist, psnr, ssim, expected_block):
     assert bool(blocked) == expected_block
 
 
-@pytest.mark.parametrize("payload", [None, "{bad", '{"range":"X","hist":{}}'])
+@pytest.mark.parametrize("payload", [None, "{bad", "[]", '{"range":"X","hist":{}}', '{"range":"A..B","hist":{"X":-1}}'])
 def test_required_delta_evidence_fails_closed(monkeypatch, tmp_path, payload):
     _paths(monkeypatch, tmp_path)
     if payload is not None:
@@ -37,13 +37,14 @@ def test_required_delta_evidence_fails_closed(monkeypatch, tmp_path, payload):
     assert ic.main(["--range", "A..B"]) == 1
 
 
-def test_threshold_policy_is_explicit_and_invalid_spec_denied(monkeypatch, tmp_path):
+@pytest.mark.parametrize("invalid_spec", ["{bad", '{"thresholds":{"repo":{}}}', '{"thresholds":{"repo":{"alpha":0.9,"beta":0.8,"z":0.99}}}', '{"thresholds":{"repo":{"alpha":-0.1,"beta":0.92,"z":0.99}}}'])
+def test_threshold_policy_is_explicit_and_invalid_spec_denied(monkeypatch, tmp_path, invalid_spec):
     _paths(monkeypatch, tmp_path)
     ic.DELTA_REPORT.write_text(json.dumps({"range": "A..B", "hist": {}}), encoding="utf-8")
     monkeypatch.setattr(ic, "_git_diff_text", lambda _: "")
     analysis, code = ic.run("A..B")
     assert (code, analysis["threshold_source"], ic.SPEC_STATE.exists()) == (0, "builtin", False)
-    ic.SPEC_STATE.write_text("{bad", encoding="utf-8")
+    ic.SPEC_STATE.write_text(invalid_spec, encoding="utf-8")
     assert ic.main(["--range", "A..B"]) == 1
 
 
