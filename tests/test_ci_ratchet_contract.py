@@ -1,7 +1,7 @@
-from pathlib import Path
+import pathlib
 
 
-TEXT = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+TEXT = pathlib.Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
 
 def test_ci_uses_exact_pr_head_and_merge_base() -> None:
@@ -21,10 +21,17 @@ def test_ratchet_is_fail_closed_and_compares_baseline_to_head() -> None:
     assert "n > before[key]" in TEXT
 
 
+def test_black_is_no_regression_ratchet() -> None:
+    assert "Black (format no-regression ratchet)" in TEXT
+    assert 'black --check "$BASE_DIR/$file"' in TEXT
+    assert 'black --check "$file"' in TEXT
+    assert "head_bad > base_bad" in TEXT
+
+
 def test_mandatory_gates_run_after_earlier_failures() -> None:
     for gate in (
         "Ruff changed Python files (no-regression ratchet)",
-        "Black (format check)",
+        "Black (format no-regression ratchet)",
         "Mypy (type check)",
         "Pytest",
         "Delta fingerprint (DIFF-first)",
