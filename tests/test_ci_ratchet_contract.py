@@ -1,12 +1,20 @@
 with open(".github/workflows/ci.yml", encoding="utf-8") as stream:
     TEXT = stream.read()
 
+with open("pyproject.toml", encoding="utf-8") as stream:
+    CONFIG = stream.read()
+
 
 def test_ci_uses_exact_pr_head_and_merge_base() -> None:
     assert "ref: ${{ github.event.pull_request.head.sha || github.sha }}" in TEXT
     assert 'git merge-base "${{ github.event.pull_request.base.sha }}" "$HEAD_SHA"' in TEXT
     assert 'echo "DIFF_BASE=${BASE_SHA}" >> "$GITHUB_ENV"' in TEXT
     assert 'echo "DIFF_HEAD=${HEAD_SHA}" >> "$GITHUB_ENV"' in TEXT
+
+
+def test_critical_f821_gate_is_not_ignored() -> None:
+    assert "--select E9,F63,F7,F82" in TEXT
+    assert '"F821"' not in CONFIG
 
 
 def test_ratchet_is_fail_closed_and_compares_baseline_to_head() -> None:
@@ -37,6 +45,7 @@ def test_mandatory_gates_run_after_earlier_failures() -> None:
         "Black (format no-regression ratchet)",
         "Mypy (type check)",
         "Pytest",
+        "Doclint (docs consistency)",
         "Delta fingerprint (DIFF-first)",
         "Invariants check (I1–I4 gates)",
     ):
