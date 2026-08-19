@@ -605,7 +605,7 @@ def main(argv=None) -> int:
     root = Path(args.repo_root).resolve()
     file_path = Path(args.file).resolve()
     if not file_path.exists():
-        print(f("[err] nie znaleziono pliku: {file_path}"), file=sys.stderr)
+        print(f"[err] nie znaleziono pliku: {file_path}", file=sys.stderr)
         return 2
 
     graph = _load_or_build_graph(root, Path(args.graph_input).resolve() if args.graph_input else None)

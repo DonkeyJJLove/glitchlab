@@ -159,7 +159,7 @@ def _coerce_edges_per_cell(delta: Mapping[str, Any], N: int) -> Optional[List[fl
                 v = 0.0
             vals.append(max(0.0, v))
         mx = max(vals) if vals else 1.0
-        vals = [x / mx if mx > 0 else 0.0] + [0.0] * max(0, N - len(vals))
+        vals = [x / mx if mx > 0 else 0.0 for x in vals] + [0.0] * max(0, N - len(vals))
         return vals[:N]
     return None
 

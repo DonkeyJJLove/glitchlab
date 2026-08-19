@@ -29,6 +29,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -46,12 +47,24 @@ jobs:
         id: range
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            BASE_SHA=$(git merge-base "${{ github.event.pull_request.base.sha }}" "$HEAD_SHA")
           else
-            RANGE="HEAD~1..HEAD"
+            HEAD_SHA=$(git rev-parse HEAD)
+            BASE_SHA=$(git rev-parse HEAD~1)
           fi
-          echo "DIFF_RANGE=${RANGE}" >> $GITHUB_ENV
-          echo "Using range: ${RANGE}"
+          echo "DIFF_BASE=${BASE_SHA}" >> "$GITHUB_ENV"
+          echo "DIFF_HEAD=${HEAD_SHA}" >> "$GITHUB_ENV"
+          echo "DIFF_RANGE=${BASE_SHA}..${HEAD_SHA}" >> "$GITHUB_ENV"
+          echo "Using range: ${BASE_SHA}..${HEAD_SHA}"
+
+      - name: Verify tracked workspace is clean
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            git status --short --untracked-files=no
+            echo "::error::Tracked workspace mutated before CI gates."
+            exit 1
+          fi
 
       - name: Ruff critical gate (whole repository)
         run: |
@@ -60,46 +73,88 @@ jobs:
           # is removed under a dedicated ratchet issue.
           ruff check . --force-exclude --select E9,F63,F7,F82
 
-      - name: Ruff changed Python files (ratchet)
+      - name: Ruff changed Python files (no-regression ratchet)
+        if: always()
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            FILES=$(git diff --name-only --diff-filter=ACMRT \
-              "${{ github.event.pull_request.base.sha }}" \
-              "${{ github.event.pull_request.head.sha }}" \
-              -- '*.py')
-          else
-            FILES=$(git diff --name-only --diff-filter=ACMRT HEAD~1 HEAD -- '*.py')
+          mapfile -t FILES < <(git diff --name-only --diff-filter=ACMRT "$DIFF_BASE" "$DIFF_HEAD" -- '*.py')
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No Python files changed; ratchet passed."
+            exit 0
           fi
 
-          if [ -n "$FILES" ]; then
-            echo "$FILES"
-            ruff check $FILES --force-exclude
-          else
-            echo "No Python files changed; full style lint skipped. Critical whole-repo gate already passed."
-          fi
+          BASE_DIR=$(mktemp -d)
+          export BASE_DIR
+          for file in "${FILES[@]}"; do
+            if git cat-file -e "$DIFF_BASE:$file" 2>/dev/null; then
+              mkdir -p "$BASE_DIR/$(dirname "$file")"
+              git show "$DIFF_BASE:$file" > "$BASE_DIR/$file"
+            fi
+          done
 
-      - name: Black (format check)
+          set +e
+          ruff check "$BASE_DIR" --config pyproject.toml --output-format json > /tmp/ruff-base.json
+          BASE_RC=$?
+          ruff check "${FILES[@]}" --force-exclude --output-format json > /tmp/ruff-head.json
+          HEAD_RC=$?
+          set -e
+          [ "$BASE_RC" -le 1 ] && [ "$HEAD_RC" -le 1 ] || exit 2
+
+          python - <<'PY'
+          import collections
+          import json
+          import os
+          import pathlib
+
+          def counts(path, root):
+              rows = json.loads(pathlib.Path(path).read_text())
+              out = collections.Counter()
+              for row in rows:
+                  name = pathlib.Path(row["filename"]).resolve().relative_to(root)
+                  out[(str(name), row["code"])] += 1
+              return out
+
+          before = counts("/tmp/ruff-base.json", pathlib.Path(os.environ["BASE_DIR"]).resolve())
+          after = counts("/tmp/ruff-head.json", pathlib.Path.cwd().resolve())
+          regressions = {key: n for key, n in after.items() if n > before[key]}
+          if regressions:
+              for (name, code), n in sorted(regressions.items()):
+                  print(f"regression: {name} {code}: {before[(name, code)]} -> {n}")
+              raise SystemExit(1)
+          print("Ruff ratchet passed: no per-file/per-rule regression.")
+          PY
+
+      - name: Black (format no-regression ratchet)
+        if: always()
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            FILES=$(git diff --name-only --diff-filter=ACMRT \
-              "${{ github.event.pull_request.base.sha }}" \
-              "${{ github.event.pull_request.head.sha }}" \
-              -- '*.py')
-          else
-            FILES=$(git diff --name-only --diff-filter=ACMRT \
-              HEAD~1 HEAD -- '*.py')
+          mapfile -t FILES < <(git diff --name-only --diff-filter=ACMRT "$DIFF_BASE" "$DIFF_HEAD" -- '*.py')
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No Python files changed; Black ratchet passed."
+            exit 0
           fi
 
-          if [ -n "$FILES" ]; then
-            python -m black --check $FILES
-          else
-            echo "No Python files changed; skipping Black."
-          fi
+          BASE_DIR=$(mktemp -d)
+          for file in "${FILES[@]}"; do
+            base_bad=0
+            head_bad=0
+            if git cat-file -e "$DIFF_BASE:$file" 2>/dev/null; then
+              mkdir -p "$BASE_DIR/$(dirname "$file")"
+              git show "$DIFF_BASE:$file" > "$BASE_DIR/$file"
+              black --check "$BASE_DIR/$file" >/dev/null 2>&1 || base_bad=1
+            fi
+            black --check "$file" >/dev/null 2>&1 || head_bad=1
+            if [ "$head_bad" -gt "$base_bad" ]; then
+              echo "::error file=$file::Black formatting regression (${base_bad} -> ${head_bad})."
+              exit 1
+            fi
+          done
+          echo "Black ratchet passed: no changed file introduced formatting debt."
 
       - name: Mypy (type check)
+        if: always()
         run: mypy --ignore-missing-imports --allow-untyped-defs tools/jsonschema_validate.py
 
       - name: Pytest
+        if: always()
         run: PYTHONPATH="${{ github.workspace }}" pytest -q
 
       - name: Coverage (run + upload as artifact)
@@ -115,16 +170,18 @@ jobs:
         with:
           name: coverage-${{ matrix.python-version }}
           path: coverage.xml
-          if-no-files-found: ignore
+          if-no-files-found: error
 
       - name: Doclint (docs consistency)
         continue-on-error: true
         run: python -m glx.tools.doclint
 
       - name: Delta fingerprint (DIFF-first)
+        if: always()
         run: python -m glx.tools.delta_fingerprint --range "${{ env.DIFF_RANGE }}"
 
       - name: Invariants check (I1–I4 gates)
+        if: always()
         run: python -m glx.tools.invariants_check --range "${{ env.DIFF_RANGE }}"
 
       - name: Upload GLX artifacts
@@ -137,7 +194,8 @@ jobs:
             glitchlab/.glx/commit_analysis.json
             glitchlab/.glx/spec_state.json
             glitchlab/.glx/*.png
-          if-no-files-found: ignore
+          if-no-files-found: error
+          include-hidden-files: true
 
       - name: Comment on PR (summary)
         if: github.event_name == 'pull_request' && matrix.python-version == '3.9'

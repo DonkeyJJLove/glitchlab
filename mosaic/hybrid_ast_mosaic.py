@@ -910,10 +910,10 @@ def ana_repo_root() -> Optional[Path]:
 
 def ana_changed_py_files(base: str, head: str) -> Optional[List[str]]:
     """Bezpieczny alias na analysis.git_io.changed_py_files (może nie istnieć)."""
-    if changed_py_files is None:
+    if _changed_py_files is None:
         return None
     try:
-        return changed_py_files(base, head)
+        return _changed_py_files(base, head)
     except Exception:
         return None
 
