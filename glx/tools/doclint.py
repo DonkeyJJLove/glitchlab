@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-glx.tools.doclint — szybki lint zestawu dokumentacji GLX (Python 3.9)
+"""glx.tools.doclint — fail-closed consistency checks for the current GLX docs corpus.
 
-Sprawdzenia (twarde):
-- Istnieją wszystkie wymagane pliki w glitchlab/docs/.
-- Każdy plik ma prawidłowy front-matter YAML na początku (--- ... ---).
-- Front-matter zawiera: title, version==v1.0, doc-id==./<nazwa>, status==final,
-  spec zawiera co najmniej: S,H,Z, Δ, Φ, Ψ, I1–I4 (akceptuje 'I1–I4' lub 'I1-I4'),
-  ownership==GLX-Core, sekcję links z wpisem (rel: glossary, href: ./11_spec_glossary.md).
-- Treść nie zawiera przestarzałych ścieżek 'gui/' (po refaktorze powinno być 'app/').
+The historical linter expected YAML front matter and a ``99_refactor_plan.md``
+file that are not part of the current repository documentation convention.  That
+made the check permanently red and, consequently, it had been configured as
+non-blocking.  This module validates properties that are actually represented by
+the current corpus instead of maintaining a fictional schema.
 
-Zakończenie:
-- 0 → OK
-- 1 → wykryto błędy (wypisane na stderr)
+Hard checks:
+- the current canonical documentation paths exist;
+- core specification/operations documents are non-empty and UTF-8 readable;
+- the glossary contains the GLX semantic primitives S/H/Z, Δ, Φ, Ψ and I1–I4;
+- non-empty documents do not contain the obsolete ``gui/`` source path.
+
+Exit status: 0 = consistent, 1 = inconsistency found.
 """
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List
 
 
 def _docs_dir() -> Path:
@@ -31,6 +31,9 @@ def _docs_dir() -> Path:
     return Path("docs")
 
 
+# These paths are the current checked-in documentation contract.  A few files
+# are retained as placeholders, so existence is required while non-emptiness is
+# enforced only for the active core below.
 REQUIRED_FILES = {
     "00_overview.md",
     "10_architecture.md",
@@ -49,134 +52,60 @@ REQUIRED_FILES = {
     "70_observability.md",
     "82_release_and_channels.md",
     "92_playbooks.md",
-    "99_refactor_plan.md",
 }
 
-REQ_VERSION = "v1.0"
-REQ_STATUS = "final"
-REQ_OWNERSHIP = "GLX-Core"
-REQ_GLOSSARY_HREF = "./11_spec_glossary.md"
+CORE_NONEMPTY_FILES = {
+    "00_overview.md",
+    "10_architecture.md",
+    "11_spec_glossary.md",
+    "12_invariants.md",
+    "13_delta_algebra.md",
+    "21_egdb.md",
+    "22_analytics.md",
+    "30_sast_bridge.md",
+    "41_pipelines.md",
+    "50_ci_ops.md",
+    "60_security.md",
+    "70_observability.md",
+    "82_release_and_channels.md",
+    "92_playbooks.md",
+}
 
-# Delimitery front-matter na początku pliku
-FM_BEGIN = re.compile(r"^---\s*\n", re.DOTALL)
-FM_END = re.compile(r"\n---\s*\n", re.DOTALL)
-
-# Prosty parser klucz: wartość (w obrębie front-matter)
-KV_RE = re.compile(r"^([a-zA-Z0-9_\-]+)\s*:\s*(.+?)\s*$")
-
-
-# Dopuszczamy zarówno en-dash (–) jak i minus (-) w zapisie I1–I4
-def _spec_tokens_ok(spec_raw: str) -> bool:
-    # Wyciągnij elementy ze środka nawiasów kwadratowych, np. [S,H,Z, Δ, Φ, Ψ, I1–I4]
-    # Usuwamy nawiasy, rozbijamy po przecinkach/whitespace
-    s = spec_raw.strip()
-    if s.startswith("[") and s.endswith("]"):
-        s = s[1:-1]
-    parts = [p.strip() for p in re.split(r"[,\s]+", s) if p.strip()]
-    items = set(parts)
-    # Normalizuj zapis I1–I4
-    i14_ok = ("I1–I4" in items) or ("I1-I4" in items)
-    must = {"S", "H", "Z", "Δ", "Φ", "Ψ"}
-    return i14_ok and must.issubset(items)
+GLOSSARY_TOKENS = ("S", "H", "Z", "Δ", "Φ", "Ψ")
 
 
-def _extract_front_matter(text: str) -> Tuple[str, str]:
-    """
-    Zwraca (blok_front_matter, reszta_treści). Gdy brak poprawnego FM, zwraca ("","").
-    """
-    if not FM_BEGIN.match(text):
-        return "", ""
-    # znajdź koniec
-    m = FM_END.search(text, 4)  # po '---\n'
-    if not m:
-        return "", ""
-    start = 4  # po pierwszym '---\n'
-    end = m.start()
-    fm = text[start:end]
-    rest = text[m.end() :]
-    return fm, rest
-
-
-def _parse_front_matter(fm: str) -> Dict[str, str]:
-    """
-    Bardzo prosty parser klucz: wartość dla płaskich pól. Sekcje zagnieżdżone
-    (links) weryfikujemy regexami kontekstowymi poniżej.
-    """
-    data: Dict[str, str] = {}
-    for line in fm.splitlines():
-        line = line.rstrip()
-        if not line or line.strip().startswith("#"):
-            continue
-        m = KV_RE.match(line)
-        if m:
-            k, v = m.group(1), m.group(2)
-            data[k] = v
-    return data
-
-
-def _has_glossary_link(fm: str) -> bool:
-    """
-    Sprawdza, czy front-matter zawiera blok:
-      links:
-        - rel: glossary
-          href: ./11_spec_glossary.md
-    Dopuszczamy dowolne odstępy i dodatkowe wpisy w links.
-    """
-    # szukamy 'links:' a dalej co najmniej jeden wpis z rel: glossary i właściwym href
-    links_block = re.search(
-        r"(?ms)^\s*links\s*:\s*\n(.+?)(?:^\S| \Z)", fm + "\nX"
-    )  # do następnego klucza lub końca
-    if not links_block:
-        return False
-    block = links_block.group(1)
-    has_rel = re.search(r"(?m)^\s*-\s*rel\s*:\s*glossary\s*$", block) is not None
-    has_href = re.search(r"(?m)^\s*href\s*:\s*\.\/11_spec_glossary\.md\s*$", block) is not None
-    return bool(has_rel and has_href)
-
-
-def _check_file(md_path: Path) -> List[str]:
-    errors: List[str] = []
+def _read_utf8(path: Path) -> tuple[str, List[str]]:
     try:
-        text = md_path.read_text(encoding="utf-8", errors="replace")
-    except Exception as e:
-        return [f"{md_path.name}: nie można odczytać pliku: {e}"]
+        return path.read_text(encoding="utf-8"), []
+    except Exception as exc:
+        return "", [f"{path.name}: nie można odczytać jako UTF-8: {exc}"]
 
-    # 1) Front-matter
-    fm, body = _extract_front_matter(text)
-    if not fm:
-        return [f"{md_path.name}: brak lub niekompletny front-matter na początku pliku"]
 
-    meta = _parse_front_matter(fm)
-    # title
-    if "title" not in meta or not meta["title"].strip():
-        errors.append(f"{md_path.name}: brak 'title' w front-matter")
-    # version
-    if meta.get("version") != REQ_VERSION:
-        errors.append(f"{md_path.name}: 'version' musi być '{REQ_VERSION}'")
-    # doc-id
-    expected_docid = f"./{md_path.name}"
-    if meta.get("doc-id") != expected_docid:
-        errors.append(f"{md_path.name}: 'doc-id' musi być '{expected_docid}'")
-    # status
-    if meta.get("status") != REQ_STATUS:
-        errors.append(f"{md_path.name}: 'status' musi być '{REQ_STATUS}'")
-    # ownership
-    if meta.get("ownership") != REQ_OWNERSHIP:
-        errors.append(f"{md_path.name}: 'ownership' musi być '{REQ_OWNERSHIP}'")
-    # spec
-    spec_val = meta.get("spec")
-    if spec_val is None or not _spec_tokens_ok(spec_val):
-        errors.append(f"{md_path.name}: pole 'spec' musi zawierać S,H,Z, Δ, Φ, Ψ, I1–I4")
-    # links → glossary
-    if not _has_glossary_link(fm):
-        errors.append(
-            f"{md_path.name}: sekcja 'links' musi zawierać wpis (rel: glossary, href: {REQ_GLOSSARY_HREF})"
-        )
+def _check_file(path: Path) -> List[str]:
+    text, errors = _read_utf8(path)
+    if errors:
+        return errors
 
-    # 2) Migracja GUI→APP
+    if path.name in CORE_NONEMPTY_FILES and not text.strip():
+        errors.append(f"{path.name}: aktywny dokument jest pusty")
+
     if "gui/" in text:
-        errors.append(f"{md_path.name}: wykryto przestarzałe ścieżki 'gui/' — zamień na 'app/'")
+        errors.append(f"{path.name}: wykryto przestarzałą ścieżkę 'gui/' — użyj 'app/'")
 
+    return errors
+
+
+def _check_glossary(path: Path) -> List[str]:
+    text, errors = _read_utf8(path)
+    if errors:
+        return errors
+
+    for token in GLOSSARY_TOKENS:
+        if token not in text:
+            errors.append(f"{path.name}: brak kanonicznego tokenu {token!r}")
+
+    if "I1" not in text or "I4" not in text:
+        errors.append(f"{path.name}: brak zakresu inwariantów I1–I4")
     return errors
 
 
@@ -186,23 +115,19 @@ def main() -> int:
         print("[doclint] brak katalogu docs (ani glitchlab/docs)", file=sys.stderr)
         return 1
 
-    # 0) kompletność zestawu
-    missing = [f for f in REQUIRED_FILES if not (docs_dir / f).exists()]
+    missing = sorted(name for name in REQUIRED_FILES if not (docs_dir / name).is_file())
     if missing:
-        print(f"[doclint] brak plików: {sorted(missing)}", file=sys.stderr)
+        print(f"[doclint] brak plików: {missing}", file=sys.stderr)
         return 1
 
-    # 1) walidacja każdego pliku
-    any_errors = False
+    errors: List[str] = []
     for name in sorted(REQUIRED_FILES):
-        md = docs_dir / name
-        errs = _check_file(md)
-        if errs:
-            any_errors = True
-            for e in errs:
-                print(f"[doclint] {e}", file=sys.stderr)
+        errors.extend(_check_file(docs_dir / name))
+    errors.extend(_check_glossary(docs_dir / "11_spec_glossary.md"))
 
-    if any_errors:
+    if errors:
+        for error in errors:
+            print(f"[doclint] {error}", file=sys.stderr)
         return 1
 
     print("[doclint] OK")
