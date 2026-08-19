@@ -1,7 +1,4 @@
-import pathlib
-
-
-TEXT = pathlib.Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+TEXT = open(".github/workflows/ci.yml", encoding="utf-8").read()
 
 
 def test_ci_uses_exact_pr_head_and_merge_base() -> None:
@@ -25,7 +22,7 @@ def test_black_is_no_regression_ratchet() -> None:
     assert "Black (format no-regression ratchet)" in TEXT
     assert 'black --check "$BASE_DIR/$file"' in TEXT
     assert 'black --check "$file"' in TEXT
-    assert "head_bad > base_bad" in TEXT
+    assert '[ "$head_bad" -gt "$base_bad" ]' in TEXT
 
 
 def test_mandatory_gates_run_after_earlier_failures() -> None:
