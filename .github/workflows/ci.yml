@@ -123,16 +123,31 @@ jobs:
           print("Ruff ratchet passed: no per-file/per-rule regression.")
           PY
 
-      - name: Black (format check)
+      - name: Black (format no-regression ratchet)
         if: always()
         run: |
           mapfile -t FILES < <(git diff --name-only --diff-filter=ACMRT "$DIFF_BASE" "$DIFF_HEAD" -- '*.py')
-
-          if [ "${#FILES[@]}" -gt 0 ]; then
-            python -m black --check "${FILES[@]}"
-          else
-            echo "No Python files changed; skipping Black."
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No Python files changed; Black ratchet passed."
+            exit 0
           fi
+
+          BASE_DIR=$(mktemp -d)
+          for file in "${FILES[@]}"; do
+            base_bad=0
+            head_bad=0
+            if git cat-file -e "$DIFF_BASE:$file" 2>/dev/null; then
+              mkdir -p "$BASE_DIR/$(dirname "$file")"
+              git show "$DIFF_BASE:$file" > "$BASE_DIR/$file"
+              black --check "$BASE_DIR/$file" >/dev/null 2>&1 || base_bad=1
+            fi
+            black --check "$file" >/dev/null 2>&1 || head_bad=1
+            if [ "$head_bad" -gt "$base_bad" ]; then
+              echo "::error file=$file::Black formatting regression (${base_bad} -> ${head_bad})."
+              exit 1
+            fi
+          done
+          echo "Black ratchet passed: no changed file introduced formatting debt."
 
       - name: Mypy (type check)
         if: always()
