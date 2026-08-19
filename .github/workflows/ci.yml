@@ -68,9 +68,8 @@ jobs:
 
       - name: Ruff critical gate (whole repository)
         run: |
-          # Keep correctness/syntax classes blocking across the complete tree.
-          # Legacy F821 is explicitly excluded in pyproject until its existing backlog
-          # is removed under a dedicated ratchet issue.
+          # Keep correctness/syntax classes, including F821 undefined names,
+          # blocking across the complete tree.
           ruff check . --force-exclude --select E9,F63,F7,F82
 
       - name: Ruff changed Python files (no-regression ratchet)
@@ -173,7 +172,7 @@ jobs:
           if-no-files-found: error
 
       - name: Doclint (docs consistency)
-        continue-on-error: true
+        if: always()
         run: python -m glx.tools.doclint
 
       - name: Delta fingerprint (DIFF-first)
