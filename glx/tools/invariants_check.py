@@ -20,7 +20,7 @@ Zasada punktacji (heurystyczna, 0..1):
 - 20%: opcjonalne wskaźniki jakości (psnr↓, ssim↓)
 
 Progi (domyślne, gdy brak spec_state.json):
-- α=0.85, β=0.92, Z=0.99 (repo-level). Plik baseline tworzy się automatycznie.
+- α=0.85, β=0.92, Z=0.99 (repo-level), jawnie oznaczone jako builtin policy.
 """
 
 from __future__ import annotations
@@ -29,9 +29,8 @@ import argparse
 import json
 import subprocess
 import sys
-import time
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Tuple
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Ścieżki artefaktów
@@ -42,19 +41,23 @@ DELTA_REPORT = GLX_DIR / "delta_report.json"
 COMMIT_ANALYSIS = GLX_DIR / "commit_analysis.json"
 
 
+class InvariantEvidenceError(RuntimeError):
+    """Required invariant evidence is missing, invalid or cannot be reconstructed."""
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Narzędzia Gita
 # ──────────────────────────────────────────────────────────────────────────────
 def _git_diff_text(commit_range: str) -> str:
-    """Zwraca pełny diff (unified=0) dla zakresu; przy pojedynczym commicie używa ^!."""
+    """Zwraca pełny diff (unified=0); błąd rekonstrukcji jest fail-closed."""
+    if ".." in commit_range:
+        args = ["git", "diff", "--unified=0", commit_range]
+    else:
+        args = ["git", "diff", "--unified=0", f"{commit_range}^!"]
     try:
-        if ".." in commit_range:
-            args = ["git", "diff", "--unified=0", commit_range]
-        else:
-            args = ["git", "diff", "--unified=0", f"{commit_range}^!"]
         return subprocess.check_output(args, text=True, stderr=subprocess.DEVNULL)
-    except subprocess.CalledProcessError:
-        return ""
+    except subprocess.CalledProcessError as exc:
+        raise InvariantEvidenceError(f"cannot reconstruct git range: {commit_range}") from exc
 
 
 def _churn_from_diff(diff_text: str) -> Tuple[int, int]:
@@ -82,35 +85,18 @@ _DEFAULT_THRESHOLDS = {"alpha": 0.85, "beta": 0.92, "z": 0.99}
 
 
 def _load_thresholds() -> Dict[str, float]:
-    """
-    Ładuje progi z spec_state.json, jeśli istnieją.
-    Struktura oczekiwana:
-        {"thresholds": {"repo": {"alpha":..,"beta":..,"z":..}}, ...}
-    W przeciwnym razie tworzy baseline i zwraca domyślne wartości.
-    """
-    GLX_DIR.mkdir(parents=True, exist_ok=True)
-    if SPEC_STATE.exists():
-        try:
-            obj = json.loads(SPEC_STATE.read_text(encoding="utf-8"))
-            t = (obj.get("thresholds") or {}).get("repo") or {}
-            alpha = float(t.get("alpha", _DEFAULT_THRESHOLDS["alpha"]))
-            beta = float(t.get("beta", _DEFAULT_THRESHOLDS["beta"]))
-            z = float(t.get("z", _DEFAULT_THRESHOLDS["z"]))
-            return {"alpha": alpha, "beta": beta, "z": z}
-        except Exception:
-            pass
-
-    # baseline
-    baseline = {
-        "ts": time.time(),
-        "note": "baseline (auto)",
-        "thresholds": {"repo": dict(_DEFAULT_THRESHOLDS)},
-    }
+    """Ładuje jawny spec albo wbudowaną politykę; błędny istniejący spec blokuje."""
+    if not SPEC_STATE.exists():
+        return dict(_DEFAULT_THRESHOLDS)
     try:
-        SPEC_STATE.write_text(json.dumps(baseline, indent=2, ensure_ascii=False), encoding="utf-8")
-    except Exception:
-        pass
-    return dict(_DEFAULT_THRESHOLDS)
+        obj = json.loads(SPEC_STATE.read_text(encoding="utf-8"))
+        raw = obj["thresholds"]["repo"]
+        thresholds = {key: float(raw[key]) for key in ("alpha", "beta", "z")}
+    except (OSError, KeyError, TypeError, ValueError) as exc:
+        raise InvariantEvidenceError("invalid spec_state.json") from exc
+    if not 0.0 <= thresholds["alpha"] <= thresholds["beta"] <= thresholds["z"] <= 1.0:
+        raise InvariantEvidenceError("invalid threshold ordering/range in spec_state.json")
+    return thresholds
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -130,13 +116,25 @@ _WEIGHTS = {
 }
 
 
-def _load_delta_report() -> Dict[str, Any]:
+def _load_delta_report(commit_range: str) -> Dict[str, Any]:
     if not DELTA_REPORT.exists():
-        return {}
+        raise InvariantEvidenceError(f"missing delta report: {DELTA_REPORT}")
     try:
-        return json.loads(DELTA_REPORT.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+        report = json.loads(DELTA_REPORT.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise InvariantEvidenceError("invalid delta_report.json") from exc
+    if not isinstance(report, dict) or report.get("range") != commit_range:
+        raise InvariantEvidenceError("delta report range does not match requested range")
+    hist = report.get("hist")
+    if not isinstance(hist, dict) or any(
+        not isinstance(key, str)
+        or isinstance(value, bool)
+        or not isinstance(value, int)
+        or value < 0
+        for key, value in hist.items()
+    ):
+        raise InvariantEvidenceError("delta report hist must be a non-negative integer mapping")
+    return report
 
 
 def _score_from(rep: Dict[str, Any], diff_text: str) -> float:
@@ -217,14 +215,15 @@ def classify_by_thresholds(score: float, thresholds: dict | None = None):
 # ──────────────────────────────────────────────────────────────────────────────
 def run(commit_range: str) -> Dict[str, Any]:
     thresholds = _load_thresholds()
-    diff_text = _git_diff_text(commit_range)
-    rep = _load_delta_report()
+    diff_text = globals().get("_git_diff_range", _git_diff_text)(commit_range)
+    rep = _load_delta_report(commit_range)
     score = _score_from(rep, diff_text)
 
     analysis = {
         "range": commit_range,
         "score": score,
         "thresholds": thresholds,
+        "threshold_source": "spec_state" if SPEC_STATE.exists() else "builtin",
         "violations": [],
     }
 
@@ -245,14 +244,14 @@ def run(commit_range: str) -> Dict[str, Any]:
         )
         exit_code = 2
 
-    # Zapis artefaktu
+    # Zapis artefaktu jest częścią kontraktu; niepowodzenie blokuje.
     try:
         GLX_DIR.mkdir(parents=True, exist_ok=True)
         COMMIT_ANALYSIS.write_text(
             json.dumps(analysis, indent=2, ensure_ascii=False), encoding="utf-8"
         )
-    except Exception as e:
-        print(f"[invariants_check] cannot write {COMMIT_ANALYSIS}: {e}", file=sys.stderr)
+    except OSError as exc:
+        raise InvariantEvidenceError(f"cannot write {COMMIT_ANALYSIS}") from exc
 
     # Log JSON (przydatne w CI)
     print(json.dumps(analysis, ensure_ascii=False))
@@ -273,8 +272,12 @@ def main(argv: list = None) -> int:
         return int(code)
     except Exception as e:
         print(f"[invariants_check] ERROR: {e}", file=sys.stderr)
-        # Ostrożność: jeśli nie można ocenić, w lokalnym środowisku zwróć błąd,
-        # aby użytkownik miał sygnał, że bramka nie zadziałała poprawnie.
+        failure = {"range": args.range, "score": 1.0, "thresholds": dict(_DEFAULT_THRESHOLDS), "threshold_source": "unavailable", "violations": [{"invariant": "EVIDENCE", "severity": "block", "details": str(e)}]}
+        try:
+            GLX_DIR.mkdir(parents=True, exist_ok=True)
+            COMMIT_ANALYSIS.write_text(json.dumps(failure, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
         return 1
 
 
