@@ -170,7 +170,7 @@ jobs:
         with:
           name: coverage-${{ matrix.python-version }}
           path: coverage.xml
-          if-no-files-found: ignore
+          if-no-files-found: error
 
       - name: Doclint (docs consistency)
         continue-on-error: true
@@ -194,7 +194,8 @@ jobs:
             glitchlab/.glx/commit_analysis.json
             glitchlab/.glx/spec_state.json
             glitchlab/.glx/*.png
-          if-no-files-found: ignore
+          if-no-files-found: error
+          include-hidden-files: true
 
       - name: Comment on PR (summary)
         if: github.event_name == 'pull_request' && matrix.python-version == '3.9'
