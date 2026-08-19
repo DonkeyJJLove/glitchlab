@@ -26,6 +26,11 @@ def test_black_is_no_regression_ratchet() -> None:
     assert '[ "$head_bad" -gt "$base_bad" ]' in TEXT
 
 
+def test_ci_requires_expected_artifacts() -> None:
+    assert "include-hidden-files: true" in TEXT
+    assert TEXT.count("if-no-files-found: error") >= 2
+
+
 def test_mandatory_gates_run_after_earlier_failures() -> None:
     for gate in (
         "Ruff changed Python files (no-regression ratchet)",
