@@ -60,6 +60,9 @@ def test_event_shape_contracts():
     assert not check(ev.TOPIC_ANALYTICS_INVARIANTS_VIOLATION, {})[0]
     assert not check(ev.TOPIC_SCOPE_META_READY, {"level": 1, "name": "x", "paths": {}})[0]
     assert not check(ev.TOPIC_SCOPE_METRICS_UPDATED, {"paths": {"metrics": 7}})[0]
+    assert not check(ev.TOPIC_SCOPE_METRICS_UPDATED, {"meta": []})[0]
+    bad_meta = {"level": "file", "name": "x", "paths": {"json": "x"}, "meta": "bad"}
+    assert not check(ev.TOPIC_SCOPE_META_READY, bad_meta)[0]
     assert check(ev.TOPIC_ANALYTICS_DELTA_READY, {"delta_report": {}})[0]
     assert check(ev.TOPIC_ANALYTICS_INVARIANTS_VIOLATION, {"violations": {}})[0]
     assert check(ev.TOPIC_SCOPE_METRICS_UPDATED, {"kind": "graph_metrics"})[0]
