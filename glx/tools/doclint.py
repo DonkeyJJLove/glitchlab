@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import List
 
 
 def _docs_dir() -> Path:
@@ -73,14 +72,14 @@ CORE_NONEMPTY_FILES = {
 GLOSSARY_TOKENS = ("S", "H", "Z", "Δ", "Φ", "Ψ")
 
 
-def _read_utf8(path: Path) -> tuple[str, List[str]]:
+def _read_utf8(path: Path) -> tuple[str, list[str]]:
     try:
         return path.read_text(encoding="utf-8"), []
     except Exception as exc:
         return "", [f"{path.name}: nie można odczytać jako UTF-8: {exc}"]
 
 
-def _check_file(path: Path) -> List[str]:
+def _check_file(path: Path) -> list[str]:
     text, errors = _read_utf8(path)
     if errors:
         return errors
@@ -91,7 +90,7 @@ def _check_file(path: Path) -> List[str]:
     return errors
 
 
-def _check_glossary(path: Path) -> List[str]:
+def _check_glossary(path: Path) -> list[str]:
     text, errors = _read_utf8(path)
     if errors:
         return errors
@@ -105,8 +104,8 @@ def _check_glossary(path: Path) -> List[str]:
     return errors
 
 
-def _check_source_topology() -> List[str]:
-    errors: List[str] = []
+def _check_source_topology() -> list[str]:
+    errors: list[str] = []
     for retired in (Path("src/gui"), Path("gui")):
         if retired.exists():
             errors.append(
@@ -126,7 +125,7 @@ def main() -> int:
         print(f"[doclint] brak plików: {missing}", file=sys.stderr)
         return 1
 
-    errors: List[str] = []
+    errors: list[str] = []
     for name in sorted(REQUIRED_FILES):
         errors.extend(_check_file(docs_dir / name))
     errors.extend(_check_glossary(docs_dir / "11_spec_glossary.md"))
