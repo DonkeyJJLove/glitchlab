@@ -84,10 +84,10 @@ def _churn_from_diff(diff_text: str) -> Tuple[int, int]:
 _DEFAULT_THRESHOLDS = {"alpha": 0.85, "beta": 0.92, "z": 0.99}
 
 
-def _load_thresholds() -> Tuple[Dict[str, float], str]:
+def _load_thresholds() -> Dict[str, float]:
     """Ładuje jawny spec albo wbudowaną politykę; błędny istniejący spec blokuje."""
     if not SPEC_STATE.exists():
-        return dict(_DEFAULT_THRESHOLDS), "builtin"
+        return dict(_DEFAULT_THRESHOLDS)
     try:
         obj = json.loads(SPEC_STATE.read_text(encoding="utf-8"))
         raw = obj["thresholds"]["repo"]
@@ -96,7 +96,7 @@ def _load_thresholds() -> Tuple[Dict[str, float], str]:
         raise InvariantEvidenceError("invalid spec_state.json") from exc
     if not 0.0 <= thresholds["alpha"] <= thresholds["beta"] <= thresholds["z"] <= 1.0:
         raise InvariantEvidenceError("invalid threshold ordering/range in spec_state.json")
-    return thresholds, "spec_state"
+    return thresholds
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -214,17 +214,16 @@ def classify_by_thresholds(score: float, thresholds: dict | None = None):
 # Główna procedura
 # ──────────────────────────────────────────────────────────────────────────────
 def run(commit_range: str) -> Dict[str, Any]:
-    thresholds, threshold_source = _load_thresholds()
-    diff_text = _git_diff_text(commit_range)
+    thresholds = _load_thresholds()
+    diff_text = globals().get("_git_diff_range", _git_diff_text)(commit_range)
     rep = _load_delta_report(commit_range)
     score = _score_from(rep, diff_text)
 
     analysis = {
         "range": commit_range,
-        "evidence_range": rep["range"],
         "score": score,
         "thresholds": thresholds,
-        "threshold_source": threshold_source,
+        "threshold_source": "spec_state" if SPEC_STATE.exists() else "builtin",
         "violations": [],
     }
 
@@ -273,8 +272,12 @@ def main(argv: list = None) -> int:
         return int(code)
     except Exception as e:
         print(f"[invariants_check] ERROR: {e}", file=sys.stderr)
-        # Ostrożność: jeśli nie można ocenić, w lokalnym środowisku zwróć błąd,
-        # aby użytkownik miał sygnał, że bramka nie zadziałała poprawnie.
+        failure = {"range": args.range, "score": 1.0, "thresholds": dict(_DEFAULT_THRESHOLDS), "threshold_source": "unavailable", "violations": [{"invariant": "EVIDENCE", "severity": "block", "details": str(e)}]}
+        try:
+            GLX_DIR.mkdir(parents=True, exist_ok=True)
+            COMMIT_ANALYSIS.write_text(json.dumps(failure, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
         return 1
 
 
