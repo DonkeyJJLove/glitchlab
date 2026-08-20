@@ -70,7 +70,7 @@ jobs:
           assert all(r.get('code') == 'UP006' for r in rows), 'non-UP006 finding in scoped baseline'
           PY
 
-          ruff check "${FILES[@]}" --select UP006 --fix
+          ruff check "${FILES[@]}" --select UP006 --fix --unsafe-fixes
 
           git diff --name-only --diff-filter=ACMRT | sort > /tmp/actual-paths.txt
           diff -u /tmp/allowed-paths.txt /tmp/actual-paths.txt
@@ -142,7 +142,7 @@ jobs:
           diff -u /tmp/allowed-paths.txt /tmp/committed-paths.txt
 
           python - <<'PY'
-          import json, pathlib, subprocess
+          import json, pathlib
           p = pathlib.Path('/tmp/b1a-summary-pretests.json')
           s = json.loads(p.read_text())
           s.update({
