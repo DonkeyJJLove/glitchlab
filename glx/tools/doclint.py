@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """glx.tools.doclint — fail-closed consistency checks for the current GLX docs corpus.
 
 The historical linter expected YAML front matter and a ``99_refactor_plan.md``

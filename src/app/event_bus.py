@@ -1,5 +1,4 @@
 # glitchlab/app/event_bus.py
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import traceback
