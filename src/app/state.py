@@ -1,5 +1,4 @@
 # glitchlab/app/state.py
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict

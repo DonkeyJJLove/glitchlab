@@ -1,5 +1,4 @@
 # glitchlab/delta/fingerprint.py
-# -*- coding: utf-8 -*-
 """
 Raport Δ oraz fingerprint (hash) — warstwa „delta”.
 
