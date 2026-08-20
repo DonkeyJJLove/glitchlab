@@ -1,0 +1,199 @@
+name: Ruff Debt 17 B1B-A Executor
+
+on:
+  push:
+    branches:
+      - exec/glitchlab-ruff-debt-17-b1b-a-up009
+
+permissions:
+  contents: write
+
+jobs:
+  execute-b1b-a:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact baseline
+        uses: actions/checkout@v6
+        with:
+          ref: 6c8181c278f284fbfee9e5836dbb47cb49aa7602
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install exact toolchain
+        run: |
+          python -m pip install -U pip
+          python -m pip install "setuptools<81"
+          pip install -e .[dev]
+          python -m pip install --upgrade --force-reinstall "ruff==0.16.3"
+          test "$(ruff --version)" = "ruff 0.16.3"
+          ruff --version | tee /tmp/ruff-version.txt
+
+      - name: Execute bounded UP009 transformation and verify
+        env:
+          BASELINE: 6c8181c278f284fbfee9e5836dbb47cb49aa7602
+          CANDIDATE_BRANCH: mission/glitchlab-ruff-debt-17-b1b-a-up009
+        run: |
+          set -euo pipefail
+
+          FILES=(
+            src/app/paths.py
+            src/app/state.py
+            bench/metrics.py
+            bench/ab_pilot.py
+            bench/judge.py
+            bench/ab_runner.py
+            delta/fingerprint.py
+            glx/tools/doclint.py
+            src/app/log_window.py
+            src/app/event_bus.py
+          )
+
+          printf '%s\n' "${FILES[@]}" | sort > /tmp/allowed-paths.txt
+          head -n 2 glx/tools/doclint.py > /tmp/doclint-head-before.txt
+          test "$(head -n 1 glx/tools/doclint.py)" = '#!/usr/bin/env python3'
+
+          set +e
+          ruff check . --force-exclude --output-format json > /tmp/ruff-before-full.json
+          rc=$?
+          set -e
+          [ "$rc" -le 1 ]
+
+          set +e
+          ruff check "${FILES[@]}" --select UP009 --output-format json > /tmp/ruff-before-up009.json
+          rc=$?
+          set -e
+          [ "$rc" -le 1 ]
+
+          python - <<'PY'
+          import collections, json, pathlib
+          rows = json.loads(pathlib.Path('/tmp/ruff-before-up009.json').read_text())
+          assert len(rows) == 10, f"expected 10 scoped UP009 findings, got {len(rows)}"
+          assert all(r.get('code') == 'UP009' for r in rows), 'non-UP009 finding in scoped baseline'
+          by_file = collections.Counter(pathlib.Path(r['filename']).as_posix().split('/glitchlab/')[-1] for r in rows)
+          assert len(by_file) == 10 and all(v == 1 for v in by_file.values()), f"expected exactly one UP009 per authorized file, got {dict(by_file)}"
+          pathlib.Path('/tmp/up009-by-file-before.json').write_text(json.dumps(dict(sorted(by_file.items())), indent=2, sort_keys=True))
+          PY
+
+          ruff check "${FILES[@]}" --select UP009 --fix
+
+          git diff --name-only --diff-filter=ACMRT | sort > /tmp/actual-paths.txt
+          diff -u /tmp/allowed-paths.txt /tmp/actual-paths.txt
+
+          test "$(head -n 1 glx/tools/doclint.py)" = '#!/usr/bin/env python3'
+          head -n 2 glx/tools/doclint.py > /tmp/doclint-head-after.txt
+
+          set +e
+          ruff check "${FILES[@]}" --select UP009 --output-format json > /tmp/ruff-after-up009.json
+          rc=$?
+          set -e
+          [ "$rc" -le 1 ]
+
+          python - <<'PY'
+          import json, pathlib
+          rows = json.loads(pathlib.Path('/tmp/ruff-after-up009.json').read_text())
+          assert len(rows) == 0, f"scoped UP009 debt not eliminated: {len(rows)} remains"
+          PY
+
+          set +e
+          ruff check . --force-exclude --output-format json > /tmp/ruff-after-full.json
+          rc=$?
+          set -e
+          [ "$rc" -le 1 ]
+
+          python - <<'PY'
+          import collections, json, pathlib
+          before = json.loads(pathlib.Path('/tmp/ruff-before-full.json').read_text())
+          after = json.loads(pathlib.Path('/tmp/ruff-after-full.json').read_text())
+          cb = collections.Counter(r['code'] for r in before)
+          ca = collections.Counter(r['code'] for r in after)
+          regressions = {k: (cb[k], ca[k]) for k in set(cb) | set(ca) if k != 'UP009' and ca[k] > cb[k]}
+          assert not regressions, f"non-UP009 regressions: {regressions}"
+          assert cb['UP009'] - ca['UP009'] == 10, f"full-tree UP009 delta not 10: {cb['UP009']} -> {ca['UP009']}"
+          assert len(after) < len(before), f"full-tree debt did not strictly decrease: {len(before)} -> {len(after)}"
+          summary = {
+              'baseline': '6c8181c278f284fbfee9e5836dbb47cb49aa7602',
+              'ruff_version': 'ruff 0.16.3',
+              'rule': 'UP009',
+              'scoped_before': 10,
+              'scoped_after': 0,
+              'full_total_before': len(before),
+              'full_total_after': len(after),
+              'up009_before': cb['UP009'],
+              'up009_after': ca['UP009'],
+              'non_up009_regressions': regressions,
+              'counts_before': dict(sorted(cb.items())),
+              'counts_after': dict(sorted(ca.items())),
+              'shebang_preserved': True,
+          }
+          pathlib.Path('/tmp/b1b-a-summary-pretests.json').write_text(json.dumps(summary, indent=2, sort_keys=True))
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+
+          python -m compileall -q "${FILES[@]}"
+          PYTHONPATH="${GITHUB_WORKSPACE}" pytest -q
+
+          git config user.name "LION B1B-A Executor"
+          git config user.email "actions@users.noreply.github.com"
+          git add -- "${FILES[@]}"
+          git diff --cached --name-only | sort > /tmp/staged-paths.txt
+          diff -u /tmp/allowed-paths.txt /tmp/staged-paths.txt
+          git commit -m "B1B-A: apply bounded UP009 fixes"
+          CANDIDATE_SHA=$(git rev-parse HEAD)
+          echo "$CANDIDATE_SHA" > /tmp/candidate-sha.txt
+
+          python -m glx.tools.delta_fingerprint --range "${BASELINE}..${CANDIDATE_SHA}"
+          python -m glx.tools.invariants_check --range "${BASELINE}..${CANDIDATE_SHA}"
+
+          git diff --name-only "${BASELINE}..${CANDIDATE_SHA}" | sort > /tmp/committed-paths.txt
+          diff -u /tmp/allowed-paths.txt /tmp/committed-paths.txt
+
+          python - <<'PY'
+          import json, pathlib
+          p = pathlib.Path('/tmp/b1b-a-summary-pretests.json')
+          s = json.loads(p.read_text())
+          s.update({
+              'compile': 'PASS',
+              'pytest': 'PASS',
+              'invariants': 'PASS',
+              'candidate_sha': pathlib.Path('/tmp/candidate-sha.txt').read_text().strip(),
+              'candidate_branch': 'mission/glitchlab-ruff-debt-17-b1b-a-up009',
+              'changed_paths': pathlib.Path('/tmp/committed-paths.txt').read_text().splitlines(),
+          })
+          pathlib.Path('/tmp/b1b-a-summary.json').write_text(json.dumps(s, indent=2, sort_keys=True))
+          print(json.dumps(s, indent=2, sort_keys=True))
+          PY
+
+          git push --force-with-lease origin "HEAD:refs/heads/${CANDIDATE_BRANCH}"
+
+      - name: Upload B1B-A verification evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: glitchlab-ruff-debt-17-b1b-a
+          path: |
+            /tmp/ruff-version.txt
+            /tmp/allowed-paths.txt
+            /tmp/actual-paths.txt
+            /tmp/staged-paths.txt
+            /tmp/committed-paths.txt
+            /tmp/ruff-before-full.json
+            /tmp/ruff-after-full.json
+            /tmp/ruff-before-up009.json
+            /tmp/ruff-after-up009.json
+            /tmp/up009-by-file-before.json
+            /tmp/doclint-head-before.txt
+            /tmp/doclint-head-after.txt
+            /tmp/b1b-a-summary-pretests.json
+            /tmp/b1b-a-summary.json
+            /tmp/candidate-sha.txt
+            glitchlab/.glx/delta_report.json
+            glitchlab/.glx/commit_analysis.json
+            glitchlab/.glx/spec_state.json
+          if-no-files-found: warn
+          include-hidden-files: true
