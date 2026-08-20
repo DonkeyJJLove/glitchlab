@@ -1,0 +1,117 @@
+name: Ruff Debt 17 B0 Measurement
+
+on:
+  push:
+    branches:
+      - measure/glitchlab-ruff-debt-17-b0
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact baseline
+        uses: actions/checkout@v6
+        with:
+          ref: 7a06d479f5e0c6d68174eecb585eed22c7e40792
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - name: Install CI-equivalent dev environment
+        run: |
+          python -m pip install -U pip
+          python -m pip install "setuptools<81"
+          pip install -e .[dev]
+          ruff --version | tee /tmp/ruff-version.txt
+
+      - name: Measure configured full-tree policy
+        shell: bash
+        run: |
+          set +e
+          ruff check . --force-exclude --output-format json > /tmp/ruff-full.json
+          rc=$?
+          set -e
+          if [ "$rc" -gt 1 ]; then
+            exit "$rc"
+          fi
+
+      - name: Prepare suppressed-rule measurement config
+        shell: bash
+        run: |
+          cat > /tmp/ruff-suppressed.toml <<'EOF'
+          line-length = 100
+          target-version = "py39"
+          [lint]
+          select = ["E402", "E701", "E702", "E731", "E741", "F811", "F841"]
+          ignore = []
+          EOF
+
+      - name: Measure suppressed legacy rules
+        shell: bash
+        run: |
+          set +e
+          ruff check . --force-exclude --config /tmp/ruff-suppressed.toml --output-format json > /tmp/ruff-suppressed.json
+          rc=$?
+          set -e
+          if [ "$rc" -gt 1 ]; then
+            exit "$rc"
+          fi
+
+      - name: Summarize measurement
+        run: |
+          python - <<'PY'
+          import collections
+          import json
+          import pathlib
+
+          def summarize(path):
+              rows = json.loads(pathlib.Path(path).read_text())
+              by_code = collections.Counter()
+              by_file = collections.Counter()
+              fixable = 0
+              unfixable = 0
+              for row in rows:
+                  code = row.get("code")
+                  fn = row.get("filename")
+                  by_code[code] += 1
+                  by_file[fn] += 1
+                  if row.get("fix") is None:
+                      unfixable += 1
+                  else:
+                      fixable += 1
+              return {
+                  "total": len(rows),
+                  "fixable": fixable,
+                  "unfixable": unfixable,
+                  "counts_by_code": dict(sorted(by_code.items())),
+                  "counts_by_file": dict(sorted(by_file.items())),
+              }
+
+          out = {
+              "baseline": "7a06d479f5e0c6d68174eecb585eed22c7e40792",
+              "ruff_version": pathlib.Path('/tmp/ruff-version.txt').read_text().strip(),
+              "configured_policy": summarize('/tmp/ruff-full.json'),
+              "suppressed_rule_inventory": summarize('/tmp/ruff-suppressed.json'),
+              "suppressed_rules_requested": ["E402","E701","E702","E731","E741","F811","F841"],
+          }
+          pathlib.Path('/tmp/ruff-summary.json').write_text(json.dumps(out, indent=2, sort_keys=True))
+          print(json.dumps(out, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload measurement evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: glitchlab-ruff-debt-17-b0
+          path: |
+            /tmp/ruff-version.txt
+            /tmp/ruff-full.json
+            /tmp/ruff-suppressed.json
+            /tmp/ruff-summary.json
+          if-no-files-found: error
