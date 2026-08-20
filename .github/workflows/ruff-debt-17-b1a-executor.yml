@@ -34,7 +34,7 @@ jobs:
           test "$(ruff --version)" = "ruff 0.16.3"
           ruff --version | tee /tmp/ruff-version.txt
 
-      - name: Execute bounded UP006 transformation and verify
+      - name: Execute bounded UP006 plus induced F401 closure and verify
         env:
           BASELINE: 7a06d479f5e0c6d68174eecb585eed22c7e40792
           CANDIDATE_BRANCH: mission/glitchlab-ruff-debt-17-b1a-up006
@@ -63,17 +63,25 @@ jobs:
           set -e
           [ "$rc" -le 1 ]
 
+          set +e
+          ruff check "${FILES[@]}" --select F401 --output-format json > /tmp/ruff-before-f401.json
+          rc=$?
+          set -e
+          [ "$rc" -le 1 ]
+
           python - <<'PY'
           import json, pathlib
-          rows = json.loads(pathlib.Path('/tmp/ruff-before-up006.json').read_text())
-          assert len(rows) == 231, f"expected 231 scoped UP006 findings, got {len(rows)}"
-          assert all(r.get('code') == 'UP006' for r in rows), 'non-UP006 finding in scoped baseline'
+          up = json.loads(pathlib.Path('/tmp/ruff-before-up006.json').read_text())
+          f401 = json.loads(pathlib.Path('/tmp/ruff-before-f401.json').read_text())
+          assert len(up) == 231, f"expected 231 scoped UP006 findings, got {len(up)}"
+          assert all(r.get('code') == 'UP006' for r in up), 'non-UP006 finding in scoped baseline'
+          assert len(f401) == 0, f"expected scoped F401 baseline 0, got {len(f401)}"
           PY
 
           ruff check "${FILES[@]}" --select UP006 --fix --unsafe-fixes
 
-          git diff --name-only --diff-filter=ACMRT | sort > /tmp/actual-paths.txt
-          diff -u /tmp/allowed-paths.txt /tmp/actual-paths.txt
+          git diff --name-only --diff-filter=ACMRT | sort > /tmp/actual-paths-after-up006.txt
+          diff -u /tmp/allowed-paths.txt /tmp/actual-paths-after-up006.txt
 
           set +e
           ruff check "${FILES[@]}" --select UP006 --output-format json > /tmp/ruff-after-up006.json
@@ -81,10 +89,37 @@ jobs:
           set -e
           [ "$rc" -le 1 ]
 
+          set +e
+          ruff check "${FILES[@]}" --select F401 --output-format json > /tmp/ruff-induced-f401.json
+          rc=$?
+          set -e
+          [ "$rc" -le 1 ]
+
           python - <<'PY'
           import json, pathlib
-          rows = json.loads(pathlib.Path('/tmp/ruff-after-up006.json').read_text())
-          assert len(rows) == 0, f"scoped UP006 debt not eliminated: {len(rows)} remains"
+          up = json.loads(pathlib.Path('/tmp/ruff-after-up006.json').read_text())
+          f401 = json.loads(pathlib.Path('/tmp/ruff-induced-f401.json').read_text())
+          assert len(up) == 0, f"scoped UP006 debt not eliminated: {len(up)} remains"
+          assert len(f401) > 0, 'UP006 produced no scoped F401 closure findings; expected induced closure set'
+          assert all(r.get('code') == 'F401' for r in f401), 'non-F401 finding in induced closure set'
+          pathlib.Path('/tmp/induced-f401-count.txt').write_text(str(len(f401)))
+          PY
+
+          ruff check "${FILES[@]}" --select F401 --fix
+
+          git diff --name-only --diff-filter=ACMRT | sort > /tmp/actual-paths.txt
+          diff -u /tmp/allowed-paths.txt /tmp/actual-paths.txt
+
+          set +e
+          ruff check "${FILES[@]}" --select F401 --output-format json > /tmp/ruff-after-f401.json
+          rc=$?
+          set -e
+          [ "$rc" -le 1 ]
+
+          python - <<'PY'
+          import json, pathlib
+          rows = json.loads(pathlib.Path('/tmp/ruff-after-f401.json').read_text())
+          assert len(rows) == 0, f"induced scoped F401 debt not eliminated: {len(rows)} remains"
           PY
 
           set +e
@@ -101,20 +136,27 @@ jobs:
           cb = collections.Counter(r['code'] for r in before)
           ca = collections.Counter(r['code'] for r in after)
           regressions = {k: (cb[k], ca[k]) for k in set(cb) | set(ca) if k != 'UP006' and ca[k] > cb[k]}
-          assert not regressions, f"non-UP006 regressions: {regressions}"
+          assert not regressions, f"non-UP006 regressions after closure: {regressions}"
+          assert cb['F401'] == 0 and ca['F401'] == 0, f"F401 closure invariant failed: {cb['F401']} -> {ca['F401']}"
           assert ca['UP006'] < cb['UP006'], f"UP006 did not decrease: {cb['UP006']} -> {ca['UP006']}"
-          assert len(after) <= len(before), f"full-tree debt increased: {len(before)} -> {len(after)}"
+          assert len(after) < len(before), f"full-tree debt did not strictly decrease: {len(before)} -> {len(after)}"
 
           summary = {
               'baseline': '7a06d479f5e0c6d68174eecb585eed22c7e40792',
               'ruff_version': 'ruff 0.16.3',
-              'rule': 'UP006',
-              'scoped_before': 231,
-              'scoped_after': 0,
+              'primary_rule': 'UP006',
+              'closure_rule': 'F401',
+              'scoped_up006_before': 231,
+              'scoped_up006_after': 0,
+              'scoped_f401_baseline': 0,
+              'induced_f401_after_up006': int(pathlib.Path('/tmp/induced-f401-count.txt').read_text()),
+              'scoped_f401_after_closure': 0,
               'full_total_before': len(before),
               'full_total_after': len(after),
               'up006_before': cb['UP006'],
               'up006_after': ca['UP006'],
+              'f401_before': cb['F401'],
+              'f401_after': ca['F401'],
               'non_up006_regressions': regressions,
               'counts_before': dict(sorted(cb.items())),
               'counts_after': dict(sorted(ca.items())),
@@ -131,7 +173,7 @@ jobs:
           git add -- "${FILES[@]}"
           git diff --cached --name-only | sort > /tmp/staged-paths.txt
           diff -u /tmp/allowed-paths.txt /tmp/staged-paths.txt
-          git commit -m "B1A: apply bounded UP006 fixes"
+          git commit -m "B1A: apply bounded UP006 fixes with induced F401 closure"
           CANDIDATE_SHA=$(git rev-parse HEAD)
           echo "$CANDIDATE_SHA" > /tmp/candidate-sha.txt
 
@@ -167,6 +209,7 @@ jobs:
           path: |
             /tmp/ruff-version.txt
             /tmp/allowed-paths.txt
+            /tmp/actual-paths-after-up006.txt
             /tmp/actual-paths.txt
             /tmp/staged-paths.txt
             /tmp/committed-paths.txt
@@ -174,6 +217,10 @@ jobs:
             /tmp/ruff-after-full.json
             /tmp/ruff-before-up006.json
             /tmp/ruff-after-up006.json
+            /tmp/ruff-before-f401.json
+            /tmp/ruff-induced-f401.json
+            /tmp/ruff-after-f401.json
+            /tmp/induced-f401-count.txt
             /tmp/b1a-summary-pretests.json
             /tmp/b1a-summary.json
             /tmp/candidate-sha.txt
