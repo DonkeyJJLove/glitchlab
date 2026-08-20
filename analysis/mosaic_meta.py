@@ -8,7 +8,7 @@ import hashlib
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Mapping, Optional
 
 __all__ = [
     "MosaicCore", "Cell", "MosaicMeta",
@@ -23,23 +23,23 @@ __all__ = [
 @dataclass(frozen=True)
 class Cell:
     id: int
-    center: Tuple[int, int]   # (x, y) px w canvasie
+    center: tuple[int, int]   # (x, y) px w canvasie
     row: int                  # dedukowane
     col: int                  # dedukowane
 
 @dataclass(frozen=True)
 class MosaicCore:
     mode: str                 # "square" | "hex"
-    size: Tuple[int, int]     # (W, H)
-    cells: List[Cell]         # uporządkowane lewo→prawo, góra→dół
+    size: tuple[int, int]     # (W, H)
+    cells: list[Cell]         # uporządkowane lewo→prawo, góra→dół
     raster: Optional[Any] = None
 
 @dataclass
 class MosaicMeta:
     version: str
-    meta: Dict[str, Any]
-    cells: Dict[int, Dict[str, Any]]
-    edges: List[Tuple[int, int]]
+    meta: dict[str, Any]
+    cells: dict[int, dict[str, Any]]
+    edges: list[tuple[int, int]]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ def _try_get(d: Mapping[str, Any], *path: str, default=None):
         cur = cur[k]
     return cur
 
-def _deduce_grid_xy(cells_raw: List[Mapping[str, Any]]) -> Tuple[List[int], List[int]]:
+def _deduce_grid_xy(cells_raw: list[Mapping[str, Any]]) -> tuple[list[int], list[int]]:
     xs = sorted({int(c["center"][0]) for c in cells_raw if isinstance(c.get("center"), (list, tuple))})
     ys = sorted({int(c["center"][1]) for c in cells_raw if isinstance(c.get("center"), (list, tuple))})
     return xs, ys
@@ -113,7 +113,7 @@ def _coerce_core(delta_or_core: Mapping[str, Any]) -> MosaicCore:
             # indeks r,c dedukujemy przez najbliższe pozycje w xs, ys
             xs_i = {x: i for i, x in enumerate(xs)}
             ys_i = {y: i for i, y in enumerate(ys)}
-            cells: List[Cell] = []
+            cells: list[Cell] = []
             for c in cells_raw:
                 cid = int(c.get("id", len(cells)))
                 x, y = int(c["center"][0]), int(c["center"][1])
@@ -128,7 +128,7 @@ def _coerce_core(delta_or_core: Mapping[str, Any]) -> MosaicCore:
     cols = int(_try_get(delta_or_core, "grid", "cols", default=_try_get(delta_or_core, "layout", "cols", default=0)) or 0)
     size = tuple(_try_get(delta_or_core, "size", default=(1024, 768)))  # type: ignore
     W, H = int(size[0]), int(size[1])
-    cells: List[Cell] = []
+    cells: list[Cell] = []
     if rows > 0 and cols > 0:
         sx, sy = W / max(1, cols), H / max(1, rows)
         for r in range(rows):
@@ -138,7 +138,7 @@ def _coerce_core(delta_or_core: Mapping[str, Any]) -> MosaicCore:
                 cells.append(Cell(id=idx, center=(cx, cy), row=r, col=c))
     return MosaicCore(mode="square", size=(W, H), cells=cells, raster=None)
 
-def _coerce_edges_per_cell(delta: Mapping[str, Any], N: int) -> Optional[List[float]]:
+def _coerce_edges_per_cell(delta: Mapping[str, Any], N: int) -> Optional[list[float]]:
     for key in ("edges_per_cell", "edge", "edges"):
         arr = _try_get(delta, key)
         if isinstance(arr, (list, tuple)) and len(arr) >= N:
@@ -148,7 +148,7 @@ def _coerce_edges_per_cell(delta: Mapping[str, Any], N: int) -> Optional[List[fl
     # fallback: files[].edge|impact|dS/dH/dZ
     files = _try_get(delta, "files") or _try_get(delta, "changed_files")
     if isinstance(files, list) and files:
-        vals: List[float] = []
+        vals: list[float] = []
         for it in files[:N]:
             try:
                 if "edge" in it: v = float(it["edge"])
@@ -163,9 +163,9 @@ def _coerce_edges_per_cell(delta: Mapping[str, Any], N: int) -> Optional[List[fl
         return vals[:N]
     return None
 
-def _coerce_block_stats(delta: Mapping[str, Any]) -> Dict[Tuple[int, int], Dict[str, float]]:
+def _coerce_block_stats(delta: Mapping[str, Any]) -> dict[tuple[int, int], dict[str, float]]:
     obj = _try_get(delta, "block_stats") or _try_get(delta, "blocks", "stats") or _try_get(delta, "mosaic", "block_stats")
-    out: Dict[Tuple[int, int], Dict[str, float]] = {}
+    out: dict[tuple[int, int], dict[str, float]] = {}
     if obj is None:
         return out
     if isinstance(obj, Mapping):
@@ -189,7 +189,7 @@ def _coerce_block_stats(delta: Mapping[str, Any]) -> Dict[Tuple[int, int], Dict[
                 out[(i, j)] = v
     return out
 
-def _coerce_roi(delta: Mapping[str, Any], N: int) -> Optional[List[float]]:
+def _coerce_roi(delta: Mapping[str, Any], N: int) -> Optional[list[float]]:
     roi = _try_get(delta, "roi") or _try_get(delta, "roi_mask")
     if roi is None:
         idxs = _try_get(delta, "roi_indices") or _try_get(delta, "hot", "indices")
@@ -229,13 +229,13 @@ def _coerce_roi(delta: Mapping[str, Any], N: int) -> Optional[List[float]]:
 # Budowa siatki, sąsiedztwa i cech strukturalnych
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _grid_dims(cells: List[Cell]) -> Tuple[int, int]:
+def _grid_dims(cells: list[Cell]) -> tuple[int, int]:
     rows = (max(c.row for c in cells) + 1) if cells else 0
     cols = (max(c.col for c in cells) + 1) if cells else 0
     return rows, cols
 
-def _adj_square(rows: int, cols: int, diag: bool=False) -> List[Tuple[int,int]]:
-    edges: List[Tuple[int,int]] = []
+def _adj_square(rows: int, cols: int, diag: bool=False) -> list[tuple[int,int]]:
+    edges: list[tuple[int,int]] = []
     def idx(r: int, c: int) -> int: return r*cols + c
     for r in range(rows):
         for c in range(cols):
@@ -253,11 +253,11 @@ def _adj_square(rows: int, cols: int, diag: bool=False) -> List[Tuple[int,int]]:
                         if u < v: edges.append((u,v))
     return edges
 
-def _adj_hex_odd_r(rows: int, cols: int) -> List[Tuple[int,int]]:
+def _adj_hex_odd_r(rows: int, cols: int) -> list[tuple[int,int]]:
     """
     Odd-r offset (częste w bibliotekach). 6-sąsiedztwo.
     """
-    edges: List[Tuple[int,int]] = []
+    edges: list[tuple[int,int]] = []
     def idx(r: int, c: int) -> int: return r*cols + c
     for r in range(rows):
         for c in range(cols):
@@ -282,18 +282,18 @@ def _ring_index_hex(r: int, c: int, rows: int, cols: int) -> int:
     dr, dc = r - cr, c - cc
     return int(max(abs(dr), abs(dc), abs(dr + dc*0.5)) + 0.5)
 
-def _label_propagation(n: int, edges: List[Tuple[int,int]], weight: Optional[List[float]]=None, iters: int=10) -> List[int]:
+def _label_propagation(n: int, edges: list[tuple[int,int]], weight: Optional[list[float]]=None, iters: int=10) -> list[int]:
     """
     Bardzo proste LP: każdy node przyjmuje najczęstszą etykietę sąsiadów (ważoną, jeśli weight istnieje).
     """
     labels = list(range(n))
-    adj: List[List[int]] = [[] for _ in range(n)]
+    adj: list[list[int]] = [[] for _ in range(n)]
     for u,v in edges:
         adj[u].append(v); adj[v].append(u)
     for _ in range(iters):
         changed = 0
         for u in range(n):
-            votes: Dict[int, float] = {}
+            votes: dict[int, float] = {}
             for v in adj[u]:
                 w = 1.0
                 if weight is not None:
@@ -317,7 +317,7 @@ def _label_propagation(n: int, edges: List[Tuple[int,int]], weight: Optional[Lis
         out.append(uniq[lab])
     return out
 
-def _quantiles(vals: List[float], qs=(0.25, 0.5, 0.75, 0.9, 0.99)) -> Dict[str, float]:
+def _quantiles(vals: list[float], qs=(0.25, 0.5, 0.75, 0.9, 0.99)) -> dict[str, float]:
     v = sorted(x for x in vals if isinstance(x, (int, float)))
     n = len(v)
     if n == 0:
@@ -351,19 +351,19 @@ def build_mosaic_meta(delta_or_core: Mapping[str, Any]) -> MosaicMeta:
         max_deg = 4
 
     # map (r,c)->cell.id (przyjęliśmy sort r→c, więc idx==r*cols+c, ale zabezpieczmy)
-    rc_to_id: Dict[Tuple[int,int], int] = {}
+    rc_to_id: dict[tuple[int,int], int] = {}
     for i, cell in enumerate(core.cells):
         rc_to_id[(cell.row, cell.col)] = cell.id if cell.id is not None else i
 
     # cechy per-cell
     W, H = core.size
-    cells_payload: Dict[int, Dict[str, Any]] = {}
+    cells_payload: dict[int, dict[str, Any]] = {}
     deg = [0]*N
     for u,v in adj:
         deg[u] += 1; deg[v] += 1
 
-    edges_local: List[float] = []
-    entr_local: List[float] = []
+    edges_local: list[float] = []
+    entr_local: list[float] = []
 
     # przygotuj szybki dostęp do block_stats
     # zakładamy mapę (bx,by) -> {...}; nasze r,c to by=row, bx=col
@@ -374,7 +374,7 @@ def build_mosaic_meta(delta_or_core: Mapping[str, Any]) -> MosaicMeta:
             except Exception: return None
         return None
 
-    rings: List[int] = []
+    rings: list[int] = []
 
     for i, cell in enumerate(core.cells):
         r, c = cell.row, cell.col
@@ -404,7 +404,7 @@ def build_mosaic_meta(delta_or_core: Mapping[str, Any]) -> MosaicMeta:
 
     # globalne metryki
     roi_cov = sum(roi)/max(1, len(roi))
-    meta: Dict[str, Any] = {
+    meta: dict[str, Any] = {
         "mode": core.mode,
         "size": {"W": W, "H": H},
         "rows": rows, "cols": cols, "cells": N,

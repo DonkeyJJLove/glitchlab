@@ -31,7 +31,7 @@ import fnmatch
 import re
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Callable
+from typing import Optional, Callable
 
 # ── Artefakty (fallback, jeśli moduł nieobecny) ───────────────────────────────
 try:
@@ -113,22 +113,22 @@ class ScopeSpec:
       - fallback: kolejność alternatywnych poziomów, gdy brak wyników
     """
     level: str = "module"                              # project|module|file|func|bus|custom
-    center: List[str] = field(default_factory=list)    # wzorce id/label/path
+    center: list[str] = field(default_factory=list)    # wzorce id/label/path
     depth: int = 1
-    allowed_edges: Set[str] = field(default_factory=lambda: {"import", "define", "call", "link", "use", "rpc"})
-    allowed_kinds: Set[str] = field(default_factory=lambda: {"module", "file", "func", "topic"})
+    allowed_edges: set[str] = field(default_factory=lambda: {"import", "define", "call", "link", "use", "rpc"})
+    allowed_kinds: set[str] = field(default_factory=lambda: {"module", "file", "func", "topic"})
     max_nodes: int = 400
     field: Optional[FieldFilter] = field(default_factory=FieldFilter)
     pan: Optional[PanSpec] = field(default_factory=PanSpec)
-    fallback: List[str] = field(default_factory=lambda: ["module", "file", "func"])
+    fallback: list[str] = field(default_factory=lambda: ["module", "file", "func"])
 
 
 @dataclass
 class ScopeResult:
     """Wynik metasoczewki."""
     graph_sub: ProjectGraph
-    anchors: List[str]
-    metrics: Dict[str, object]  # nodes_total, edges_total, by_kind, AST_S/H/Z (raw), itp.
+    anchors: list[str]
+    metrics: dict[str, object]  # nodes_total, edges_total, by_kind, AST_S/H/Z (raw), itp.
 
 
 # =============================================================================
@@ -141,15 +141,15 @@ def _glob_or_regex(pattern: str, text: str) -> bool:
     return fnmatch.fnmatch(text, pattern) or bool(re.search(pattern, text))
 
 
-def _match_node(n: Node, patterns: List[str]) -> bool:
+def _match_node(n: Node, patterns: list[str]) -> bool:
     if not patterns:
         return False
     hay = [n.id, n.label, str(n.meta.get("path", ""))]
     return any(any(_glob_or_regex(p, h) for h in hay) for p in patterns)
 
 
-def _neighbors(G: ProjectGraph, nid: str, allowed_edges: Set[str]) -> List[str]:
-    out: List[str] = []
+def _neighbors(G: ProjectGraph, nid: str, allowed_edges: set[str]) -> list[str]:
+    out: list[str] = []
     for e in G.edges:
         if e.kind not in allowed_edges:
             continue
@@ -160,7 +160,7 @@ def _neighbors(G: ProjectGraph, nid: str, allowed_edges: Set[str]) -> List[str]:
     return out
 
 
-def _degree(G: ProjectGraph, nid: str, allowed_edges: Set[str]) -> int:
+def _degree(G: ProjectGraph, nid: str, allowed_edges: set[str]) -> int:
     d = 0
     for e in G.edges:
         if e.kind not in allowed_edges:
@@ -170,7 +170,7 @@ def _degree(G: ProjectGraph, nid: str, allowed_edges: Set[str]) -> int:
     return d
 
 
-def _default_allowed_kinds_for_level(level: str) -> Set[str]:
+def _default_allowed_kinds_for_level(level: str) -> set[str]:
     lv = (level or "module").lower()
     if lv == "project":
         return {"project", "module", "topic"}
@@ -185,7 +185,7 @@ def _default_allowed_kinds_for_level(level: str) -> Set[str]:
     return {"module", "file", "func", "topic"}  # custom/domyslnie
 
 
-def _pick_anchors(G: ProjectGraph, spec: ScopeSpec) -> List[str]:
+def _pick_anchors(G: ProjectGraph, spec: ScopeSpec) -> list[str]:
     """Wybierz anchory: dopasowanie wzorców lub fallback: top-degree w preferowanych kinds."""
     # 1) dopasowanie wzorców
     cand = [nid for nid, n in G.nodes.items() if n.kind in spec.allowed_kinds and _match_node(n, spec.center)]
@@ -206,15 +206,15 @@ def _pick_anchors(G: ProjectGraph, spec: ScopeSpec) -> List[str]:
     return list(G.nodes.keys())[:1]
 
 
-def _bfs_window(G: ProjectGraph, starts: List[str], spec: ScopeSpec) -> Set[str]:
+def _bfs_window(G: ProjectGraph, starts: list[str], spec: ScopeSpec) -> set[str]:
     """Ograniczony BFS z filtracją typów, budżetem i promieniem."""
     if not starts:
         return set()
-    visited: Set[str] = set()
+    visited: set[str] = set()
     frontier = list(starts)
     depth = 0
     while frontier and len(visited) < spec.max_nodes and depth <= spec.depth:
-        nxt: List[str] = []
+        nxt: list[str] = []
         for nid in frontier:
             if nid in visited:
                 continue
@@ -234,10 +234,10 @@ def _bfs_window(G: ProjectGraph, starts: List[str], spec: ScopeSpec) -> Set[str]
 
 def _apply_field_filter(
     G: ProjectGraph,
-    keep: Set[str],
+    keep: set[str],
     spec: ScopeSpec,
-    resolve: Callable[[FieldSpec], Dict[str, float]],
-) -> Set[str]:
+    resolve: Callable[[FieldSpec], dict[str, float]],
+) -> set[str]:
     """Filtr pola operacyjnego (top-K / próg)."""
     if not spec.field or not keep:
         return keep
@@ -266,19 +266,19 @@ def _apply_field_filter(
 
 def _pan_anchors(
     G: ProjectGraph,
-    anchors: List[str],
+    anchors: list[str],
     pan: PanSpec,
-    allowed_edges: Set[str],
-    resolve: Callable[[FieldSpec], Dict[str, float]],
-) -> List[str]:
+    allowed_edges: set[str],
+    resolve: Callable[[FieldSpec], dict[str, float]],
+) -> list[str]:
     """Przesuń anchory po grafie po sąsiadach maksymalizujących wskazane pole."""
     if not anchors or pan.steps <= 0:
         return anchors
 
     field_map = resolve(FieldSpec(name=pan.field, normalize=True))
-    cur: Set[str] = set(anchors)
+    cur: set[str] = set(anchors)
     for _ in range(max(0, pan.steps)):
-        nxt: Set[str] = set(cur) if pan.keep_anchors else set()
+        nxt: set[str] = set(cur) if pan.keep_anchors else set()
         for a in list(cur):
             nbrs = _neighbors(G, a, allowed_edges)
             if not nbrs:
@@ -297,7 +297,7 @@ def _pan_anchors(
 # Podgraf i metryki
 # =============================================================================
 
-def _subgraph_from_ids(G: ProjectGraph, ids: Set[str]) -> ProjectGraph:
+def _subgraph_from_ids(G: ProjectGraph, ids: set[str]) -> ProjectGraph:
     out = ProjectGraph()
     for nid in ids:
         if nid in G.nodes:
@@ -309,8 +309,8 @@ def _subgraph_from_ids(G: ProjectGraph, ids: Set[str]) -> ProjectGraph:
     return out
 
 
-def _aggregate_counts_by_kind(G: ProjectGraph) -> Dict[str, int]:
-    by_kind: Dict[str, int] = {}
+def _aggregate_counts_by_kind(G: ProjectGraph) -> dict[str, int]:
+    by_kind: dict[str, int] = {}
     for n in G.nodes.values():
         by_kind[n.kind] = by_kind.get(n.kind, 0) + 1
     return by_kind
@@ -319,7 +319,7 @@ def _aggregate_counts_by_kind(G: ProjectGraph) -> Dict[str, int]:
 def _sum_field_on_subgraph(
     sub: ProjectGraph,
     field_name: str,
-    resolve: Callable[[FieldSpec], Dict[str, float]],
+    resolve: Callable[[FieldSpec], dict[str, float]],
 ) -> float:
     """Suma *nienormalizowanych* wartości danego pola na podgrafie."""
     vals = resolve(FieldSpec(name=field_name, normalize=False))
@@ -337,7 +337,7 @@ def build_meta_view(
     spec: ScopeSpec,
     graph: Optional[ProjectGraph] = None,
     *,
-    resolve: Callable[[FieldSpec], Dict[str, float]] = None,
+    resolve: Callable[[FieldSpec], dict[str, float]] = None,
 ) -> ScopeResult:
     """
     Buduje widok metasoczewki na globalnym grafie:
@@ -351,7 +351,7 @@ def build_meta_view(
     G = graph or _load_or_build_graph()
     if resolve is None:
         # opakowanie analysis.fields.resolve_field na sygnaturę: FieldSpec -> dict
-        def _default_resolver(fs: FieldSpec) -> Dict[str, float]:
+        def _default_resolver(fs: FieldSpec) -> dict[str, float]:
             return resolve_field(fs)
         resolve = _default_resolver
 
@@ -417,7 +417,7 @@ def export_meta_view(
     *,
     spec: ScopeSpec,
     name_hint: Optional[str] = None,
-) -> Tuple[Path, Path]:
+) -> tuple[Path, Path]:
     """
     Zapis JSON/DOT do .glx/graphs/meta_<level>_<name>.{json,dot}.
     Zwraca (json_path, dot_path).

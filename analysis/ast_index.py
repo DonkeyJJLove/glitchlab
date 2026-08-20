@@ -38,7 +38,7 @@ import re
 import tempfile
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Iterable, Optional
 
 # Lokalny (opcjonalny) import do odczytu z gita
 try:
@@ -73,9 +73,9 @@ class DefItem:
     kind: str                     # "function" | "async_function" | "class" | "method" | "async_method"
     lineno: int
     col: int
-    args: List[str] = field(default_factory=list)     # funkcje/metody
+    args: list[str] = field(default_factory=list)     # funkcje/metody
     returns: Optional[str] = None                     # str(ast.unparse) jeżeli dostępne
-    decorators: List[str] = field(default_factory=list)
+    decorators: list[str] = field(default_factory=list)
     public: bool = True
 
 
@@ -116,11 +116,11 @@ class GlxTag:
 @dataclass
 class AstIndex:
     file_path: str
-    defs: Dict[str, DefItem]                  # map qualname -> DefItem
-    calls: List[CallItem]
-    uses: List[UseItem]
-    imports: List[ImportItem]
-    tags: List[GlxTag]
+    defs: dict[str, DefItem]                  # map qualname -> DefItem
+    calls: list[CallItem]
+    uses: list[UseItem]
+    imports: list[ImportItem]
+    tags: list[GlxTag]
     # zwięzłe metryki S/H/Z
     S: int
     H: int
@@ -128,8 +128,8 @@ class AstIndex:
     alpha: float
     beta: float
     # etykiety (do szybkich statystyk)
-    labels: List[str]
-    per_label: Dict[str, int]
+    labels: list[str]
+    per_label: dict[str, int]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -144,8 +144,8 @@ class AstNodeLite:
     parent: Optional[int]
     lineno: Optional[int]
     col: Optional[int]
-    children: List[int] = field(default_factory=list)
-    meta: Tuple[float, float, float, float, float, float] = (0, 0, 0, 0, 0, 0)
+    children: list[int] = field(default_factory=list)
+    meta: tuple[float, float, float, float, float, float] = (0, 0, 0, 0, 0, 0)
 
 
 @dataclass
@@ -157,9 +157,9 @@ class AstSummary:
     maxZ: int
     alpha: float
     beta: float
-    nodes: Dict[int, AstNodeLite]
-    labels: List[str]
-    per_label: Dict[str, int]
+    nodes: dict[int, AstNodeLite]
+    labels: list[str]
+    per_label: dict[str, int]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ _W_H = {
 def _clamp01(x: float) -> float:
     return 0.0 if x <= 0 else (1.0 if x >= 1.0 else float(x))
 
-def _entropy(proportions: List[float]) -> float:
+def _entropy(proportions: list[float]) -> float:
     ps = [p for p in proportions if p > 0]
     if not ps:
         return 0.0
@@ -199,9 +199,9 @@ def _entropy(proportions: List[float]) -> float:
     Hmax = math.log2(len(ps)) if len(ps) > 1 else 1.0
     return _clamp01(H / Hmax)
 
-def _label_props(labels: List[str]) -> Dict[str, float]:
+def _label_props(labels: list[str]) -> dict[str, float]:
     n = max(1, len(labels))
-    counts: Dict[str, int] = {}
+    counts: dict[str, int] = {}
     for label in labels:
         counts[label] = counts.get(label, 0) + 1
     return {k: v / n for k, v in counts.items()}
@@ -209,7 +209,7 @@ def _label_props(labels: List[str]) -> Dict[str, float]:
 def is_import(a: ast.AST) -> bool:
     return isinstance(a, (ast.Import, ast.ImportFrom))
 
-def _node_meta(a: ast.AST, depth: int, siblings: int, label_props_global: Dict[str, float]) -> Tuple[float, float, float, float, float, float]:
+def _node_meta(a: ast.AST, depth: int, siblings: int, label_props_global: dict[str, float]) -> tuple[float, float, float, float, float, float]:
     is_ctrl = isinstance(a, _CONTROL_NODES)
     is_def = isinstance(a, _DEF_NODES)
     is_call = isinstance(a, _CALL_NODES)
@@ -284,8 +284,8 @@ def _parse_tag_value(raw: str) -> object:
         return [t.strip() for t in s.split(",") if t.strip()]
     return s  # proste value (np. nazwa portu)
 
-def parse_glx_tags_from_source(src: str, file_path: str = "<memory>") -> List[GlxTag]:
-    tags: List[GlxTag] = []
+def parse_glx_tags_from_source(src: str, file_path: str = "<memory>") -> list[GlxTag]:
+    tags: list[GlxTag] = []
     for i, line in enumerate(src.splitlines(), start=1):
         for m in _GLX_RE.finditer(line):
             key = m.group(1).strip()
@@ -294,7 +294,7 @@ def parse_glx_tags_from_source(src: str, file_path: str = "<memory>") -> List[Gl
             tags.append(GlxTag(key=key, value=val, line=i, col=m.start(), raw=line.rstrip("\n"), file_path=file_path))
     return tags
 
-def glx_tags_to_grammar_events(tags: Iterable[GlxTag], component: Optional[str] = None) -> List[Dict[str, object]]:
+def glx_tags_to_grammar_events(tags: Iterable[GlxTag], component: Optional[str] = None) -> list[dict[str, object]]:
     """
     Minimalna projekcja tagów do „zdarzeń gramatyki” (lekki adapter pod EGDB).
     - topic.publish:   → {'kind':'topic_publish','topic':t, 'component':component}
@@ -302,7 +302,7 @@ def glx_tags_to_grammar_events(tags: Iterable[GlxTag], component: Optional[str] 
     - topic.request_reply: „A->B” lub {'request':A,'reply':B}
     Inne tagi przepuszczamy jako 'meta' do ewentualnej dalszej projekcji.
     """
-    ev: List[Dict[str, object]] = []
+    ev: list[dict[str, object]] = []
     for t in tags:
         k = t.key.lower()
         v = t.value
@@ -359,12 +359,12 @@ def _attr_to_dotted(n: ast.AST) -> Optional[str]:
 class _IdxVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
         # stos scope do budowy qualname
-        self.scope: List[str] = []
-        self.defs: Dict[str, DefItem] = {}
-        self.uses: List[UseItem] = []
-        self.calls: List[CallItem] = []
-        self.imports: List[ImportItem] = []
-        self.labels: List[str] = []
+        self.scope: list[str] = []
+        self.defs: dict[str, DefItem] = {}
+        self.uses: list[UseItem] = []
+        self.calls: list[CallItem] = []
+        self.imports: list[ImportItem] = []
+        self.labels: list[str] = []
         # S/H/Z
         self.S = 0
         self.H = 0
@@ -534,7 +534,7 @@ def ast_index_of_rev(path: str, rev: str = "HEAD") -> Optional[AstIndex]:
 
 def ast_summary_of_source(src: str, file_path: str = "<memory>") -> AstSummary:
     idx = ast_index_of_source(src, file_path=file_path)
-    nodes: Dict[int, AstNodeLite] = {}
+    nodes: dict[int, AstNodeLite] = {}
     nodes[0] = AstNodeLite(id=0, label="Module", depth=0, parent=None, lineno=1, col=0, children=[], meta=(0.6, 0.5, 0.5, 0.6, 0.5, 0.5))
     return AstSummary(
         file_path=file_path,
@@ -565,8 +565,8 @@ def ast_summary_of_rev(path: str, rev: str = "HEAD") -> Optional[AstSummary]:
         return None
     return ast_summary_of_source(src, f"{rev}:{path}")
 
-def summarize_labels(labels: List[str]) -> Dict[str, int]:
-    out: Dict[str, int] = {}
+def summarize_labels(labels: list[str]) -> dict[str, int]:
+    out: dict[str, int] = {}
     for l in labels:
         out[l] = out.get(l, 0) + 1
     return out
@@ -579,7 +579,7 @@ def summarize_labels(labels: List[str]) -> Dict[str, int]:
 _DEF_KIND_FUN = {"function", "async_function", "method", "async_method"}
 _DEF_KIND_CLASS = {"class"}
 
-def _estimate_block_lengths(lines: List[str], def_lines: List[int]) -> List[int]:
+def _estimate_block_lengths(lines: list[str], def_lines: list[int]) -> list[int]:
     """
     Heurystycznie szacuje długości bloków (funkcje/klasy) w liniach:
     - sortuje wszystkie linie definicji (def/class),
@@ -589,20 +589,20 @@ def _estimate_block_lengths(lines: List[str], def_lines: List[int]) -> List[int]
         return []
     total = len(lines)
     xs = sorted(int(x) for x in def_lines if x > 0 and x <= total)
-    lens: List[int] = []
+    lens: list[int] = []
     for i, ln in enumerate(xs):
         next_ln = xs[i + 1] if i + 1 < len(xs) else total + 1
         L = max(1, int(next_ln) - int(ln))
         lens.append(L)
     return lens
 
-def _read_lines(path: Path) -> List[str]:
+def _read_lines(path: Path) -> list[str]:
     try:
         return path.read_text(encoding="utf-8", errors="ignore").splitlines()
     except Exception:
         return path.read_text(encoding="latin-1", errors="replace").splitlines()
 
-def _per_file_quality(idx: AstIndex) -> Dict[str, object]:
+def _per_file_quality(idx: AstIndex) -> dict[str, object]:
     """
     Zwraca:
       - num_funcs, num_classes
@@ -633,7 +633,7 @@ def _per_file_quality(idx: AstIndex) -> Dict[str, object]:
         if k is not None and k < len(all_lens):
             cls_lens.append(all_lens[k])
 
-    def _avg(xs: List[int]) -> float:
+    def _avg(xs: list[int]) -> float:
         return float(sum(xs) / len(xs)) if xs else 0.0
 
     # liczniki tagów
@@ -657,7 +657,7 @@ def _per_file_quality(idx: AstIndex) -> Dict[str, object]:
         "request_reply_count": int(rr),
     }
 
-def ast_summary_simple_of_file(path: str | Path) -> Optional[Dict[str, object]]:
+def ast_summary_simple_of_file(path: str | Path) -> Optional[dict[str, object]]:
     """
     Lekka projekcja metryk na słownik {S,H,Z,alpha,beta,num_funcs,num_classes,avg_*_len_lines,publish/subscribe/rr}.
     Nie modyfikuje istniejącego API (ast_summary_of_file nadal zwraca dataclass).
@@ -680,11 +680,11 @@ def ast_summary_simple_of_file(path: str | Path) -> Optional[Dict[str, object]]:
 # Eksport zbiorczy: .glx/graphs/ast_index.json
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _iter_py_files(root: Path) -> List[Path]:
+def _iter_py_files(root: Path) -> list[Path]:
     """
     Zwraca listę plików *.py z pominięciem .git/, .glx/, __pycache__/, venv*/, .venv*/
     """
-    out: List[Path] = []
+    out: list[Path] = []
     skip_parts = {".git", ".glx", "__pycache__", "venv", ".venv"}
     for p in root.rglob("*.py"):
         parts = set(p.parts)
@@ -719,7 +719,7 @@ def _get_glx_dir(base: Optional[Path] = None) -> Path:
     p.mkdir(parents=True, exist_ok=True)
     return p
 
-def _atomic_write_json(path: Path, payload: Dict[str, object]) -> None:
+def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:
     data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile("wb", delete=False, dir=str(path.parent)) as tmp:
@@ -746,7 +746,7 @@ def export_ast_index_json(repo_root: Optional[Path] = None) -> Path:
     root = Path(repo_root) if repo_root else Path.cwd()
     files = _iter_py_files(root)
 
-    result: Dict[str, Dict[str, object]] = {}
+    result: dict[str, dict[str, object]] = {}
     for p in files:
         rec = ast_summary_simple_of_file(p)
         if rec is not None:
@@ -767,7 +767,7 @@ def export_ast_index_json(repo_root: Optional[Path] = None) -> Path:
 # CLI – szybka inspekcja / eksport
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _cli(argv: Optional[List[str]] = None) -> None:
+def _cli(argv: Optional[list[str]] = None) -> None:
     import argparse
 
     p = argparse.ArgumentParser(prog="analysis.ast_index", description="Indeks AST (defs/uses/calls/imports) + #glx-tags + S/H/Z + eksport zbiorczy")

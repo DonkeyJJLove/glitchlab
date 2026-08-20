@@ -17,7 +17,7 @@ import json
 import math
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
-from typing import Any, Dict, Optional, List, Tuple, Iterable, Union
+from typing import Any, Optional, Iterable, Union
 
 # ── Artefakty (.glx/*) z fallbackiem ─────────────────────────────────────────
 try:
@@ -78,9 +78,9 @@ class FieldSpec:
     name: str
     normalize: bool = True
     aggregate: str = "mean"
-    blend: Optional[List[Dict[str, Union[str, float]]]] = None
+    blend: Optional[list[dict[str, Union[str, float]]]] = None
     note: str = ""
-    params: Dict[str, Any] = field(default_factory=dict)  # dla sim_shz/dist_shz itd.
+    params: dict[str, Any] = field(default_factory=dict)  # dla sim_shz/dist_shz itd.
 
 # ── Prosty model grafu (na potrzeby pól) ─────────────────────────────────────
 @dataclass(frozen=True)
@@ -88,7 +88,7 @@ class _Node:
     id: str
     kind: str
     label: str
-    meta: Dict[str, Any]
+    meta: dict[str, Any]
 
 @dataclass(frozen=True)
 class _Edge:
@@ -97,7 +97,7 @@ class _Edge:
     kind: str
 
 class _SimpleGraph:
-    def __init__(self, nodes: Dict[str, _Node], edges: List[_Edge], meta: Dict[str, Any]) -> None:
+    def __init__(self, nodes: dict[str, _Node], edges: list[_Edge], meta: dict[str, Any]) -> None:
         self.nodes = nodes
         self.edges = edges
         self.meta = meta
@@ -149,8 +149,8 @@ def _glx_path(af: GlxArtifacts, rel: str, repo_root: Path) -> Path:
     base = _glx_dir_from_af(af, repo_root)
     return (base / rel).resolve()
 
-def _payload_to_graph(payload: Dict[str, Any]) -> _SimpleGraph:
-    nmap: Dict[str, _Node] = {}
+def _payload_to_graph(payload: dict[str, Any]) -> _SimpleGraph:
+    nmap: dict[str, _Node] = {}
     nodes = payload.get("nodes") or []
     if isinstance(nodes, dict):
         items = [{"id": k, **(v or {})} for k, v in nodes.items()]
@@ -166,7 +166,7 @@ def _payload_to_graph(payload: Dict[str, Any]) -> _SimpleGraph:
             label=str(it.get("label", nid)),
             meta=dict(it.get("meta") or {}),
         )
-    edges_list: List[_Edge] = []
+    edges_list: list[_Edge] = []
     for e in payload.get("edges") or []:
         try:
             edges_list.append(_Edge(str(e.get("src")), str(e.get("dst")), str(e.get("kind", "link"))))
@@ -191,7 +191,7 @@ def _try_build_graph(repo_root: Path) -> Optional[_SimpleGraph]:
         return None
 
 # ── Normalizacja i agregacja ─────────────────────────────────────────────────
-def _minmax_norm(d: Dict[str, float]) -> Dict[str, float]:
+def _minmax_norm(d: dict[str, float]) -> dict[str, float]:
     if not d:
         return {}
     vals = list(d.values())
@@ -216,9 +216,9 @@ def _aggregate(values: Iterable[float], mode: str) -> float:
 class _Index:
     def __init__(self, G: _SimpleGraph) -> None:
         self.G = G
-        self.files_by_module: Dict[str, List[str]] = {}
-        self.funcs_by_file: Dict[str, List[str]] = {}
-        self.file_path_by_node: Dict[str, str] = {}
+        self.files_by_module: dict[str, list[str]] = {}
+        self.funcs_by_file: dict[str, list[str]] = {}
+        self.file_path_by_node: dict[str, str] = {}
         self._build()
     def _build(self) -> None:
         for nid, n in self.G.nodes.items():
@@ -254,9 +254,9 @@ class FieldsRegistry:
         self._smells = _safe_read_json(self.af, "quality/code_smells.json")
         self._delta = _safe_read_json(self.af, "delta_report.json")
         self._ast_snapshot = _safe_read_json(self.af, "graphs/ast_index.json")
-        self._cache: Dict[str, Dict[str, float]] = {}
+        self._cache: dict[str, dict[str, float]] = {}
 
-    def available(self) -> Dict[str, str]:
+    def available(self) -> dict[str, str]:
         base = {
             "degree": "continuous",
             "in_degree": "continuous",
@@ -285,7 +285,7 @@ class FieldsRegistry:
                 pass
         return base
 
-    def resolve(self, spec: Union[str, FieldSpec, Dict]) -> Dict[str, float]:
+    def resolve(self, spec: Union[str, FieldSpec, dict]) -> dict[str, float]:
         if isinstance(spec, str):
             fs = FieldSpec(name=spec)
         elif isinstance(spec, dict):
@@ -320,7 +320,7 @@ class FieldsRegistry:
         return {nid: 0.0 for nid in self.G.nodes.keys()}
 
     # ── Implementacje pól ─────────────────────────────────────────────────────
-    def _resolve_graph_field(self, fs: FieldSpec) -> Dict[str, float]:
+    def _resolve_graph_field(self, fs: FieldSpec) -> dict[str, float]:
         if not self.fc:
             return {nid: 0.0 for nid in self.G.nodes.keys()}
         name = fs.name.strip().lower()
@@ -345,11 +345,11 @@ class FieldsRegistry:
             return {nid: float(v) for nid, v in data.items()}
         return data
 
-    def _resolve_local_edge_density(self, fs: FieldSpec) -> Dict[str, float]:
+    def _resolve_local_edge_density(self, fs: FieldSpec) -> dict[str, float]:
         if "edge_density" in self._cache:
             d = self._cache["edge_density"]
             return _minmax_norm(d) if fs.normalize else d
-        neighbors: Dict[str, set] = {nid: set() for nid in self.G.nodes.keys()}
+        neighbors: dict[str, set] = {nid: set() for nid in self.G.nodes.keys()}
         undirected = set()
         for e in self.G.edges:
             if e.src == e.dst:
@@ -358,7 +358,7 @@ class FieldsRegistry:
             neighbors[e.dst].add(e.src)
             a, b = (e.src, e.dst) if e.src < e.dst else (e.dst, e.src)
             undirected.add((a, b))
-        density: Dict[str, float] = {}
+        density: dict[str, float] = {}
         for nid, nbrs in neighbors.items():
             k = len(nbrs)
             if k <= 1:
@@ -378,9 +378,9 @@ class FieldsRegistry:
         self._cache["edge_density"] = density
         return _minmax_norm(density) if fs.normalize else density
 
-    def _resolve_ast_SHZ(self, fs: FieldSpec) -> Dict[str, float]:
+    def _resolve_ast_SHZ(self, fs: FieldSpec) -> dict[str, float]:
         which = fs.name.strip().lower().split("_", 1)[-1]  # 's'|'h'|'z'
-        per_path: Dict[str, Tuple[float, float, float]] = {}
+        per_path: dict[str, tuple[float, float, float]] = {}
         if isinstance(self._ast_snapshot, dict) and "files" in self._ast_snapshot:
             files = self._ast_snapshot["files"]
             if isinstance(files, dict):
@@ -394,7 +394,7 @@ class FieldsRegistry:
                         per_path[str(p)] = (S, H, Z)
                     except (TypeError, ValueError):
                         continue
-        def _get_SHZ_for_path(path: str) -> Tuple[float, float, float]:
+        def _get_SHZ_for_path(path: str) -> tuple[float, float, float]:
             if path in per_path:
                 return per_path[path]
             if ast_summary_of_file is None:
@@ -406,12 +406,12 @@ class FieldsRegistry:
                 return (float(getattr(s, "S", 0.0)), float(getattr(s, "H", 0.0)), float(getattr(s, "Z", 0.0)))
             except Exception:
                 return (0.0, 0.0, 0.0)
-        per_file_val: Dict[str, float] = {}
+        per_file_val: dict[str, float] = {}
         for fid, path in self.idx.file_path_by_node.items():
             S, H, Z = _get_SHZ_for_path(path)
             v = S if which == "s" else (H if which == "h" else Z)
             per_file_val[fid] = float(v)
-        out: Dict[str, float] = {}
+        out: dict[str, float] = {}
         out.update(per_file_val)
         for mid, file_ids in self.idx.files_by_module.items():
             vals = [per_file_val.get(fid, 0.0) for fid in file_ids]
@@ -425,9 +425,9 @@ class FieldsRegistry:
                 out[nid] = 0.0
         return _minmax_norm(out) if fs.normalize else out
 
-    def _resolve_quality(self, fs: FieldSpec) -> Dict[str, float]:
+    def _resolve_quality(self, fs: FieldSpec) -> dict[str, float]:
         name = fs.name.strip().lower()
-        per_file: Dict[str, float] = {}
+        per_file: dict[str, float] = {}
         if name == "test_coverage" and isinstance(self._coverage, dict):
             src = self._coverage.get("files") if "files" in self._coverage else self._coverage
             if isinstance(src, dict):
@@ -443,7 +443,7 @@ class FieldsRegistry:
         else:
             for fid in self.idx.file_path_by_node.keys():
                 per_file[fid] = 0.0
-        out: Dict[str, float] = {}
+        out: dict[str, float] = {}
         out.update(per_file)
         for mid, file_ids in self.idx.files_by_module.items():
             vals = [per_file.get(fid, 0.0) for fid in file_ids]
@@ -457,8 +457,8 @@ class FieldsRegistry:
                 out[nid] = 0.0
         return _minmax_norm(out) if fs.normalize else out
 
-    def _resolve_delta(self, fs: FieldSpec) -> Dict[str, float]:
-        changed: Dict[str, Dict[str, float]] = {}
+    def _resolve_delta(self, fs: FieldSpec) -> dict[str, float]:
+        changed: dict[str, dict[str, float]] = {}
         if isinstance(self._delta, dict):
             files = self._delta.get("files")
             if isinstance(files, list):
@@ -472,8 +472,8 @@ class FieldsRegistry:
                         changed[p] = {"churn": add + dele, "recent": 1.0}
                     except Exception:
                         continue
-        per_file_churn: Dict[str, float] = {}
-        per_file_recent: Dict[str, float] = {}
+        per_file_churn: dict[str, float] = {}
+        per_file_recent: dict[str, float] = {}
         for fid, path in self.idx.file_path_by_node.items():
             info = changed.get(path)
             if info:
@@ -483,7 +483,7 @@ class FieldsRegistry:
                 per_file_churn[fid] = 0.0
                 per_file_recent[fid] = 0.0
         target = per_file_churn if fs.name.strip().lower() == "churn" else per_file_recent
-        out: Dict[str, float] = {}
+        out: dict[str, float] = {}
         out.update(target)
         for mid, file_ids in self.idx.files_by_module.items():
             vals = [target.get(fid, 0.0) for fid in file_ids]
@@ -497,8 +497,8 @@ class FieldsRegistry:
                 out[nid] = 0.0
         return _minmax_norm(out) if fs.normalize else out
 
-    def _resolve_shz_similarity(self, fs: FieldSpec) -> Dict[str, float]:
-        def _get_SHZ_for_path(path: str) -> Tuple[float, float, float]:
+    def _resolve_shz_similarity(self, fs: FieldSpec) -> dict[str, float]:
+        def _get_SHZ_for_path(path: str) -> tuple[float, float, float]:
             if isinstance(self._ast_snapshot, dict):
                 rec = (self._ast_snapshot.get("files") or {}).get(path) if "files" in self._ast_snapshot else None
                 if isinstance(rec, dict):
@@ -516,7 +516,7 @@ class FieldsRegistry:
             except Exception:
                 return (0.0, 0.0, 0.0)
 
-        file_SHZ: Dict[str, Tuple[float, float, float]] = {}
+        file_SHZ: dict[str, tuple[float, float, float]] = {}
         for fid, path in self.idx.file_path_by_node.items():
             file_SHZ[fid] = _get_SHZ_for_path(path)
 
@@ -524,7 +524,7 @@ class FieldsRegistry:
         ws, wh, wz = fs.params.get("weights", [1.0, 1.0, 0.25])
         ws, wh, wz = float(ws), float(wh), float(wz)
 
-        def _percentile(vals: List[float], p: float) -> float:
+        def _percentile(vals: list[float], p: float) -> float:
             if not vals:
                 return 0.0
             vals = sorted(vals)
@@ -543,7 +543,7 @@ class FieldsRegistry:
         Zs = [Z for (_, _, Z) in file_SHZ.values()]
         R = (_percentile(Ss, perc), _percentile(Hs, perc), _percentile(Zs, perc))
 
-        per_file_dist: Dict[str, float] = {}
+        per_file_dist: dict[str, float] = {}
         max_d = 1e-9
         for fid, (S, H, Z) in file_SHZ.items():
             d = math.sqrt(ws * (S - R[0]) ** 2 + wh * (H - R[1]) ** 2 + wz * (Z - R[2]) ** 2)
@@ -553,18 +553,18 @@ class FieldsRegistry:
         for fid in per_file_dist.keys():
             per_file_dist[fid] = per_file_dist[fid] / max_d if max_d > 0 else 0.0
 
-        per_module: Dict[str, float] = {}
+        per_module: dict[str, float] = {}
         for mid, file_ids in self.idx.files_by_module.items():
             vals = [per_file_dist.get(fid, 0.0) for fid in file_ids]
             per_module[mid] = _aggregate(vals, fs.aggregate)
-        per_func: Dict[str, float] = {}
+        per_func: dict[str, float] = {}
         for fid, fns in self.idx.funcs_by_file.items():
             v = per_file_dist.get(fid, 0.0)
             for fn in fns:
                 per_func[fn] = v
 
         want_sim = (fs.name.strip().lower() == "sim_shz")
-        out: Dict[str, float] = {}
+        out: dict[str, float] = {}
         for nid in self.G.nodes.keys():
             n = self.G.nodes[nid]
             if n.kind == "file":
@@ -580,11 +580,11 @@ class FieldsRegistry:
             out[nid] = float(max(0.0, min(1.0, v)))
         return out
 
-    def _resolve_blend(self, fs: FieldSpec) -> Dict[str, float]:
+    def _resolve_blend(self, fs: FieldSpec) -> dict[str, float]:
         parts = fs.blend or []
         if not parts:
             return {nid: 0.0 for nid in self.G.nodes.keys()}
-        comp: List[Tuple[Dict[str, float], float]] = []
+        comp: list[tuple[dict[str, float], float]] = []
         for item in parts:
             fname = str(item.get("field", "")).strip()
             w = float(item.get("w", 1.0))
@@ -592,18 +592,18 @@ class FieldsRegistry:
                 continue
             sub = self.resolve(FieldSpec(name=fname, normalize=True))
             comp.append((sub, w))
-        out: Dict[str, float] = {nid: 0.0 for nid in self.G.nodes.keys()}
+        out: dict[str, float] = {nid: 0.0 for nid in self.G.nodes.keys()}
         for sub, w in comp:
             for nid, v in sub.items():
                 out[nid] = out.get(nid, 0.0) + w * float(v)
         return _minmax_norm(out) if fs.normalize else out
 
 # ── Funkcja modułowa (tolerancja na nieznane kwargs) ─────────────────────────
-def resolve_field(spec: Union[str, FieldSpec, Dict], repo_root: Optional[Path] = None, **_ignored) -> Dict[str, float]:
+def resolve_field(spec: Union[str, FieldSpec, dict], repo_root: Optional[Path] = None, **_ignored) -> dict[str, float]:
     return FieldsRegistry(repo_root).resolve(spec)
 
 # ── CLI (podgląd/eksport) ────────────────────────────────────────────────────
-def run_cli(argv: Optional[List[str]] = None) -> int:
+def run_cli(argv: Optional[list[str]] = None) -> int:
     p = argparse.ArgumentParser(prog="fields", description="Rejestr pól operacyjnych (export JSON)")
     p.add_argument("name", help="Nazwa pola (np. pagerank, ast_s, sim_shz, dist_shz, blend)")
     p.add_argument("--spec", help="Ścieżka do JSON spec (dla parametryzacji, np. sim_shz/dist_shz/blend)")
