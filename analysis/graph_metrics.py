@@ -15,7 +15,7 @@ import json
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Optional
 
 from glitchlab.analysis.project_graph import ProjectGraph, build_project_graph
 # artefakty
@@ -54,14 +54,14 @@ class GraphMetricsConfig:
     lpa_max_iter: int = 20                # Label Propagation (na grafie zsymetryzowanym)
     symmetrize_for_lpa: bool = True
 
-def _nodes_sorted(g: ProjectGraph) -> List[str]:
+def _nodes_sorted(g: ProjectGraph) -> list[str]:
     return sorted(g.nodes.keys())
 
-def _adjacency(g: ProjectGraph, *, directed: bool, use_weights: bool) -> Tuple[Dict[str, List[Tuple[str, float]]],
-                                                                               Dict[str, List[Tuple[str, float]]]]:
+def _adjacency(g: ProjectGraph, *, directed: bool, use_weights: bool) -> tuple[dict[str, list[tuple[str, float]]],
+                                                                               dict[str, list[tuple[str, float]]]]:
     """Zwraca (adj_out, adj_in). Gdy directed=False, adj_in=adj_out (symetryzacja)."""
-    adj_out: Dict[str, List[Tuple[str, float]]] = {nid: [] for nid in g.nodes.keys()}
-    adj_in: Dict[str, List[Tuple[str, float]]] = {nid: [] for nid in g.nodes.keys()}
+    adj_out: dict[str, list[tuple[str, float]]] = {nid: [] for nid in g.nodes.keys()}
+    adj_in: dict[str, list[tuple[str, float]]] = {nid: [] for nid in g.nodes.keys()}
     for e in g.edges:
         w = float(e.weight) if use_weights else 1.0
         if e.src not in adj_out or e.dst not in adj_in:
@@ -79,7 +79,7 @@ def _adjacency(g: ProjectGraph, *, directed: bool, use_weights: bool) -> Tuple[D
             d[k].sort(key=lambda t: t[0])
     return adj_out, adj_in
 
-def _degree_and_strength(g: ProjectGraph, adj_out, adj_in) -> Tuple[Dict[str,int],Dict[str,int],Dict[str,int],Dict[str,float],Dict[str,float]]:
+def _degree_and_strength(g: ProjectGraph, adj_out, adj_in) -> tuple[dict[str,int],dict[str,int],dict[str,int],dict[str,float],dict[str,float]]:
     deg_out = {nid: len(adj_out.get(nid, [])) for nid in g.nodes}
     deg_in  = {nid: len(adj_in.get(nid, []))  for nid in g.nodes}
     deg_all = {nid: deg_out.get(nid,0) + deg_in.get(nid,0) for nid in g.nodes}
@@ -87,7 +87,7 @@ def _degree_and_strength(g: ProjectGraph, adj_out, adj_in) -> Tuple[Dict[str,int
     str_in  = {nid: sum(w for _, w in adj_in.get(nid, []))  for nid in g.nodes}
     return deg_in, deg_out, deg_all, str_in, str_out
 
-def _pagerank(g: ProjectGraph, adj_out, alpha: float, tol: float, max_iter: int) -> Dict[str, float]:
+def _pagerank(g: ProjectGraph, adj_out, alpha: float, tol: float, max_iter: int) -> dict[str, float]:
     nodes = _nodes_sorted(g)
     N = len(nodes)
     if N == 0:
@@ -119,9 +119,9 @@ def _pagerank(g: ProjectGraph, adj_out, alpha: float, tol: float, max_iter: int)
             break
     return {nodes[i]: float(pr[i]) for i in range(N)}
 
-def _bfs_distances(source: str, adj_out) -> Dict[str, int]:
+def _bfs_distances(source: str, adj_out) -> dict[str, int]:
     """Najkrótsze odległości (bez wag) od 'source' w grafie skierowanym."""
-    dist: Dict[str, int] = {source: 0}
+    dist: dict[str, int] = {source: 0}
     q = [source]
     head = 0
     while head < len(q):
@@ -133,7 +133,7 @@ def _bfs_distances(source: str, adj_out) -> Dict[str, int]:
                 q.append(v)
     return dist
 
-def _select_samples(nodes: List[str], req: int) -> List[str]:
+def _select_samples(nodes: list[str], req: int) -> list[str]:
     N = len(nodes)
     if N == 0:
         return []
@@ -142,7 +142,7 @@ def _select_samples(nodes: List[str], req: int) -> List[str]:
     step = max(1, N // k)
     return [nodes[i] for i in range(0, N, step)][:k]
 
-def _betweenness_approx(g: ProjectGraph, adj_out, adj_in, samples: int) -> Dict[str, float]:
+def _betweenness_approx(g: ProjectGraph, adj_out, adj_in, samples: int) -> dict[str, float]:
     """Brandes z próbkowaniem źródeł (skierowany, bez wag)."""
     nodes = _nodes_sorted(g)
     N = len(nodes)
@@ -155,11 +155,11 @@ def _betweenness_approx(g: ProjectGraph, adj_out, adj_in, samples: int) -> Dict[
     for s in S:
         # jednoczesny BFS do policzenia liczby najkrótszych ścieżek σ oraz poprzedników
         # implementacja „light” (skierowana)
-        Q: List[str] = []
-        Sstack: List[str] = []
-        P: Dict[str, List[str]] = {v: [] for v in nodes}
-        sigma: Dict[str, float] = {v: 0.0 for v in nodes}
-        dist: Dict[str, int] = {v: -1 for v in nodes}
+        Q: list[str] = []
+        Sstack: list[str] = []
+        P: dict[str, list[str]] = {v: [] for v in nodes}
+        sigma: dict[str, float] = {v: 0.0 for v in nodes}
+        dist: dict[str, int] = {v: -1 for v in nodes}
 
         sigma[s] = 1.0
         dist[s] = 0
@@ -175,7 +175,7 @@ def _betweenness_approx(g: ProjectGraph, adj_out, adj_in, samples: int) -> Dict[
                     sigma[w] += sigma[v]
                     P[w].append(v)
 
-        delta: Dict[str, float] = {v: 0.0 for v in nodes}
+        delta: dict[str, float] = {v: 0.0 for v in nodes}
         while Sstack:
             w = Sstack.pop()
             for v in P[w]:
@@ -193,7 +193,7 @@ def _betweenness_approx(g: ProjectGraph, adj_out, adj_in, samples: int) -> Dict[
         CB = [c / mx for c in CB]
     return {nodes[i]: float(CB[i]) for i in range(N)}
 
-def _closeness_harmonic_in(g: ProjectGraph, adj_out, samples: int) -> Dict[str, float]:
+def _closeness_harmonic_in(g: ProjectGraph, adj_out, samples: int) -> dict[str, float]:
     """
     Harmonic closeness (inbound): H(v) = sum_{u != v} 1/d(u,v), liczone przez BFS od próbek u.
     Zwraca wartości dla wszystkich v (bo sumujemy wkłady z próbek).
@@ -222,13 +222,13 @@ def _closeness_harmonic_in(g: ProjectGraph, adj_out, samples: int) -> Dict[str, 
     H = [h / 1.0 for h in H]  # już względne do liczby próbek; zostawmy w tej skali
     return {nodes[i]: float(H[i]) for i in range(N)}
 
-def _label_propagation(g: ProjectGraph, *, symmetrize: bool, max_iter: int) -> Dict[str, int]:
+def _label_propagation(g: ProjectGraph, *, symmetrize: bool, max_iter: int) -> dict[str, int]:
     """Klasyczne LPA na grafie zsymetryzowanym (deterministycznie)."""
     nodes = _nodes_sorted(g)
     if not nodes:
         return {}
     # budujemy sąsiedztwo nieskierowane
-    adj_und: Dict[str, List[str]] = {nid: [] for nid in nodes}
+    adj_und: dict[str, list[str]] = {nid: [] for nid in nodes}
     for e in g.edges:
         u, v = e.src, e.dst
         if u not in adj_und: adj_und[u] = []
@@ -239,13 +239,13 @@ def _label_propagation(g: ProjectGraph, *, symmetrize: bool, max_iter: int) -> D
         adj_und[k].sort()
 
     # inicjalnie etykieta = własne id
-    label: Dict[str, str] = {nid: nid for nid in nodes}
+    label: dict[str, str] = {nid: nid for nid in nodes}
 
     for _ in range(max_iter):
         changed = 0
         # deterministyczna kolejność
         for n in nodes:
-            counts: Dict[str, int] = {}
+            counts: dict[str, int] = {}
             for m in adj_und.get(n, []):
                 lab = label[m]
                 counts[lab] = counts.get(lab, 0) + 1
@@ -317,7 +317,7 @@ def compute_graph_metrics(g: ProjectGraph, cfg: Optional[GraphMetricsConfig] = N
 # CLI
 # ──────────────────────────────────────────────────────────────────────────────
 
-def run_cli(argv: Optional[List[str]] = None) -> int:
+def run_cli(argv: Optional[list[str]] = None) -> int:
     p = argparse.ArgumentParser(prog="graph_metrics", description="Globalne metryki grafowe dla ProjectGraph")
     p.add_argument("--use-existing-graph", help="Ścieżka do .glx/graphs/project_graph.json (opcjonalnie)")
     p.add_argument("--alpha", type=float, default=0.85, help="PageRank α")
