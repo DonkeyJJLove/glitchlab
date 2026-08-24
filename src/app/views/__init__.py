@@ -1,5 +1,4 @@
 # glitchlab/app/views/__init__.py
-# -*- coding: utf-8 -*-
 """
 GlitchLab GTX Views (v4)
 
