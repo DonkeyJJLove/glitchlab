@@ -2,24 +2,24 @@
 from __future__ import annotations
 
 from threading import RLock
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
 __all__ = [
-    "register",
-    "get",
+    "alias",
     "available",
     "canonical",
-    "alias",
+    "get",
     "meta",
+    "register",
     "register_alias",
 ]
 
 # Internal state (lowercased keys)
 _LOCK = RLock()
-_FUNCS: Dict[str, Callable[..., Any]] = {}
-_DEFAULTS: Dict[str, Dict[str, Any]] = {}
-_DOCS: Dict[str, str] = {}
-_ALIASES: Dict[str, str] = {}  # alias_name -> target_canonical (both lowercased)
+_FUNCS: dict[str, Callable[..., Any]] = {}
+_DEFAULTS: dict[str, dict[str, Any]] = {}
+_DOCS: dict[str, str] = {}
+_ALIASES: dict[str, str] = {}  # alias_name -> target_canonical (both lowercased)
 
 
 def _lc(name: str) -> str:
@@ -44,7 +44,7 @@ def canonical(name: str) -> str:
         return key
 
 
-def available() -> List[str]:
+def available() -> list[str]:
     """List canonical registered filter names (sorted)."""
     with _LOCK:
         return sorted(_FUNCS.keys())
@@ -57,7 +57,7 @@ def get(name: str) -> Callable[..., Any]:
         return _FUNCS[key]
 
 
-def meta(name: str) -> Dict[str, Any]:
+def meta(name: str) -> dict[str, Any]:
     """Return metadata: {'name','defaults','doc','aliases'} for the (possibly aliased) name."""
     key = canonical(name)
     with _LOCK:
@@ -98,7 +98,7 @@ def alias(alias_name: str, target_name: str) -> bool:
         return True
 
 
-def register(name: str, defaults: Optional[Dict[str, Any]] = None, doc: Optional[str] = None):
+def register(name: str, defaults: dict[str, Any] | None = None, doc: str | None = None):
     """
     Decorator for registering a filter function with optional defaults/doc.
     Usage:

@@ -32,7 +32,6 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Model i ekstrakcja AST dla jednego pliku (bez zależności zewnętrznych)
@@ -44,7 +43,7 @@ class Node:
     id: str
     kind: str
     label: str
-    meta: Dict[str, object] = field(default_factory=dict)
+    meta: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -56,10 +55,10 @@ class Edge:
 
 @dataclass
 class Graph:
-    nodes: Dict[str, Node] = field(default_factory=dict)
-    edges: List[Edge] = field(default_factory=list)
+    nodes: dict[str, Node] = field(default_factory=dict)
+    edges: list[Edge] = field(default_factory=list)
     version: str = "v1"
-    meta: Dict[str, object] = field(default_factory=dict)
+    meta: dict[str, object] = field(default_factory=dict)
 
     def add_node(self, nid: str, kind: str, label: str, **meta) -> None:
         if nid not in self.nodes:
@@ -75,10 +74,10 @@ def _abs_posix(p: Path) -> str:
 
 class _FileVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
-        self.scope: List[str] = []
-        self.defs: Dict[str, Tuple[str, int]] = {}  # qualname -> (kind, line)
-        self.calls: List[Tuple[str, str, int]] = []  # (scope or <module>, callee, line)
-        self.imports: List[str] = []
+        self.scope: list[str] = []
+        self.defs: dict[str, tuple[str, int]] = {}  # qualname -> (kind, line)
+        self.calls: list[tuple[str, str, int]] = []  # (scope or <module>, callee, line)
+        self.imports: list[str] = []
 
     def _q(self, name: str) -> str:
         return ".".join([*self.scope, name]) if self.scope else name
@@ -130,7 +129,7 @@ class _FileVisitor(ast.NodeVisitor):
                 self.imports.append(a.name.split(".")[0])
 
 
-def _attr_to_dotted(n: ast.AST) -> Optional[str]:
+def _attr_to_dotted(n: ast.AST) -> str | None:
     if isinstance(n, ast.Name):
         return n.id
     if isinstance(n, ast.Attribute):
@@ -157,7 +156,7 @@ def build_file_graph(py_path: Path) -> Graph:
     v.visit(tree)
 
     # defs
-    tail_to_qual: Dict[str, str] = {}
+    tail_to_qual: dict[str, str] = {}
     for qual, (kind, line) in v.defs.items():
         if kind == "class":
             nid = f"class:{qual}"
@@ -210,7 +209,7 @@ def build_file_graph(py_path: Path) -> Graph:
     return g
 
 
-def graph_to_payload(g: Graph) -> Dict[str, object]:
+def graph_to_payload(g: Graph) -> dict[str, object]:
     return {
         "version": g.version,
         "meta": g.meta,
@@ -222,7 +221,7 @@ def graph_to_payload(g: Graph) -> Dict[str, object]:
     }
 
 
-def _script_safe_json(data: Dict[str, object]) -> str:
+def _script_safe_json(data: dict[str, object]) -> str:
     # Prevent </script> breakout from inline script payload.
     return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
 
@@ -603,9 +602,9 @@ setTimeout(()=>Graph.zoomToFit(400,80,()=>true), 200);
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def _script_safe_json(payload: Dict[str, object]) -> str:
+def _script_safe_json(payload: dict[str, object]) -> str:
     data = json.dumps(payload, ensure_ascii=False)
-    return data.replace("</", "<\/").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+    return data.replace("</", r"<\/").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 
 
 def _resolve_glx_graphs_dir(file_path: Path) -> Path:
@@ -620,7 +619,7 @@ def _resolve_glx_graphs_dir(file_path: Path) -> Path:
     return glx
 
 
-def _write_html(payload: Dict[str, object], out_path: Path, title: str) -> Path:
+def _write_html(payload: dict[str, object], out_path: Path, title: str) -> Path:
     from html import escape
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

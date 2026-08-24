@@ -1,6 +1,8 @@
 # tests/property/test_fingerprint.py
-from hypothesis import given, strategies as st
 import importlib
+
+from hypothesis import given
+from hypothesis import strategies as st
 
 df = importlib.import_module("glx.tools.delta_fingerprint")
 

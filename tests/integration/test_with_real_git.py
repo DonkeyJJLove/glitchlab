@@ -1,6 +1,6 @@
 # tests/integration/test_with_real_git.py
-import subprocess
 import importlib
+import subprocess
 import sys
 
 
