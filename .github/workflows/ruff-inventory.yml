@@ -1,0 +1,52 @@
+name: Ruff Policy Inventory
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ruff-policy-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+
+      - name: Install exact Ruff
+        run: python -m pip install --disable-pip-version-check ruff==0.16.4
+
+      - name: Self-test inventory reporter
+        run: python tools/ruff_inventory_report.py --self-test
+
+      - name: Capture policy inventories
+        run: python tools/ruff_inventory_report.py --output ruff-inventory
+
+      - name: Verify tracked source was not modified
+        run: git diff --exit-code -- .
+
+      - name: Upload fixed-name inventory artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ruff-policy-inventory
+          path: ruff-inventory/
+          if-no-files-found: error
+          retention-days: 14
