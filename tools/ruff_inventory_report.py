@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Create a read-only, evidence-bound Ruff policy inventory.
 
 The script never invokes Ruff with ``--fix`` and never edits tracked source. Ruff
@@ -15,11 +14,14 @@ import json
 import pathlib
 import subprocess
 import sys
-import tomllib
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
+import tomllib
 
 EXPECTED_RUFF_VERSION = "ruff 0.16.4"
+
+
 def _scan_definitions(current_ignores: list[str]) -> tuple[tuple[str, tuple[str, ...]], ...]:
     # Ruff's CLI --select takes precedence over file-level rule selection. Repeat
     # the current ignore universe on the CLI so this inventory has unambiguous,
@@ -109,7 +111,9 @@ def _fixability(row: dict[str, Any]) -> str:
     return "available-unspecified"
 
 
-def _counter_rows(counter: collections.Counter[Any], labels: tuple[str, ...]) -> list[dict[str, Any]]:
+def _counter_rows(
+    counter: collections.Counter[Any], labels: tuple[str, ...]
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for key, count in sorted(counter.items()):
         values = key if isinstance(key, tuple) else (key,)
@@ -144,12 +148,8 @@ def summarize(findings: list[dict[str, Any]], root: pathlib.Path) -> dict[str, A
         "by_rule": _counter_rows(by_rule, ("rule",)),
         "by_fixability": _counter_rows(by_fixability, ("fixability",)),
         "by_file_rule": _counter_rows(by_file_rule, ("file", "rule")),
-        "by_file_fixability": _counter_rows(
-            by_file_fixability, ("file", "fixability")
-        ),
-        "by_rule_fixability": _counter_rows(
-            by_rule_fixability, ("rule", "fixability")
-        ),
+        "by_file_fixability": _counter_rows(by_file_fixability, ("file", "fixability")),
+        "by_rule_fixability": _counter_rows(by_rule_fixability, ("rule", "fixability")),
     }
 
 
@@ -196,7 +196,7 @@ def inventory(root: pathlib.Path, output: pathlib.Path) -> None:
     if not isinstance(current_ignores, list) or any(
         not isinstance(value, str) for value in current_ignores
     ):
-        raise RuntimeError("tool.ruff.lint.ignore must be a list of strings")
+        raise TypeError("tool.ruff.lint.ignore must be a list of strings")
 
     universe_argv = ("ruff", "rule", "--all", "--output-format", "json")
     universe_result = _run(universe_argv, root)
@@ -207,7 +207,7 @@ def inventory(root: pathlib.Path, output: pathlib.Path) -> None:
     except json.JSONDecodeError as exc:
         raise RuntimeError("rule universe did not emit valid JSON") from exc
     if not isinstance(universe, list):
-        raise RuntimeError("rule universe emitted an unexpected JSON shape")
+        raise TypeError("rule universe emitted an unexpected JSON shape")
     _write_json(output / "rule-universe.json", universe)
 
     settings_argv = ("ruff", "check", ".", "--show-settings")
