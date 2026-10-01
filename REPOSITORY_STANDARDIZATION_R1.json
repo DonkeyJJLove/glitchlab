@@ -1,0 +1,36 @@
+{
+  "schema": "lion.repository-standardization/v1",
+  "repository": "DonkeyJJLove/glitchlab",
+  "baseline": {
+    "head": "92cc9dacd200d6c2cdf0dbbd892d9db9e7a72d7e",
+    "tree": "3f0673b4744ddd5d589eedf9588823ee6a98c2d1"
+  },
+  "global_standard_owner": "DonkeyJJLove/ai_platform:LION/standards/README.md",
+  "rename_map": [
+    {
+      "from": "bench/README.MD",
+      "to": "bench/README.md"
+    },
+    {
+      "from": "src/README.MD",
+      "to": "src/README.md"
+    }
+  ],
+  "additional_repairs": [
+    "CREATE_CANONICAL_ROOT_README_AND_FIX_PYPROJECT_README"
+  ],
+  "unresolved": [
+    {
+      "path": "temp/",
+      "classification": "UNKNOWN",
+      "reason": "tracked hook-like family; no deletion until dynamic/tool/history consumers are proven absent"
+    },
+    {
+      "path": "src|analysis|core|glx|mosaic|delta",
+      "classification": "UNKNOWN",
+      "reason": "parallel package/subsystem topology requires exact import/entrypoint/plugin graph before consolidation"
+    }
+  ],
+  "delete_effect": "NONE",
+  "authority_effect": "NONE"
+}
