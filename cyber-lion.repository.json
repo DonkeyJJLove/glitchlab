@@ -76,12 +76,15 @@
       "evolution_compiler",
       "delta_analysis",
       "invariants",
-      "structure_graph"
+      "structure_graph",
+      "semantic_invariant_validation",
+      "structural_delta_diagnostics"
     ],
     "semantic_imports": [
       "architecture",
       "contracts",
-      "currentness"
+      "currentness",
+      "semantic_relevance"
     ],
     "repository_dependencies": [
       "DonkeyJJLove/ai_platform"
