@@ -106,18 +106,23 @@
         "currentness": "LOCAL_OWNER"
       },
       {
+        "path": "REPOSITORY_STANDARDIZATION_R1.json",
+        "class": "MACHINE_READABLE_ARCHITECTURE",
+        "currentness": "LOCAL_OWNER"
+      },
+      {
         "path": "docs/10_architecture.md",
         "class": "HUMAN_ARCHITECTURE_DOCUMENT",
         "currentness": "LOCAL_OWNER"
       },
       {
-        "path": "spec/invariants.yaml",
-        "class": "SCHEMA",
+        "path": "glx/federation/delta_provider.py",
+        "class": "CONTRACT",
         "currentness": "LOCAL_OWNER"
       },
       {
-        "path": "REPOSITORY_STANDARDIZATION_R1.json",
-        "class": "MACHINE_READABLE_ARCHITECTURE",
+        "path": "spec/invariants.yaml",
+        "class": "SCHEMA",
         "currentness": "LOCAL_OWNER"
       }
     ],
